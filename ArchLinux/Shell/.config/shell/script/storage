@@ -11,7 +11,8 @@ command -v gdu >/dev/null || { echo "gdu not found"; exit 127; }
 # Print prompt
 printf "\033[1;36mOptions:\033[0m\n"
 printf "\033[38;5;208m  ⤷ 󰎦  Current Working Directory\033[0m\n"
-printf "\033[38;5;208m  ⤷ 󰎩  Disks\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  Disk Usage\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎬  Drive Usage\033[0m\n"
 printf "\033[1;36mYour choice ›\033[0m "
 
 # read user input into variable `ans`; if read fails (Ctrl+D), exit cleanly
@@ -19,7 +20,14 @@ printf "\033[1;36mYour choice ›\033[0m "
 read -r ans || exit 0
 
 case "$ans" in
-  1|cwd|c|"") exec gdu ;;                       # choice 1 (or empty Enter): run gdu on the chosen path
-  2|disks|d)  exec gdu -d ;;                    # choice 2: show disks view
+  1|cwd)
+      exec gdu
+      ;;
+  2|disks)
+      exec df -h
+      ;;
+  3|drive)
+      exec gdu -d
+      ;;
   *) printf "\033[1;31m Not a valid option\033[0m\n"; exit 0 ;;   # anything else: cancel/exit
 esac
