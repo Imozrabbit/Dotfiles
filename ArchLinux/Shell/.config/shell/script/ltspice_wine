@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+set -eu
+
+# LTspice Wine prefix
+export WINEPREFIX="$HOME/.local/share/wineprefixes/LTSpice"
+
+# Stop Wine from generating desktop/menu/mime junk
+export WINEDLLOVERRIDES="winemenubuilder.exe=d"
+
+# Optional: set a sane working dir (change if you want)
+cd "$HOME/Documents/LTspice" 2>/dev/null || true
+
+# Launch LTspice
+exec wine "$WINEPREFIX/drive_c/Program Files/ADI/LTspice/LTspice.exe"

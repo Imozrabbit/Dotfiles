@@ -1,0 +1,124 @@
+* {
+    font: "Atkinson Hyperlegible 13";
+    bg0: #242424cc;
+    bg1: #7E7E7E4d;
+    bg2: #0860f2E6;
+    fg0: #DEDEDE;
+    fg1: #FFFFFF;
+    fg2: #DEDEDE80;
+    background-color: transparent;
+    text-color: @fg0;
+    error: #4A1418CC;
+    margin: 0;
+    padding: 0;
+    spacing: 0;
+}
+window {
+    background-color: @bg0;
+    location: center;
+    width: 500;
+    border-radius: 12;
+}
+mainbox {
+    children: [inputbar, message, listview, mode-switcher];
+}
+
+
+/*--------------------------------------------------*/
+/*-------------------- Inputbar --------------------*/
+/*--------------------------------------------------*/
+inputbar {
+    font: "Atkinson Hyperlegible 16";
+    padding: 12px;
+    spacing: 12px;
+    children: [ icon-search, entry ];
+}
+icon-search {
+    expand: false;
+    filename: "search";
+    size: 30px;
+}
+icon-search, entry, element-icon, element-text {
+    vertical-align: 0.5;
+}
+entry {
+    font: inherit;
+    cursor-color: @fg0;
+}
+
+
+/*--------------------------------------------------*/
+/*-------------------- Message ---------------------*/
+/*--------------------------------------------------*/
+message {
+    border: 1px 0 0;
+    border-color: @bg1;
+    background-color: @bg0;
+}
+textbox {
+    font: "JetBrainsMono Nerd Font Bold 13";
+    vertical-align: 0.5;
+    horizontal-align: 0.5;
+    blink: true;
+    markup: true;
+    padding: 8px 11px 11px 11px;
+    placeholder: "";
+}
+error-message {
+    border: 1px;
+    border-radius: 12px;
+    border-color: @error;
+}
+
+
+/*--------------------------------------------------*/
+/*-------------------- Listview --------------------*/
+/*--------------------------------------------------*/
+listview {
+    lines: 7;
+    columns: 1;
+    fixed-height: false;
+    dynamic: true;
+    border: 1px 0 0;
+    border-color: @bg1;
+}
+element {
+    padding: 8px 16px;
+    spacing: 16px;
+    background-color: transparent;
+    border-radius: 5px;
+}
+element normal active {
+    text-color: @bg2;
+}
+element alternate active {
+    text-color: @bg2;
+}
+element selected normal, element selected active {
+    background-color:   @bg2;
+    text-color:         @fg1;
+}
+element-icon {
+    size:   1.1em;
+}
+element-text {
+    text-color: inherit;
+}
+
+
+/*--------------------------------------------------*/
+/*------------------ Mode-Switcher -----------------*/
+/*--------------------------------------------------*/
+mode-switcher {
+    enabled: true;
+    padding: 8px 0;
+    background-color: transparent;
+}
+button {
+    border-radius: 0px;
+    text-color: inherit;
+    cursor: pointer;
+}
+button selected {
+    text-color: @bg2;
+}

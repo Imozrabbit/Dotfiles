@@ -1,0 +1,21 @@
+@import "~/.config/rofi/themes/spotlight-dark.rasi"
+
+configuration {
+    show-icons: false;
+}
+
+mainbox {
+    children: [inputbar, message, listview];
+}
+
+listview {
+    lines: 5;
+    columns: 5;
+    dynamic: false;
+}
+element {
+    padding: 12px 0px;
+}
+element-text {
+    horizontal-align: 0.5;
+}

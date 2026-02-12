@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -u
+
+printf "\033[1;36m󰍜 Main Menu:\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎦  Board options\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  Core options\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎬  Sketch options\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎮  Compile & Upload\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎰  Library options\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎵  List outdated cores and libraries\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎸  Update & upgrade all\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎻  Monitor\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎾  Exit\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+read -r choice
+
+case "${choice:-}" in
+  1|ls|list)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    /home/Zrabbit/.config/shell/script/Arduino/arduino_board
+    ;;
+  2|core)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    /home/Zrabbit/.config/shell/script/Arduino/arduino_core
+    ;;
+  3|s)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    /home/Zrabbit/.config/shell/script/Arduino/arduino_sketch
+    ;;
+  4|c|u)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    /home/Zrabbit/.config/shell/script/Arduino/arduino_compile_upload
+    ;;
+  5|lib)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    /home/Zrabbit/.config/shell/script/Arduino/arduino_lib
+    ;;
+  6)
+    arduino-cli outdated
+    ;;
+  7)
+    arduino-cli update
+    arduino-cli upgrade
+    ;;
+  8)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    /home/Zrabbit/.config/shell/script/Arduino/arduino_monitor
+    ;;
+  9|q|exit|quit)
+    exit 0
+    ;;
+  *)
+    printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+    exit 1
+    ;;
+esac

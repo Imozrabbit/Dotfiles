@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Setup path variable
+stow_dir="$HOME/Documents/Dotfiles/ArchLinux"
+config_dir="$HOME/.config"
+
+# Simple terminal menu
+printf "\033[1;36m Sync your dotfiles:\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎦  My dotfiles are still in .config\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  My dotfiles are already moved into the stow directory\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎬  Import file into existing stow directory\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎮  Refresh the synchronization after changes in the stow directory\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎰  Undo the synchronization\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎵  Show the sync ignore list\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎸  Quit\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+read -r choice
+
+case "${choice:-}" in
+  1)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    # i. Prompt for entering the config's name in .config folder, list all the available folders for convenience
+    printf "\033[1;36mHere is the list of folders in .config\033[0m\n"
+    ls --color=auto "$config_dir"
+    printf "\033[1;36mEnter the name of the application's config folder to sync ›\033[0m "
+    read -r original_folder_name
+    [ -n "${original_folder_name:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No config name given. Exiting."; exit 1; }
+
+    # ii. Make sure the folder name does not contain subfolders
+    case "$original_folder_name" in
+    *"/"*|*".."*) printf "\033[1;31m%s\033[0m\n" "Invalid folder name (no '/' or '..')."; exit 1 ;;
+    esac
+
+    # iii. Check if it is already synced
+    if [ -L "$config_dir/$original_folder_name" ]; then
+      printf "\033[1;31m%s\033[0m\n" "Failure: $original_folder_name is already synced up."
+      ls --color=auto -l "$config_dir/$original_folder_name"
+      exit 1
+    fi
+
+    # iv. Verify if the config folder exists in .config/ 
+    if [ ! -d "$config_dir/$original_folder_name" ]; then
+      printf "\033[1;31m%s\033[0m\n" "Config folder not found: $config_dir/$original_folder_name"
+      exit 1
+    fi
+    
+    # v. Prompt for entering the folder's name which will appear in the stow directory
+    printf "\033[1;36mEnter the name of the folder that will appear in the stow directory ›\033[0m "
+    read -r stow_folder_name
+    [ -n "${stow_folder_name:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No folder name given. Exiting."; exit 1; }
+
+    # vi. Make sure the folder name does not contain subfolders
+    case "$stow_folder_name" in
+    *"/"*|*".."*) printf "\033[1;31m%s\033[0m\n" "Invalid folder name (no '/' or '..')."; exit 1 ;;
+    esac
+
+    # vii. Verify if the folder exists already in the stow directory
+    if [ -d "$stow_dir/$stow_folder_name" ]; then
+      printf "\033[1;31m%s\033[0m\n" "Folder creation failure: $original_folder_name, name has been taken, here is the list of the stow directory :"
+      ls --color=auto "$stow_dir"
+      exit 1
+    fi
+    
+    # viii. Move the config folder into the stow directory
+    mkdir -p "$stow_dir/$stow_folder_name/.config"
+    mv "$config_dir/$original_folder_name" "$stow_dir/$stow_folder_name/.config/"
+
+    # ix. Stow
+    stow -v -d "$stow_dir" -t "$HOME" "$stow_folder_name"
+    ;;
+
+  2)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    # i. Prompt for entering the folder name in the stow directory
+    printf "\033[1;36mHere is the list of folders in the stow directory\033[0m\n"
+    ls --color=auto "$stow_dir"
+    printf "\033[1;36mEnter the name of the application's config folder to sync ›\033[0m "
+    read -r sync_name
+    [ -n "${sync_name:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No folder name given. Exiting."; exit 1; }
+
+    # ii. Make sure the folder name does not contain subfolders
+    case "$sync_name" in
+    *"/"*|*".."*) printf "\033[1;31m%s\033[0m\n" "Invalid folder name (no '/' or '..')."; exit 1 ;;
+    esac
+
+    # iii. Verify if the folder exists
+    if [ ! -d "$stow_dir/$sync_name" ]; then
+      printf "\033[1;31m%s\033[0m\n" "Folder not found: $sync_name"
+      exit 1
+    fi
+
+    # iv. Check if there is anything to sync (expect .config to exist and be non-empty)
+    if [ ! -d "$stow_dir/$sync_name/.config" ]; then
+        printf "\033[1;31m%s\033[0m\n" "Failure: '$sync_name' has no .config/ directory to sync."
+        exit 1
+    fi
+
+    # v. Check directory has at least one entry
+    if [ -z "$(ls -A "$stow_dir/$sync_name/.config" 2>/dev/null)" ]; then
+        printf "\033[1;31m%s\033[0m\n" "Failure: '$sync_name/.config' is empty. Nothing to sync."
+        exit 1
+    fi
+
+    # vi. Stow
+    stow -v -d "$stow_dir" -t "$HOME" "$sync_name"
+    ;;
+
+  3|adopt)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    printf "\033[1;36mUse --adopt flag, for example :\033[0m\n"
+    printf "\033[1;36mIf you already have dotfiles in ~ (e.g., ~/.zshenv) that aren’t in your stow directory, use the flag to move them into the existing stow folder for zsh:\033[0m\n"
+    printf "\033[1;36mstow -v -d ~/Documents/Dotfiles/ArchLinux -t ~ --adopt Zsh\033[0m\n"
+    printf "\033[1;36mStow moves ~/.zshenv to ~/Documents/Dotfiles/ArchLinux/Zsh and replace the existing dummy .zshenv file.\033[0m\n"
+    printf "\033[1;36mThen creates a symlink from ~/.zshenv to ~/Documents/Dotfiles/ArchLinux/Zsh/.zshenv.\033[0m\n"
+    printf "\033[1;36mYou need to create an empty dummy file like ~/Documents/Dotfiles/ArchLinux/Zsh/.zshenv first.\033[0m\n"
+    ;;
+
+  4|restow|refresh)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    # i. Prompt for entering the folder name in the stow directory
+    printf "\033[1;36mHere is the list of folders in the stow directory\033[0m\n"
+    ls --color=auto "$stow_dir"
+    printf "\033[1;36mEnter the name of the application's config folder to refresh its sync ›\033[0m "
+    read -r refresh_name
+    [ -n "${refresh_name:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No folder name given. Exiting."; exit 1; }
+
+    # ii. Sanitize input
+    case "$refresh_name" in
+        *"/"*|*".."*) printf "\033[1;31m%s\033[0m\n" "Invalid folder name (no '/' or '..')."; exit 1 ;;
+    esac
+
+    # iii. Verify if the folder exists
+    if [ ! -d "$stow_dir/$refresh_name" ]; then
+        printf "\033[1;31m%s\033[0m\n" "Folder not found: $refresh_name"
+        exit 1
+    fi
+
+    # iv. Restow
+    stow -v -R -d "$stow_dir" -t "$HOME" "$refresh_name"
+    ;;
+
+  5|unstow|unsync|undo)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    # i. Prompt for entering the folder name in the stow directory
+    printf "\033[1;36mHere is the list of folders in the stow directory\033[0m\n"
+    ls --color=auto "$stow_dir"
+    printf "\033[1;36mEnter the name of the application's config folder to unsync ›\033[0m "
+    read -r unsync_name
+    [ -n "${unsync_name:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No folder name given. Exiting."; exit 1; }
+
+    # ii. Sanitize input
+    case "$unsync_name" in
+    *"/"*|*".."*) printf "\033[1;31m%s\033[0m\n" "Invalid folder name (no '/' or '..')."; exit 1 ;;
+    esac
+
+    # iii. Verify if the folder exists
+    if [ ! -d "$stow_dir/$unsync_name" ]; then
+      printf "\033[1;31m%s\033[0m\n" "Folder not found: $unsync_name"
+      exit 1
+    fi
+
+    # iv. Unstow
+    stow -v -D -d "$stow_dir" -t "$HOME" "$unsync_name"
+    ;;
+
+  6|ignore)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    # i. Prompt for entering the folder name in the stow directory
+    printf "\033[1;36mHere is the list of folders in stow directory\033[0m "
+    ls --color=auto "$stow_dir"
+    printf "\033[1;36mEnter the name of the application's config folder to see its ignore list ›\033[0m "
+    read -r ignore_folder
+    [ -n "${ignore_folder:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No folder name given. Exiting."; exit 1; }
+
+    # ii. Sanitize input
+    case "$ignore_folder" in
+        *"/"*|*".."*) printf "\033[1;31m%s\033[0m\n" "Invalid folder name (no '/' or '..')."; exit 1 ;;
+    esac
+
+    # iii. Verify if the folder exists
+    if [ ! -d "$stow_dir/$ignore_folder" ]; then
+        printf "\033[1;31m%s\033[0m\n" "Folder not found: $ignore_folder"
+        exit 1
+    fi
+
+    # iv. Verify if the folder exists
+    if [ ! -f "$stow_dir/$ignore_folder/.stow-local-ignore" ]; then
+        printf "\033[1;31m%s\033[0m\n" "No ignore list found, consider create a .stow-local-ignore file inside $ignore_folder"
+        exit 1
+    fi
+
+    # v. Show the ignore list
+    file="$stow_dir/$ignore_folder/.stow-local-ignore"
+    if command -v bat >/dev/null 2>&1; then
+        bat --paging=never "$file"
+    else
+        cat "$file"
+    fi
+    ;;
+
+  7|q|exit|quit)
+    exit 0
+    ;;
+
+  *)
+    printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+    exit 1
+    ;;
+esac

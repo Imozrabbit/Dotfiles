@@ -1,0 +1,13 @@
+@import "~/.config/rofi/themes/spotlight-dark.rasi"
+
+configuration {
+    show-icons: false;
+}
+
+mainbox {
+    children: [inputbar,message,listview];
+}
+
+element {
+    padding: 10px 30px;
+}

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+# -e: exit on error
+# -u: error on unset variables
+# pipefail: a pipeline fails if any command in it fails
+
+# Check that `gdu` exists in PATH; if not, print message and exit (127 = command not found)
+command -v gdu >/dev/null || { echo "gdu not found"; exit 127; }
+
+# Print prompt
+printf "\033[1;36mOptions:\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎦  Current Working Directory\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  Disks\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+
+# read user input into variable `ans`; if read fails (Ctrl+D), exit cleanly
+# -r prevents backslash escapes from being interpreted
+read -r ans || exit 0
+
+case "$ans" in
+  1|cwd|c|"") exec gdu ;;                       # choice 1 (or empty Enter): run gdu on the chosen path
+  2|disks|d)  exec gdu -d ;;                    # choice 2: show disks view
+  *) printf "\033[1;31m Not a valid option\033[0m\n"; exit 0 ;;   # anything else: cancel/exit
+esac

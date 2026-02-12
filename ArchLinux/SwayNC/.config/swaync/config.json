@@ -1,0 +1,129 @@
+{
+    "$schema": "/etc/xdg/swaync/configSchema.json",
+    "ignore-gtk-theme": true,
+    "positionX": "right",
+    "positionY": "top",
+    "layer": "overlay",
+    "control-center-layer": "top",
+    "control-center-positionX": "right",
+    "control-center-positionY": "top",
+    "layer-shell": true,
+    "layer-shell-cover-screen": false,
+    "cssPriority": "user",
+    "control-center-margin-top": 20,
+    "control-center-margin-bottom": 20,
+    "control-center-margin-right": 22,
+    "control-center-margin-left": 0,
+    "notification-2fa-action": true,
+    "notification-inline-replies": true,
+    "notification-body-image-height": 150,
+    "notification-body-image-width": 300,
+    "timeout": 9,
+    "timeout-low": 4,
+    "timeout-critical": 0,
+    "fit-to-screen": false,
+    "relative-timestamps": true,
+    "control-center-width": 350,
+    "control-center-height": 1000,
+    "notification-window-width": 350,
+    "keyboard-shortcuts": true,
+    "notification-grouping": true,
+    "image-visibility": "when-available",
+    "transition-time": 200,
+    "hide-on-clear": false,
+    "hide-on-action": false,
+    "text-empty": "No Notifications",
+    "script-fail-notify": true,
+    "notification-visibility": {
+        "screenshot-prompts-transient": {
+            "state": "transient",
+            "app-name": "^Screenshot$",
+            "summary": "^Screenshot Captured$"
+        }
+    },
+    "widgets": [
+        "title",
+        "buttons-grid",
+        "mpris",
+        "volume",
+        "dnd",
+        "notifications"
+    ],
+    "widget-config": {
+        "notifications": {
+            "vexpand": true
+        },
+        "title": {
+            "text": "  Central Hub",
+            "clear-all-button": true,
+            "button-text": "Clear"
+        },
+        "dnd": {
+            "text": "Do Not Disturb"
+        },
+        "mpris": {
+            "autohide": false,
+            "show-album-art": "always",
+            "loop-carousel": true
+        },
+        "volume": {
+            "device": "default",
+            "label": " ",
+            "slider": true
+        },
+        "buttons-grid": {
+            "buttons-per-row": 4,
+            "actions": [
+                {
+                    "label": " 󰛳 ",
+                    "type": "toggle",
+                    "active": true,
+                    "command": "/home/Zrabbit/.config/shell/script/internet_switch_rofi",
+                    "update-command": "sh -c 'nmcli -g networking general 2>/dev/null | grep -qx enabled && echo true || echo false'"
+                },
+                {
+                    "label": " 󱄠 ",
+                    "type": "normal",
+                    "active": true,
+                    "command": "pavucontrol"
+                },
+                {
+                    "label": " 󰷛 ",
+                    "type": "normal",
+                    "active": true,
+                    "command": "hyprlock"
+                },
+                {
+                    "label": " 󰗽 ",
+                    "type": "normal",
+                    "active": true,
+                    "command": "/home/Zrabbit/.config/shell/script/logout_confirmation_rofi"
+                },
+                {
+                    "label": " 󰏥 ",
+                    "type": "normal",
+                    "active": true,
+                    "command": "/home/Zrabbit/.config/shell/script/suspend_confirmation_rofi"
+                },
+                {
+                    "label": " 󰒲 ",
+                    "type": "normal",
+                    "active": true,
+                    "command": "/home/Zrabbit/.config/shell/script/hibernate_confirmation_rofi"
+                },
+                {
+                    "label": "  ",
+                    "type": "normal",
+                    "active": true,
+                    "command": "/home/Zrabbit/.config/shell/script/reboot_confirmation_rofi"
+                },
+                {
+                    "label": "  ",
+                    "type": "normal",
+                    "active": true,
+                    "command": "/home/Zrabbit/.config/shell/script/poweroff_confirmation_rofi"
+                }
+            ]
+        }
+    }
+}

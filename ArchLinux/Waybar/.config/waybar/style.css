@@ -1,0 +1,238 @@
+* {
+    font-family: "JetBrains Mono Nerd Font Propo";
+    /*font-family: "Atkinson Hyperlegible";*/
+    border: none;
+    box-shadow: none;
+    text-shadow: none;
+    font-weight: bold;
+    font-size: 15px;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+}
+
+
+
+/*---------------------------------------------------------------------*/
+/*---------------                General                ---------------*/
+/*---------------------------------------------------------------------*/
+window#waybar {
+    background-color: transparent;
+    border: 0px;
+}
+
+tooltip {
+    background: rgba(15, 18, 19, 0.8);
+    font-size: 13px;
+    border-radius: 9px;
+    border: 1px solid #101a24;
+}
+
+
+
+/*---------------------------------------------------------------------*/
+/*---------------                 RIGHT                 ---------------*/
+/*---------------------------------------------------------------------*/
+#custom-menu,
+#custom-spacerright,
+#custom-expand,
+#group-minimized,
+#custom-gtk_manager,
+#custom-lact,
+#custom-openrgb,
+#network,
+#pulseaudio,
+#pulseaudio-slider,
+#clock,
+#custom-notification {
+    background: rgba(245, 245, 250, 0.05);
+    color: #A1BDCE;
+    margin: 1px 0px 1px 0px;
+}
+
+#custom-notifications,
+#custom-menu {
+    font-family: "Atkinson Hyperlegible";
+    font-weight: bold;
+    border-top-left-radius: 9px;
+    border-bottom-left-radius: 9px;
+    padding-left: 15px;
+    padding-right: 1px;
+    opacity: 1.0
+}
+
+#custom-lact,
+#custom-openrgb,
+#custom-gtk_manager {
+    font-size: 17px;
+}
+
+#network {
+    color: #A1BDCE;
+    font-weight: bold;
+    padding-right: 10px;
+    padding-left: 10px;
+}
+
+#pulseaudio {
+    font-weight: normal;
+    font-size: 18px;
+    color: #6F8FDB;
+    opacity: 1;
+    padding-left: 5px;
+    padding-right: 10px;
+}
+
+#pulseaudio-slider slider {
+    margin-right: 7px;
+}
+
+#pulseaudio-slider trough {
+    margin-top: 2px;
+    min-width: 80px;
+    min-height: 10px;
+    border-radius: 8px;
+    background: transparent;
+}
+
+#pulseaudio-slider highlight {
+    border-radius: 8px;
+    background-color: #6F8FDB;
+}
+
+#clock {
+    color: #A1BDCE;
+    font-weight: 900;
+    opacity: 1;
+    padding-left: 6px;
+    padding-right: 10px;
+}
+
+#custom-notification {
+    font-size: 18px;
+    color: #A1BDCE;
+    padding-right: 15px;
+    padding-left: 6px;
+    border-top-right-radius: 9px;
+    border-bottom-right-radius: 9px;
+}
+
+
+
+/*---------------------------------------------------------------------*/
+/*--------------                  LEFT                    -------------*/
+/*---------------------------------------------------------------------*/
+#workspaces {
+    background: rgba(245, 245, 250, 0.05);
+    color: #e0e0e1;
+    border-radius: 9px;
+    transition: 0.2s ease;
+    padding-left: 8px;
+    padding-right: 8px;
+    margin: 3px 0px 3px 0px;
+}
+
+
+#workspaces button {
+    background: rgba(23, 23, 23, 0.0);
+    color: #e0e0e1;
+    border-radius: 1px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+#workspaces button.active {
+    color: #e0e0e1;
+    transition: all 0.3s ease;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+#workspaces button:hover {
+    background: none;
+    color: rgba(235, 205, 255, 0.28);
+    animation: ws_hover 20s ease-in-out 1;
+    transition: all 0.1s cubic-bezier(.55, -0.68, .48, 1.682);
+}
+
+#mpris {
+    font-weight: bold;
+    color: #e0e0e1;
+    animation: repeat;
+    animation-name: blink;
+    animation-duration: 4.0s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+
+@keyframes blink {
+    to {
+        color: #f4f4f4;
+    }
+}
+
+
+
+/*---------------------------------------------------------------------*/
+/*---------------                Center                 ---------------*/
+/*---------------------------------------------------------------------*/
+#window {
+    background: rgba(245, 245, 250, 0.05);
+    border-radius: 9px;
+    color: #e0e0e1;
+    font-weight: bold;
+    margin: 1px 0px 1px 0px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+
+
+/*---------------------------------------------------------------------*/
+/*---------------                 IDK                   ---------------*/
+/*---------------------------------------------------------------------*/
+#custom-expand {
+    min-width: 25px;
+    color: #A1BDCE;
+    font-size: 16px;
+}
+
+#group-minimized {
+    border-left: solid;
+    border-left-width: 0.5px;
+}
+
+
+
+/*---------------------------------------------------------------------*/
+/*---------------               EXPANDE                 ---------------*/
+/*---------------------------------------------------------------------*/
+#custom-spacerleft {
+    opacity: 0.0
+}
+
+#custom-spacerright {
+    opacity: 1.0
+}
+
+#custom-smallspacer {
+    opacity: 0.0;
+}
+
+#custom-l_end,
+#custom-r_end {
+    background: transparent;
+}
+
+#custom-r_end {
+    border-radius: 0px 7px 7px 0px;
+    margin-right: 1px;
+    padding-right: 3px;
+}
+
+#custom-l_end {
+    border-radius: 7px 0px 0px 7px;
+    margin-left: 1px;
+    padding-left: 3px;
+}

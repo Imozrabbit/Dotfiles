@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# If rmpc is already running, just show/hide the special workspace and exit.
+if pgrep -x rmpc >/dev/null 2>&1; then
+  hyprctl dispatch togglespecialworkspace rmpc >/dev/null 2>&1
+  exit 0
+fi
+
+hyprctl dispatch movetoworkspace special:rmpc >/dev/null 2>&1
+hyprctl dispatch fullscreenstate 2 >/dev/null 2>&1
+exec rmpc

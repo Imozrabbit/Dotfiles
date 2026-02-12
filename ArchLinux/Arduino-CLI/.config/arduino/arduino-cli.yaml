@@ -1,0 +1,26 @@
+directories:
+  data: /home/Zrabbit/.local/share/arduino/
+  downloads: /home/Zrabbit/.cache/arduino/download_cache/
+  user: /home/Zrabbit/Documents/Arduino/
+  builtin.libraries: /home/Zrabbit/.local/share/arduino/builtin_libraries/
+
+board_manager:
+  additional_urls: []
+  enable_unsafe_install: false
+
+library:
+  enable_unsafe_install: false
+
+# Telemetry
+metrics:
+  enabled: false
+
+# Save compiled binaries to the sketch folder
+sketch:
+  always_export_binaries: true
+
+# Save the build_cache to XDG_CACHE_HOME
+build_cache:
+  path: /home/Zrabbit/.cache/arduino/build_cache/
+  compilations_before_purge: 10
+  ttl: 240h

@@ -1,0 +1,57 @@
+configuration {
+    // Directory settings
+    cache-dir: "/home/Zrabbit/.cache/rofi/";
+    pid: "/run/user/1000/rofi.pid";
+
+    // General Settings
+    modi: "drun,window,run,keys";
+    cycle: false;
+    click-to-exit: true;
+    hover-select: true;
+    show-icons: true;
+    icon-theme: "WhiteSur-dark";
+    combi-display-format: "{mode}  {text}";
+
+    // Window mode
+    display-window: "󱂬 ";
+    window-format: "{t}";
+
+    // Drun mode
+    display-drun: " ";
+    drun-display-format: "{name}";
+
+    // Run mode
+    display-run: "󰍜 ";
+    run {
+        fallback-icon: "system-run";
+    }
+
+    // Keys mode
+    display-keys: " ";
+
+    // Emoji mode
+    display-emoji: " ";
+
+    // SSH mode
+    display-ssh: " ";
+
+    // File browser settings
+    filebrowser {
+        directory: "~";
+        sorting-methode: "name";
+        directories-first: true;
+        show-hidden: true;
+        cancel-returns-1: true;
+        command: "thunar -w";
+    }
+
+    // Recursive browser settings
+    recursivebrowser {
+        directory: "~";
+        cancel-returns-1: true;
+        command: "xdg-open";
+   }
+}
+
+// THEME
+@theme "/home/Zrabbit/.config/rofi/themes/spotlight-dark.rasi"
