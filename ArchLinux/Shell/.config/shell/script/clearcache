@@ -21,6 +21,29 @@ printf "\033[1;36m%s\033[0m\n" "Python package download cache cleared"
 arduino-cli cache clean
 printf "\033[1;36m%s\033[0m\n" "Arduino download staging cache cleared"
 
+# Clear flatpak cache
+flatpak uninstall --user --unused
+rm -rf ~/.cache/flatpak/*
+printf "\033[1;36m%s\033[0m\n" "Flatpak's cache and unused ressources cleared"
+
+# Prompt to see if clear orcaslicer's cache
+printf "\033[38;5;208mClear OrcaSlicer's cache ? It will be rebuild on startup.\033[0m\n"
+size_1=$(du -sh /home/Zrabbit/.var/app/io.github.softfever.OrcaSlicer/cache | awk '{print $1}' )
+size_2=$(du -sh /home/Zrabbit/.var/app/io.github.softfever.OrcaSlicer/config/OrcaSlicer/cache | awk '{print $1}' )
+printf "\033[1;36m%s\033[0m\n" "Current cache size = $size_1, config cache size = $size_2."
+printf "\033[1;36mYour choice (yes/no) ›\033[0m "
+read -r choice
+case "${choice:-}" in
+    1|y|Y|yes|YES|o|O|oui|OUI)
+        find /home/Zrabbit/.var/app/io.github.softfever.OrcaSlicer/cache -mindepth 1 -delete
+        find /home/Zrabbit/.var/app/io.github.softfever.OrcaSlicer/config/OrcaSlicer/cache -mindepth 1 -delete
+        find /home/Zrabbit/.var/app/io.github.softfever.OrcaSlicer/config/OrcaSlicer/log -mindepth 1 -delete
+        ;;
+    2|n|N|no|NO|non|NON)
+        ;;
+esac
+
+
 # Refresh shell command hash (harmless in non-interactive shells)
 command -v hash >/dev/null 2>&1 && hash -r || true
 printf "\033[1;36m%s\033[0m\n" "Shell command hash refreshed"
