@@ -2,11 +2,8 @@
 set -eu
 
 # Clear package manager caches
-if yay -Scc --noconfirm; then
-  printf "\033[1;36m%s\033[0m\n" "Package manager caches cleared"
-else
-  printf "\033[1;31m%s\033[0m\n" "Package manager cache clear FAILED (some entries may be busy/locked)"
-fi
+yay -Scc
+printf "\033[1;36m%s\033[0m\n" "Package manager caches cleared"
 
 # Clear language/tool caches
 cargo cache -e
