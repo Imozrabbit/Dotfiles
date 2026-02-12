@@ -27,8 +27,8 @@ alias untar='tar -xvf' # Extract verbally a .tar file
 alias untargz='tar -zvxf' # Extract verbally a .tar.gz file
 
 # Pacman
-alias update='sudo pacman -Syu'
-alias orphan='sudo pacman -Qdtq'
+alias update='yay -Syu && flatpak update --user'
+alias orphan='yay -Qdtq'
 
 # Global
 alias -g PATH='echo $PATH | tr ":" "\n"' # Show $PATH line by line
