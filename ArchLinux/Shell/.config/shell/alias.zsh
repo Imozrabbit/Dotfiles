@@ -27,7 +27,7 @@ alias untar='tar -xvf' # Extract verbally a .tar file
 alias untargz='tar -zvxf' # Extract verbally a .tar.gz file
 
 # Pacman
-alias update='yay -Syu && flatpak update --user'
+alias update='sudo pacman -Syu && flatpak update --user && echo Consider run yay -Syu to update AUR packages'
 alias orphan='yay -Qdtq'
 
 # Global
