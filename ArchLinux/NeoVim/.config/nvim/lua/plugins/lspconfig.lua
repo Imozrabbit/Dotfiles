@@ -8,14 +8,17 @@ return {
 			qmlls = {},
 			cssls = {},
 			lua_ls = {},
-			arduino_language_server = {},
+			arduino_language_server = {
+				cmd = {
+					"arduino-language-server",
+					"-cli-config",
+					vim.fn.expand("$HOME/.config/arduino/arduino-cli.yaml"),
+				},
+			},
 			jsonls = {},
 			bashls = {},
 			hyprls = {},
 			clangd = {},
-			shellcheck = {},
-			stylua = {},
-			["clang-format"] = {},
 		},
 	},
 	-- Merge blink's capabilities with lsp's
