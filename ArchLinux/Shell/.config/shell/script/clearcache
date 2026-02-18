@@ -17,6 +17,10 @@ printf "\033[1;36m%s\033[0m\n" "Go caches cleared"
 [ -d "$HOME/.cache/pip" ] && rm -rf -- "${HOME:?}/.cache/pip/"*
 printf "\033[1;36m%s\033[0m\n" "Python package download cache cleared"
 
+# Clear deno cache
+deno clean
+printf "\033[1;36m%s\033[0m\n" "Deno cache cleared"
+
 # Clear Arduino CLI download staging cache
 arduino-cli cache clean
 printf "\033[1;36m%s\033[0m\n" "Arduino download staging cache cleared"
