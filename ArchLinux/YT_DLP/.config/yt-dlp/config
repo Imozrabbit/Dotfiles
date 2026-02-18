@@ -1,0 +1,51 @@
+# General Options
+--abort-on-error
+--config-locations /home/Zrabbit/.config/yt-dlp/config
+
+# Video Selection
+--no-playlist
+
+# Download Options
+--no-keep-fragments
+--no-hls-use-mpegts
+
+# Filesystem Options
+--output-na-placeholder ""
+-o "%(track,title)s%(artist,creator& - |)s%(artist,creator)s.%(ext)s"
+-P "temp:/home/Zrabbit/Downloads/YouTube_Music/.part/"
+-P "home:/home/Zrabbit/Downloads/YouTube_Music/"
+--no-batch-file
+--no-mtime
+--no-write-description
+--no-write-info-json
+--no-cookies
+--no-cookies-from-browser
+--no-cache-dir
+
+# Thumbnail Options
+--no-write-thumbnail
+
+# Verbosity and Simulation Options
+--no-quiet
+--no-ignore-no-formats-error
+
+# Video Format Options
+-f bestaudio
+--no-format-sort-force
+--no-video-multistreams
+--no-audio-multistreams
+--no-prefer-free-formats
+
+# Subtitle Options
+--no-write-subs
+--no-write-auto-subs
+
+# Post-Processing Options
+--extract-audio
+--audio-format best
+--audio-quality 0
+--no-keep-video
+--no-embed-metadata
+--no-embed-chapters
+--no-embed-info-json
+--convert-subs none
