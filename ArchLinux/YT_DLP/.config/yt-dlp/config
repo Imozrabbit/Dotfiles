@@ -12,6 +12,7 @@
 # Filesystem Options
 --output-na-placeholder ""
 -o "%(track,title)s%(artist,creator& - |)s%(artist,creator)s.%(ext)s"
+-o "subtitle:%(track,title)s%(artist,creator& - |)s%(artist,creator)s.%(ext)s"
 -P "temp:/home/Zrabbit/Downloads/YouTube_Music/.part/"
 -P "home:/home/Zrabbit/Downloads/YouTube_Music/"
 --no-batch-file
@@ -30,22 +31,26 @@
 --no-ignore-no-formats-error
 
 # Video Format Options
--f bestaudio
+-f 140
 --no-format-sort-force
 --no-video-multistreams
 --no-audio-multistreams
 --no-prefer-free-formats
 
-# Subtitle Options
---no-write-subs
---no-write-auto-subs
+# Subtitle Options, all the lrc lyrics are trash
+#--write-subs
+#--write-auto-subs
+#--sub-langs "en-*"
+#--convert-subs lrc
 
 # Post-Processing Options
---extract-audio
---audio-format best
---audio-quality 0
---no-keep-video
---no-embed-metadata
+# No need for these 3 lines since we are downloading with -f 140 which is audio only anyways
+#--extract-audio
+#--audio-format best
+#--audio-quality 0
+--embed-metadata
+--embed-thumbnail
+--convert-thumbnails jpg
+--no-embed-subs
 --no-embed-chapters
 --no-embed-info-json
---convert-subs none
