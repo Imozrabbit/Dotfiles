@@ -1,5 +1,9 @@
 @import "~/.config/rofi/themes/spotlight-dark.rasi"
 
+* {
+    font: "Atkinson Hyperlegible 12";
+}
+
 configuration {
     show-icons: false;
 }
@@ -9,5 +13,9 @@ mainbox {
 }
 
 element {
-    padding: 10px 30px;
+    padding: 1px 15px;
+}
+
+element-icon {
+    size: 45px;
 }
