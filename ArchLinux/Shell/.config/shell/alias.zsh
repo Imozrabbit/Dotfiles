@@ -20,7 +20,7 @@ alias cp='cp -iv'
 alias mv='mv -iv'
 alias rm='rm -iv'
 alias root='cd /'
-alias dotfile='cd /home/Zrabbit/Documents/Dotfiles/ArchLinux/'
+alias dotfile='cd /home/Zrabbit/Documents/Dotfiles/'
 
 # Compression and Extraction
 alias untar='tar -xvf' # Extract verbally a .tar file
