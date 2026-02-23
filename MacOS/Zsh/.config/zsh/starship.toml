@@ -1,0 +1,120 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+format = """
+[╭](bold overlay1)$directory\
+$git_branch\
+$git_status\
+$fill\
+$c\
+$python\
+$lua\
+$docker_context\
+$time\
+$line_break$character"""
+
+palette = 'nord'
+
+[palettes.nord]
+rosewater = "#f0c674"
+flamingo = "#cc6666"
+pink = "#b294bb"
+orange = "#de935f"
+red = "#cc6666"
+maroon = "#a54242"
+peach = "#d08770"
+yellow = "#f0c674"
+green = "#8abeb7"
+teal = "#8abeb7"
+sky = "#81a2be"
+sapphire = "#81a2be"
+blue = "#2b6ab8"
+lavender = "#b48ead"
+text = "#e1e1e2"
+subtext1 = "#e5e9f0"
+subtext0 = "#eceff4"
+overlay2 = "#4c566a"
+overlay1 = "#434c5e"
+overlay0 = "#3b4252"
+surface2 = "#2e3440"
+surface1 = "#2e3440"
+surface0 = "#2e3440"
+base = "#2e3440"
+mantle = "#3b4252"
+crust = "#434c5e"
+
+# Local IP Module
+[localip]
+ssh_only = false
+style = "fg:surface0"
+format = '[ $localipv4 ]($style)'
+disabled = false
+
+# Directory Module
+[directory]
+style = "fg:peach"
+format = "[ $path ]($style)"
+truncation_length = 5
+truncation_symbol = "…/"
+home_symbol = " "
+
+[directory.substitutions]
+".local/share" = "data"
+".local/state" = "state"
+
+# Git Branch Module
+[git_branch]
+symbol = " "
+style = "fg:teal"
+format = '[[ $symbol $branch ](fg:green)]($style)'
+
+# Git Status Module
+[git_status]
+style = "fg:teal"
+format = '[[($all_status$ahead_behind )](fg:green)]($style)'
+
+# Fill Module
+[fill]
+symbol = " "
+style = "#2E2E3E"
+
+# C Module
+[c]
+symbol = " "
+style = "fg:teal"
+format = '[[ $symbol( $version) ](fg:teal)]($style)'
+
+# Python Module
+[python]
+symbol = " "
+style = "fg:teal"
+format = '[[ $symbol( $version) ](fg:teal)]($style)'
+
+# Lua Module
+[lua]
+symbol = "󰢱 "
+style = "fg:teal"
+format = '[[ $symbol( $version) ](fg:teal)]($style)'
+
+# Docker Context Module
+[docker_context]
+symbol = " "
+style = "fg:mantle"
+format = '[[ $symbol( $context) ](fg:color_bg3)]($style)'
+
+# Time Module
+[time]
+disabled = false
+time_format = "%T"
+style = "fg:peach"
+format = '[[  $time ](fg:purple)]($style)'
+
+# Line Break Module
+[line_break]
+disabled = false
+
+# Character Module
+[character]
+format = """
+[╰─$symbol](fg:overlay1) """
+success_symbol = '[](fg:bold text)'
+error_symbol = '[](fg:bold red)'

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Print prompt
+printf "\033[1;36m󰿞 Choose the target repo:\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎦  Dotfiles\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  (Future repos, wait to be added)\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎬  Quit\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+
+read -r repo
+
+case "$repo" in
+  1)
+      printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+      cd "/Users/zrabbit/Documents/Dotfiles"
+      /home/Zrabbit/Documents/Dotfiles/ArchLinux/Shell/.config/shell/script/GitClean/action
+      ;;
+  2)
+      printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+      #cd "PATH/TO/REPO"
+      printf "\033[1;36m%s\033[0m\n" "Need to add more repo path if needed. Exiting..."
+      exit 0
+      ;;
+  3|q|quit|Q|QUIT)
+      exit 0
+      ;;
+  *) 
+      printf "\033[1;31m Not a valid option\033[0m\n"; exit 0
+      ;;
+esac

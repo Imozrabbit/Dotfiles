@@ -1,0 +1,53 @@
+#!/bin/sh
+set -eu
+
+# Clear package manager caches
+brew cleanup -s --prune=all
+rm -rfv "$(brew --cache)"
+brew autoremove
+printf "\033[1;36m%s\033[0m\n" "Homebrew cache cleared"
+
+# Clean logs
+one=Homebrew
+two="Arduino IDE"
+rm -rfv "$HOME/Library/Logs/$one"/*
+rm -frv "$HOME/Library/Logs/$two"/*
+printf "\033[1;36m%s\033[0m\n" "$one and $two logs cleared"
+
+# Clear the printer job cache
+sudo rm -rfv /var/spool/cups/c0*
+sudo rm -rfv /var/spool/cups/tmp/*
+sudo rm -rfv /var/spool/cups/cache/job.cache*
+
+# Clear Quick Look cache
+qlmanage -r cache
+rm -rfv "$(getconf DARWIN_USER_CACHE_DIR)/com.apple.QuickLook.thumbnailcache/exclusive"
+rm -rfv "$(getconf DARWIN_USER_CACHE_DIR)/com.apple.QuickLook.thumbnailcache/index.sqlite"
+rm -rfv "$(getconf DARWIN_USER_CACHE_DIR)/com.apple.QuickLook.thumbnailcache/index.sqlite-shm"
+rm -rfv "$(getconf DARWIN_USER_CACHE_DIR)/com.apple.QuickLook.thumbnailcache/index.sqlite-wal"
+rm -rfv "$(getconf DARWIN_USER_CACHE_DIR)/com.apple.QuickLook.thumbnailcache/resetreason"
+rm -rfv "$(getconf DARWIN_USER_CACHE_DIR)/com.apple.QuickLook.thumbnailcache/thumbnails.data"
+printf "\033[1;36m%s\033[0m\n" "QuickLook caches cleared"
+
+# Clear language/tool caches: cargo, npm, go
+cargo cache -e
+printf "\033[1;36m%s\033[0m\n" "Cargo caches cleared"
+npm cache clean --force
+printf "\033[1;36m%s\033[0m\n" "NPM caches cleared"
+go clean -cache -modcache -testcache -fuzzcache
+printf "\033[1;36m%s\033[0m\n" "Go caches cleared"
+
+# Clear yazi cache
+yazi --clear-cache
+printf "\033[1;36m%s\033[0m\n" "Yazi caches cleared"
+
+# Clear Arduino CLI download staging cache
+arduino-cli cache clean
+printf "\033[1;36m%s\033[0m\n" "Arduino download staging cache cleared"
+
+# Refresh shell command hash (harmless in non-interactive shells)
+command -v hash >/dev/null 2>&1 && hash -r || true
+printf "\033[1;36m%s\033[0m\n" "Shell command hash refreshed"
+
+# Tips and tricks
+printf "\033[38;5;208mConsider running maintain in OnyX for a complete system-wide cleanup once a while.\033[0m\n"

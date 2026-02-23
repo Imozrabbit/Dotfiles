@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Print prompt
+printf "\033[1;36mOptions:\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎦  System Integrity Protection\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  Remove historical list of volumes attached\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎬  Clear bluetooth metadadta\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎮  Clear CUPS printer job cache\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎰  Clear IOS devices' metadata\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎵  Delete and disable QuickLook thumbnail data\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎸  Clear WiFi data during recovery\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎻  Quit\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+
+read -r repo
+
+case "$repo" in
+  1)
+      printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+      csrutil status
+      printf "\033[1;36m%s\033[0m\n" "If it returns disabled, enable SIP through Recovery Mode."
+      exit 0
+      ;;
+  2)
+      printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+      /usr/libexec/PlistBuddy -c "delete :systemitems:VolumesList" "Users/$USER/Library/Preferences/com.apple.sidebarlists.plist"
+      printf "\033[1;36m%s\033[0m\n" "Remove complete."
+      exit 0
+      ;;
+  3)
+      printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+      printf "\033[1;36m%s\033[0m" "It will remove all the devices already paired with this macbook. Are you sure > "
+      read -r if_bluetooth
+      case "$if_bluetooth" in
+          y|Y|o|O|yes|YES|oui|OUI)
+              sudo defaults delete /Library/Preferences/com.apple.Bluetooth.plist DeviceCache
+              sudo defaults delete /Library/Preferences/com.apple.Bluetooth.plist IDSPairedDevices
+              sudo defaults delete /Library/Preferences/com.apple.Bluetooth.plist PANDevices
+              sudo defaults delete /Library/Preferences/com.apple.Bluetooth.plist PANInterfaces
+              sudo defaults delete /Library/Preferences/com.apple.Bluetooth.plist SCOAudioDevices
+              printf "\033[1;36m%s\033[0m\n" "Bluetooth list removed."
+              exit 0
+              ;;
+          n|N|no|NO|non|NON)
+              printf "\033[1;36m%s\033[0m\n" "Exiting..."
+              exit 0
+            ;;
+      esac
+      exit 0
+      ;;
+  4)
+      printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+      sudo rm -rfv /var/spool/cups/c0*
+      sudo rm -rfv /var/spool/cups/tmp/*
+      sudo rm -rfv /var/spool/cups/cache/job.cache*
+      printf "\033[1;36m%s\033[0m\n" "CUPS printer cache cleared."
+      exit 0
+      ;;
+  5)
+      printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+      printf "\033[1;36m%s\033[0m" "It would remove all the IOS devices already paired with this macbook. Are you sure > "
+      read -r if_ios
+      case "$if_ios" in
+          y|Y|o|O|yes|YES|oui|OUI)
+              sudo defaults delete "/Users/$USER/Library/Preferences/com.apple.iPod.plist" "conn:128:Last Connect"
+              sudo defaults delete "/Users/$USER/Library/Preferences/com.apple.iPod.plist" Devices
+              sudo defaults delete /Library/Preferences/com.apple.iPod.plist "conn:128:Last Connect"
+              sudo defaults delete /Library/Preferences/com.apple.iPod.plist Devices
+              sudo rm -rfv /var/db/lockdown/*
+              printf "\033[1;36m%s\033[0m\n" "All IOS devices' metadata cleared."
+              exit 0
+              ;;
+          n|N|no|NO|non|NON)
+              printf "\033[1;36m%s\033[0m\n" "Exiting..."
+              exit 0
+              ;;
+      esac
+      ;;
+  6)
+      printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+      qlmanage -r cache
+      rm -rfv "$(getconf DARWIN_USER_CACHE_DIR)/com.apple.QuickLook.thumbnailcache/exclusive"
+      rm -rfv "$(getconf DARWIN_USER_CACHE_DIR)/com.apple.QuickLook.thumbnailcache/index.sqlite"
+      rm -rfv "$(getconf DARWIN_USER_CACHE_DIR)/com.apple.QuickLook.thumbnailcache/index.sqlite-shm"
+      rm -rfv "$(getconf DARWIN_USER_CACHE_DIR)/com.apple.QuickLook.thumbnailcache/index.sqlite-wal"
+      rm -rfv "$(getconf DARWIN_USER_CACHE_DIR)/com.apple.QuickLook.thumbnailcache/resetreason"
+      rm -rfv "$(getconf DARWIN_USER_CACHE_DIR)/com.apple.QuickLook.thumbnailcache/thumbnails.data"
+      exit 0
+      ;;
+  7)
+      printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+      printf "\033[1;36m%s\033[0m" "It would remove the WiFi pairing state during recovery. Are you sure > "
+      read -r if_wifi
+      case "$if_wifi" in
+          y|Y|o|O|yes|YES|oui|OUI)
+              sudo nvram -d 36C28AB5-6566-4C50-9EBD-CBB920F83843:current-network
+              sudo nvram -d 36C28AB5-6566-4C50-9EBD-CBB920F83843:preferred-networks
+              sudo nvram -d 36C28AB5-6566-4C50-9EBD-CBB920F83843:preferred-count
+              exit 0
+             ;;
+          n|N|no|NO|non|NON)
+              printf "\033[1;36m%s\033[0m\n" "Exiting..."
+              exit 0
+              ;;
+      esac
+      ;;
+  8|q|quit|Q|QUIT)
+      printf "\033[1;36m%s\033[0m\n" "Exiting..."
+      exit 0
+      ;;
+  *) 
+      printf "\033[1;31m Not a valid option\033[0m\n"; exit 0
+      ;;
+esac
+

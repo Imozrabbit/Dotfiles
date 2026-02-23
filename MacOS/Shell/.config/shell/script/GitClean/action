@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Print prompt
+printf "\033[1;36m󰍜 Options:\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎦  Routine maintenance (softcore)\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  Nuke maintenance (hardcore)\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎬  Quit\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+
+read -r ans
+
+case "$ans" in
+  1)
+      before=$(du -sh .git | awk '{print $1}')
+      git maintenance run
+      after=$(du -sh .git | awk '{print $1}')
+      printf "\033[1;36m%s\033[0m\n" "The .git folder size changed from $before to $after."
+      ;;
+  2)
+      # Double check
+      printf "\033[38;5;208m  ⤷  Are you sure? This action is irreversible and will nuke every undo option you might want to use if something is wrong.\033[0m\n"
+      printf "\033[1;36mAnswer (yes/no) ›\033[0m "
+      read -r if_nuke
+      case "$if_nuke" in
+          y|Y|yes|YES|o|O|oui|OUI)
+              before_nuke=$(du -sh .git | awk '{print $1}')
+              git reflog expire --expire=now --all
+              git gc --prune=now
+              after_nuke=$(du -sh .git | awk '{print $1}')
+              printf "\033[1;36m%s\033[0m\n" "The .git folder size changed from $before_nuke to $after_nuke."
+              ;;
+          n|N|no|NO|non|NON)
+              exit 0
+              ;;
+      esac
+      ;;
+  3|q|quit|Q|QUIT)
+      exit 0
+      ;;
+  *) 
+      printf "\033[1;31m Not a valid option\033[0m\n"; exit 0
+      ;;
+esac
