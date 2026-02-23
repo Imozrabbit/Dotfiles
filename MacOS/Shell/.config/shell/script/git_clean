@@ -14,7 +14,7 @@ case "$repo" in
   1)
       printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
       cd "/Users/zrabbit/Documents/Dotfiles"
-      /home/Zrabbit/Documents/Dotfiles/ArchLinux/Shell/.config/shell/script/GitClean/action
+      /Users/zrabbit/Documents/Dotfiles/MacOS/Shell/.config/shell/script/GitClean/action
       ;;
   2)
       printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
