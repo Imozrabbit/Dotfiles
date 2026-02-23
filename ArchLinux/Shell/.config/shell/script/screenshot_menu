@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+choice=$(printf 'Fullscreen\nWindow\nRegion\n' | rofi -x11 -dmenu --normal-window -window-title "screenshot" -mesg " Screenshot" -theme ~/.config/rofi/themes/screenshot.rasi)
+
+[ -z "$choice" ] && exit 0
+
+case "${choice:-}" in
+    Fullscreen)
+        /home/Zrabbit/.config/shell/script/Screenshot/screenshot_fullscreen
+        exit 0
+        ;;
+    Window)
+        /home/Zrabbit/.config/shell/script/Screenshot/screenshot_window
+        exit 0
+        ;;
+    Region)
+        /home/Zrabbit/.config/shell/script/Screenshot/screenshot_region
+        exit 0
+        ;;
+esac

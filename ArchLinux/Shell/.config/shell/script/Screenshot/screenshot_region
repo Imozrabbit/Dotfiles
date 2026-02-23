@@ -2,7 +2,7 @@
 set -eu # Exit on error (-e) and on undefined variables (-u)
 
 OUTDIR="$HOME/Pictures/Screenshots"
-TMPDIR="${XDG_RUNTIME_DIR:-/tmp}"
+TMPDIR="$XDG_RUNTIME_DIR"
 TS="$(date +%Y%m%d_%H%M%S_%3N)"
 NAME="${TS}_grim.png"
 TMPFILE="$TMPDIR/$NAME"
@@ -18,22 +18,35 @@ CHOICE="$(
     -A discard=Discard \
     -A edit=Edit \
     -A copy=Copy \
+    -A saveshow='Save & Show' \
+    -A savecopy='Save & Copy' \
     "Screenshot Captured" "$BODY"
 )"
 
 case "${CHOICE:-}" in
-  discard)
-    rm -f -- "$TMPFILE"
+  save|"")
+    mv -f "$TMPFILE" "$FINALFILE"
     ;;
-  copy)
-    wl-copy --type image/png < "$TMPFILE"
+  discard)
     rm -f -- "$TMPFILE"
     ;;
   edit)
     mv -f "$TMPFILE" "$FINALFILE"
     swappy -f "$FINALFILE"
     ;;
-  save|"")
+  copy)
+    wl-copy --type image/png < "$TMPFILE"
+    rm -f -- "$TMPFILE"
+    ;;
+  close)
+    exit 0
+    ;;
+  saveshow)
     mv -f "$TMPFILE" "$FINALFILE"
+    feh "$FINALFILE"
+    ;;
+  savecopy)
+    mv -f "$TMPFILE" "$FINALFILE"
+    wl-copy --type image/png < "$FINALFILE"
     ;;
 esac
