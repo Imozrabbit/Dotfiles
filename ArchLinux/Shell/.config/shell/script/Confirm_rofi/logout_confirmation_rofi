@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+swaync-client -cp
+choice=$(printf '%s\n' No Yes | rofi -x11 -dmenu -normal-window -window-title "confirmbox" -mesg "Confirm to Logout" -theme ~/.config/rofi/themes/confirmation-box.rasi)
+if [ "$choice" = "Yes" ]; then
+  if command -v hyprshutdown >/dev/null 2>&1; then
+    hyprshutdown
+  else
+    hyprctl dispatch exit
+  fi
+fi
