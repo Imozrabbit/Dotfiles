@@ -78,7 +78,7 @@
                     "label": " 󰛳 ",
                     "type": "toggle",
                     "active": true,
-                    "command": "/home/Zrabbit/.config/shell/script/internet_switch_rofi",
+                    "command": "/home/Zrabbit/.config/shell/script/Confirm_rofi/internet_switch_rofi",
                     "update-command": "sh -c 'nmcli -g networking general 2>/dev/null | grep -qx enabled && echo true || echo false'"
                 },
                 {
@@ -97,31 +97,31 @@
                     "label": " 󰗽 ",
                     "type": "normal",
                     "active": true,
-                    "command": "/home/Zrabbit/.config/shell/script/logout_confirmation_rofi"
+                    "command": "/home/Zrabbit/.config/shell/script/Confirm_rofi/logout_confirmation_rofi"
                 },
                 {
                     "label": " 󰏥 ",
                     "type": "normal",
                     "active": true,
-                    "command": "/home/Zrabbit/.config/shell/script/suspend_confirmation_rofi"
+                    "command": "/home/Zrabbit/.config/shell/script/Confirm_rofi/suspend_confirmation_rofi"
                 },
                 {
                     "label": " 󰒲 ",
                     "type": "normal",
                     "active": true,
-                    "command": "/home/Zrabbit/.config/shell/script/hibernate_confirmation_rofi"
+                    "command": "/home/Zrabbit/.config/shell/script/Confirm_rofi/hibernate_confirmation_rofi"
                 },
                 {
                     "label": "  ",
                     "type": "normal",
                     "active": true,
-                    "command": "/home/Zrabbit/.config/shell/script/reboot_confirmation_rofi"
+                    "command": "/home/Zrabbit/.config/shell/script/Confirm_rofi/reboot_confirmation_rofi"
                 },
                 {
                     "label": "  ",
                     "type": "normal",
                     "active": true,
-                    "command": "/home/Zrabbit/.config/shell/script/poweroff_confirmation_rofi"
+                    "command": "/home/Zrabbit/.config/shell/script/Confirm_rofi/poweroff_confirmation_rofi"
                 }
             ]
         }
