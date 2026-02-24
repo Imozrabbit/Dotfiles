@@ -31,6 +31,7 @@
         "custom/padd",
         "custom/l_end",
         "group/expand",
+        "custom/imf",
         "network",
         "group/expand-3",
         "clock",
@@ -141,8 +142,17 @@
             "custom/spacerright",
             "custom/gtk_manager",
             "custom/lact",
-            "custom/openrgb"
+            "custom/openrgb",
+            "custom/sep"
         ]
+    },
+    "custom/imf": {
+        "exec": "~/.config/shell/script/waybar_related/input_methode_detect",
+        "interval": 1,
+        "rotate": 0,
+        "on-click": "fcitx5-configtool",
+        "tooltip": true,
+        "tooltip-format": "Configure IME"
     },
     "network": {
         "tooltip": true,
@@ -244,6 +254,11 @@
     },
     "custom/padd": {
         "format": "  ",
+        "interval": "once",
+        "tooltip": false
+    },
+    "custom/sep": {
+        "format": "",
         "interval": "once",
         "tooltip": false
     },

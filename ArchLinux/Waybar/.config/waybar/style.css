@@ -40,6 +40,8 @@ tooltip {
 #custom-gtk_manager,
 #custom-lact,
 #custom-openrgb,
+#custom-imf,
+#custom-sep,
 #network,
 #pulseaudio,
 #pulseaudio-slider,
@@ -67,11 +69,18 @@ tooltip {
     font-size: 17px;
 }
 
+#custom-imf {
+    font-size: 20px;
+    color: #A1BDCE;
+    padding-right: 0px;
+    padding-left: 10px;
+}
+
 #network {
     color: #A1BDCE;
     font-weight: bold;
     padding-right: 10px;
-    padding-left: 10px;
+    padding-left: 2px;
 }
 
 #pulseaudio {
