@@ -24,7 +24,12 @@ PanelWindow {
     property bool animateWindows: false
     property var lastPositions: {}
 
-    anchors { top: true; bottom: true; left: true; right: true }
+    anchors {
+        top: true
+        bottom: true
+        left: true
+        right: true
+    }
     color: "transparent"
     visible: isActive
 
@@ -38,44 +43,44 @@ PanelWindow {
     IpcHandler {
         target: "expose"
         function toggle(layout: string) {
-            root.layoutAlgorithm = layout
-            root.toggleExpose()
+            root.layoutAlgorithm = layout;
+            root.toggleExpose();
         }
 
         function open(layout: string) {
-            root.layoutAlgorithm = layout
-            if (root.isActive) return
-            root.toggleExpose()
+            root.layoutAlgorithm = layout;
+            if (root.isActive)
+                return;
+            root.toggleExpose();
         }
 
         function close() {
-            if (!root.isActive) return
-            root.toggleExpose()
+            if (!root.isActive)
+                return;
+            root.toggleExpose();
         }
     }
 
     Connections {
         target: Hyprland
         function onRawEvent(ev) {
-            if (!root.isActive && ev.name !== "activespecial") return
-
+            if (!root.isActive && ev.name !== "activespecial")
+                return;
             switch (ev.name) {
-                case "openwindow":
-                case "closewindow":
-                case "changefloatingmode":
-                case "movewindow":
-                    Hyprland.refreshToplevels()
-                    refreshThumbs()
-                    return
-
-                case "activespecial":
-                    var dataStr = String(ev.data)
-                    var namePart = dataStr.split(",")[0]
-                    root.specialActive = (namePart.length > 0)
-                    return
-
-                default:
-                    return
+            case "openwindow":
+            case "closewindow":
+            case "changefloatingmode":
+            case "movewindow":
+                Hyprland.refreshToplevels();
+                refreshThumbs();
+                return;
+            case "activespecial":
+                var dataStr = String(ev.data);
+                var namePart = dataStr.split(",")[0];
+                root.specialActive = (namePart.length > 0);
+                return;
+            default:
+                return;
             }
         }
     }
@@ -89,45 +94,34 @@ PanelWindow {
         onTriggered: root.refreshThumbs()
     }
 
-
     function toggleExpose() {
-        root.isActive = !root.isActive
+        root.isActive = !root.isActive;
         if (root.isActive) {
             if (root.layoutAlgorithm === 'random') {
-                var layouts = [
-                    'smartgrid',
-                    'justified',
-                    'bands',
-                    'masonry',
-                    'hero',
-                    'spiral',
-                    'satellite',
-                    'staggered',
-                    'columnar',
-                    'vortex',
-                  ].filter((l) => l !== root.lastLayoutAlgorithm)
-                var randomLayout = layouts[Math.floor(Math.random() * layouts.length)]
-                root.lastLayoutAlgorithm = randomLayout
+                var layouts = ['smartgrid', 'justified', 'bands', 'masonry', 'hero', 'spiral', 'satellite', 'staggered', 'columnar', 'vortex',].filter(l => l !== root.lastLayoutAlgorithm);
+                var randomLayout = layouts[Math.floor(Math.random() * layouts.length)];
+                root.lastLayoutAlgorithm = randomLayout;
             } else {
-                root.lastLayoutAlgorithm = root.layoutAlgorithm
+                root.lastLayoutAlgorithm = root.layoutAlgorithm;
             }
 
-            exposeArea.currentIndex = -1
-            searchBox.reset()
-            Hyprland.refreshToplevels()
-            refreshThumbs()
+            exposeArea.currentIndex = -1;
+            searchBox.reset();
+            Hyprland.refreshToplevels();
+            refreshThumbs();
         } else {
-            root.animateWindows = false
-            root.lastPositions = {}
+            root.animateWindows = false;
+            root.lastPositions = {};
         }
     }
 
     function refreshThumbs() {
-        if (!root.isActive) return
+        if (!root.isActive)
+            return;
         for (var i = 0; i < winRepeater.count; ++i) {
-            var it = winRepeater.itemAt(i)
+            var it = winRepeater.itemAt(i);
             if (it && it.visible && it.refreshThumb) {
-                it.refreshThumb()
+                it.refreshThumb();
             }
         }
     }
@@ -138,93 +132,95 @@ PanelWindow {
         anchors.fill: parent
         focus: true
 
-        Keys.onPressed: (event) => {
-            if (!root.isActive) return
-
+        Keys.onPressed: event => {
+            if (!root.isActive)
+                return;
             if (event.key === Qt.Key_Escape) {
-                root.toggleExpose()
-                event.accepted = true
-                return
+                root.toggleExpose();
+                event.accepted = true;
+                return;
             }
 
-            const total = winRepeater.count
-            if (total <= 0) return
+            const total = winRepeater.count;
+            if (total <= 0)
+                return;
 
             // Helper for horizontal navigation
             function moveSelectionHorizontal(delta) {
-                var start = exposeArea.currentIndex
+                var start = exposeArea.currentIndex;
                 for (var step = 1; step <= total; ++step) {
-                    var candidate = (start + delta * step + total) % total
-                    var it = winRepeater.itemAt(candidate)
+                    var candidate = (start + delta * step + total) % total;
+                    var it = winRepeater.itemAt(candidate);
                     if (it && it.visible) {
-                        exposeArea.currentIndex = candidate
-                        return
+                        exposeArea.currentIndex = candidate;
+                        return;
                     }
                 }
             }
 
             // Helper for vertical navigation
             function moveSelectionVertical(dir) {
-                var startIndex = exposeArea.currentIndex
-                var currentItem = winRepeater.itemAt(startIndex)
+                var startIndex = exposeArea.currentIndex;
+                var currentItem = winRepeater.itemAt(startIndex);
 
                 if (!currentItem || !currentItem.visible) {
-                    moveSelectionHorizontal(dir > 0 ? 1 : -1)
-                    return
+                    moveSelectionHorizontal(dir > 0 ? 1 : -1);
+                    return;
                 }
 
-                var curCx = currentItem.x + currentItem.width  / 2
-                var curCy = currentItem.y + currentItem.height / 2
+                var curCx = currentItem.x + currentItem.width / 2;
+                var curCy = currentItem.y + currentItem.height / 2;
 
-                var bestIndex = -1
-                var bestDy = 99999999
-                var bestDx = 99999999
+                var bestIndex = -1;
+                var bestDy = 99999999;
+                var bestDx = 99999999;
 
                 for (var i = 0; i < total; ++i) {
-                    var it = winRepeater.itemAt(i)
-                    if (!it || !it.visible || i === startIndex) continue
-
-                    var cx = it.x + it.width  / 2
-                    var cy = it.y + it.height / 2
-                    var dy = cy - curCy
+                    var it = winRepeater.itemAt(i);
+                    if (!it || !it.visible || i === startIndex)
+                        continue;
+                    var cx = it.x + it.width / 2;
+                    var cy = it.y + it.height / 2;
+                    var dy = cy - curCy;
 
                     // Direction filtering
-                    if (dir > 0 && dy <= 0) continue
-                    if (dir < 0 && dy >= 0) continue
-
-                    var absDy = Math.abs(dy)
-                    var absDx = Math.abs(cx - curCx)
+                    if (dir > 0 && dy <= 0)
+                        continue;
+                    if (dir < 0 && dy >= 0)
+                        continue;
+                    var absDy = Math.abs(dy);
+                    var absDx = Math.abs(cx - curCx);
 
                     // Search for nearest thumb (first in vertical, then horizontal distance)
                     if (absDy < bestDy || (absDy === bestDy && absDx < bestDx)) {
-                        bestDy = absDy
-                        bestDx = absDx
-                        bestIndex = i
+                        bestDy = absDy;
+                        bestDx = absDx;
+                        bestIndex = i;
                     }
                 }
 
                 if (bestIndex >= 0) {
-                    exposeArea.currentIndex = bestIndex
+                    exposeArea.currentIndex = bestIndex;
                 }
             }
 
             if (event.key === Qt.Key_Right || event.key === Qt.Key_Tab) {
-                moveSelectionHorizontal(1)
-                event.accepted = true
+                moveSelectionHorizontal(1);
+                event.accepted = true;
             } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Backtab) {
-                moveSelectionHorizontal(-1)
-                event.accepted = true
+                moveSelectionHorizontal(-1);
+                event.accepted = true;
             } else if (event.key === Qt.Key_Down) {
-                moveSelectionVertical(1)
-                event.accepted = true
+                moveSelectionVertical(1);
+                event.accepted = true;
             } else if (event.key === Qt.Key_Up) {
-                moveSelectionVertical(-1)
-                event.accepted = true
+                moveSelectionVertical(-1);
+                event.accepted = true;
             } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                var item = winRepeater.itemAt(exposeArea.currentIndex)
+                var item = winRepeater.itemAt(exposeArea.currentIndex);
                 if (item && item.activateWindow) {
-                    item.activateWindow()
-                    event.accepted = true
+                    item.activateWindow();
+                    event.accepted = true;
                 }
             }
         }
@@ -258,7 +254,7 @@ PanelWindow {
 
                     // Reset active thumb on searchText change
                     onSearchTextChanged: {
-                        currentIndex = (windowLayoutModel.count > 0) ? 0 : -1
+                        currentIndex = (windowLayoutModel.count > 0) ? 0 : -1;
                     }
 
                     ScriptModel {
@@ -272,36 +268,40 @@ PanelWindow {
 
                         values: {
                             // Bailout on wrong screen size
-                            if (areaW <= 0 || areaH <= 0) return []
+                            if (areaW <= 0 || areaH <= 0)
+                                return [];
 
-                            var q = (query || "").toLowerCase()
-                            var windowList = []
-                            var idx = 0
+                            var q = (query || "").toLowerCase();
+                            var windowList = [];
+                            var idx = 0;
 
-                            if (!rawToplevels) return []
+                            if (!rawToplevels)
+                                return [];
 
                             for (var it of rawToplevels) {
-                                var w = it
-                                var clientInfo = w && w.lastIpcObject ? w.lastIpcObject : {}
-                                var workspace = clientInfo && clientInfo.workspace ? clientInfo.workspace : null
-                                var workspaceId = workspace && workspace.id !== undefined ? workspace.id : undefined
+                                var w = it;
+                                var clientInfo = w && w.lastIpcObject ? w.lastIpcObject : {};
+                                var workspace = clientInfo && clientInfo.workspace ? clientInfo.workspace : null;
+                                var workspaceId = workspace && workspace.id !== undefined ? workspace.id : undefined;
 
                                 // Filter invalid workspace or offscreen windows
-                                if (workspaceId === undefined || workspaceId === null) continue
-                                var size = clientInfo && clientInfo.size ? clientInfo.size : [0, 0]
-                                var at = clientInfo && clientInfo.at ? clientInfo.at : [-1000, -1000]
-                                if (at[1] + size[1] <= 0) continue
+                                if (workspaceId === undefined || workspaceId === null)
+                                    continue;
+                                var size = clientInfo && clientInfo.size ? clientInfo.size : [0, 0];
+                                var at = clientInfo && clientInfo.at ? clientInfo.at : [-1000, -1000];
+                                if (at[1] + size[1] <= 0)
+                                    continue;
 
                                 // Text filtering
-                                var title = (w.title || clientInfo.title || "").toLowerCase()
-                                var clazz = (clientInfo["class"] || "").toLowerCase()
-                                var ic = (clientInfo.initialClass || "").toLowerCase()
-                                var app = (w.appId || clientInfo.initialClass || "").toLowerCase()
+                                var title = (w.title || clientInfo.title || "").toLowerCase();
+                                var clazz = (clientInfo["class"] || "").toLowerCase();
+                                var ic = (clientInfo.initialClass || "").toLowerCase();
+                                var app = (w.appId || clientInfo.initialClass || "").toLowerCase();
 
                                 if (q.length > 0) {
-                                    var match = title.indexOf(q) !== -1 || clazz.indexOf(q) !== -1 ||
-                                                ic.indexOf(q) !== -1 || app.indexOf(q) !== -1
-                                    if (!match) continue
+                                    var match = title.indexOf(q) !== -1 || clazz.indexOf(q) !== -1 || ic.indexOf(q) !== -1 || app.indexOf(q) !== -1;
+                                    if (!match)
+                                        continue;
                                 }
 
                                 windowList.push({
@@ -312,19 +312,23 @@ PanelWindow {
                                     height: size[1],
                                     originalIndex: idx++,
                                     lastIpcObject: w.lastIpcObject
-                                })
+                                });
                             }
 
                             // Sort by workspaceId, then originalIndex
-                            windowList.sort(function(a, b) {
-                                if (a.workspaceId < b.workspaceId) return -1
-                                if (a.workspaceId > b.workspaceId) return 1
-                                if (a.originalIndex < b.originalIndex) return -1
-                                if (a.originalIndex > b.originalIndex) return 1
-                                return 0
-                            })
+                            windowList.sort(function (a, b) {
+                                if (a.workspaceId < b.workspaceId)
+                                    return -1;
+                                if (a.workspaceId > b.workspaceId)
+                                    return 1;
+                                if (a.originalIndex < b.originalIndex)
+                                    return -1;
+                                if (a.originalIndex > b.originalIndex)
+                                    return 1;
+                                return 0;
+                            });
 
-                            return LayoutsManager.doLayout(algo, windowList, areaW, areaH)
+                            return LayoutsManager.doLayout(algo, windowList, areaW, areaH);
                         }
                     }
 
@@ -344,7 +348,7 @@ PanelWindow {
                             // Layout-generated coordinates
                             targetX: modelData.x
                             targetY: modelData.y
-                            targetZ: (visible && (exposeArea.currentIndex === index)) ? 1000: modelData.zIndex || 0
+                            targetZ: (visible && (exposeArea.currentIndex === index)) ? 1000 : modelData.zIndex || 0
                             targetRotation: modelData.rotation || 0
 
                             hovered: visible && (exposeArea.currentIndex === index)
@@ -355,9 +359,9 @@ PanelWindow {
 
                 SearchBox {
                     id: searchBox
-                    onTextChanged: function(text) {
-                        root.animateWindows = true
-                        exposeArea.searchText = text
+                    onTextChanged: function (text) {
+                        root.animateWindows = true;
+                        exposeArea.searchText = text;
                     }
                 }
             }

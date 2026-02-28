@@ -26,10 +26,6 @@ Item {
     property real targetZ: 0
     property real targetRotation: 0
 
-    // --- Portrait output fix (rotate preview for windows on a rotated monitor) ---
-    property var portraitMonitorIds: [1, 2] // CHANGE THIS to your portrait monitor id
-    property real monitorRotationFix: (clientInfo && portraitMonitorIds.indexOf(clientInfo.monitor) !== -1) ? 90 : 0
-
     property bool moveCursorToActiveWindow: false
 
     width: thumbW
@@ -170,9 +166,8 @@ Item {
     }
 
     function refreshThumb() {
-        const wrap = thumbLoader.item;
-        if (wrap && wrap.thumb) {
-            wrap.thumb.captureFrame();
+        if (thumbLoader.item) {
+            thumbLoader.item.captureFrame();
         }
     }
 
@@ -229,40 +224,22 @@ Item {
             id: thumbLoader
             anchors.fill: parent
             active: root.isActive && !!thumbContainer.wHandle
-
-            sourceComponent: Item {
-                id: thumbWrap
+            sourceComponent: ScreencopyView {
+                id: thumb
                 anchors.fill: parent
+                captureSource: thumbContainer.wHandle
+                live: root.liveCapture && root.isActive
+                paintCursor: false
+                visible: root.isActive && thumbContainer.wHandle && hasContent
 
-                // rotate ONLY the preview, not the title/badge UI outside this Loader
-                ScreencopyView {
-                    id: thumb
-                    anchors.centerIn: parent
-
-                    // Keep the preview within the card when rotated (avoid ugly clipping)
-                    width: thumbContainer.monitorRotationFix !== 0 ? parent.height : parent.width
-                    height: thumbContainer.monitorRotationFix !== 0 ? parent.width : parent.height
-                    scale: 1.0
-
-                    rotation: thumbContainer.monitorRotationFix
-                    transformOrigin: Item.Center
-
-                    captureSource: thumbContainer.wHandle
-                    live: root.liveCapture && root.isActive
-                    paintCursor: false
-                    visible: root.isActive && thumbContainer.wHandle && hasContent
-
-                    layer.enabled: true
-                    layer.effect: OpacityMask {
-                        maskSource: Rectangle {
-                            width: thumb.width
-                            height: thumb.height
-                            radius: 16
-                        }
+                layer.enabled: true
+                layer.effect: OpacityMask {
+                    maskSource: Rectangle {
+                        width: thumb.width
+                        height: thumb.height
+                        radius: 16
                     }
                 }
-
-                // Border/dim overlay stays UNROTATED and stays aligned to the card
                 Rectangle {
                     anchors.fill: parent
                     color: thumbContainer.hovered ? "transparent" : "#33000000"
