@@ -1,5 +1,5 @@
 :root {
-    --cc-bg: #161616bf;
+    --cc-bg: #161616b3;
     --noti-bg: #6e6e6e;
     --noti-bg-alpha: 0.3;
     --noti-bg-focus: #47474780;
@@ -77,18 +77,18 @@ blankwindow {
 }
 
 .notification-row .notification-background {
-    padding: 10px 12px;
+    padding: 0px;
     background: transparent;
 }
 
 /* Popup Notification */
 .notification-row .notification-background .notification {
     /* The actual notification */
-    border-radius: var(--border-radius);
+    border-radius: 0 0 0 15px;
     border: none;
     padding: 0;
     transition: var(--hover-tranistion);
-    background: #16161680;
+    background: #1616168c;
 }
 
 /* * */
@@ -114,7 +114,7 @@ blankwindow {
     border: none;
     color: var(--text-color);
     transition: var(--hover-tranistion);
-    border-radius: var(--border-radius);
+    border-radius: 0;
 }
 
 .notification-row .notification-background .notification .notification-default-action:hover {
@@ -124,9 +124,8 @@ blankwindow {
 .notification-row .notification-background .notification .notification-default-action:not(:only-child) {}
 
 .notification-row .notification-background .notification .notification-default-action .notification-content {
-    background: var(--cc-bg);
-    border-radius: var(--border-radius);
-    padding: 6px;
+    background: none;
+    border-radius: 2px;
 }
 
 .notification-row .notification-background .notification .notification-default-action .notification-content .image {
@@ -334,10 +333,9 @@ blankwindow {
     /* The Control Center which contains the old notifications + widgets */
     background: var(--cc-bg);
     color: var(--text-color);
-    border-radius: var(--border-radius);
-    margin-bottom: 20px;
-    margin-top: 1px;
+    border-radius: 10px 0 0 10px;
     border: 1px solid rgba(134, 134, 134, 0.2);
+    border-right: 0px;
 }
 
 .control-center .control-center-list-placeholder {
