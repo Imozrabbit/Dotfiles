@@ -148,6 +148,7 @@
         "return-type": "json",
         "interval": 2,
         "exec": "~/.config/shell/script/waybar_related/vpn_waybar_status",
+        "on-click": "nm-connection-editor",
         "tooltip": true
     },
     "network": {
