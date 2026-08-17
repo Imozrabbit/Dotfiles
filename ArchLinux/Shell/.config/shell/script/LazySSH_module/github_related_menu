@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$HOME/.config/shell/script/LazySSH_module/back_or_exit.sh"
+lazyssh_github_module_dir="/home/Zrabbit/.config/shell/script/LazySSH_module/GitHub"
+
+printf "\033[1;36m󰍜 GitHub related Options :\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎦  SSH setup wizard for new repos\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  Inspect Git repo remote\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎬  Back to main menu\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎮  Exit\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+read -r choice
+
+case "${choice:-}" in
+  1)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    "$lazyssh_github_module_dir/setup_wizard"
+    back_or_exit previous
+    ;;
+  2|inspect|Inspect)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    "$lazyssh_github_module_dir/inspect_git_remote"
+    back_or_exit previous
+    ;;
+  3|main|back|b|B|m|M)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    clear
+    "$HOME"/.config/shell/script/lazyssh
+    ;;
+  4|q|exit|quit)
+    exit 0
+    ;;
+  *)
+    printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+    exit 1
+    ;;
+esac

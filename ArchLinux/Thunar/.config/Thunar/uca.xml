@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<actions>
+<action>
+	<icon>utilities-terminal</icon>
+	<name>Open Terminal Here</name>
+	<submenu></submenu>
+	<unique-id>1768390385781448-1</unique-id>
+	<command>ghostty --working-directory=&quot;%f&quot;</command>
+	<description></description>
+	<range></range>
+	<patterns>*</patterns>
+	<startup-notify/>
+	<directories/>
+</action>
+<action>
+	<icon>emblem-symbolic-link</icon>
+	<name>Creat symlink</name>
+	<submenu></submenu>
+	<unique-id>1774540119619464-2</unique-id>
+	<command>ln -s %f &quot;Link to %n&quot;</command>
+	<description></description>
+	<range>1-*</range>
+	<patterns>*</patterns>
+	<startup-notify/>
+	<directories/>
+	<other-files/>
+</action>
+<action>
+	<icon>kr_diskusage</icon>
+	<name>Disk Usage</name>
+	<submenu></submenu>
+	<unique-id>1774538882220911-1</unique-id>
+	<command>ghostty --wait-after-command=true -e gdu</command>
+	<description>View disk usage of the current directory</description>
+	<range>*</range>
+	<patterns>*</patterns>
+	<startup-notify/>
+	<directories/>
+	<audio-files/>
+	<image-files/>
+	<other-files/>
+	<text-files/>
+	<video-files/>
+</action>
+<action>
+	<icon>application-pdf</icon>
+	<name>Convert to PDF</name>
+	<submenu></submenu>
+	<unique-id>1774533431334554-1</unique-id>
+	<command>soffice --convert-to pdf %N</command>
+	<description></description>
+	<range>1-1</range>
+	<patterns>*.doc;*.docx;*.odt;*.pptx;*.ppt;*.odp;*.odg</patterns>
+	<startup-notify/>
+	<other-files/>
+</action>
+<action>
+	<icon>showinfo</icon>
+	<name>Media Info</name>
+	<submenu></submenu>
+	<unique-id>1774534852228439-1</unique-id>
+	<command>ghostty --wait-after-command=true -e ffprobe -hide_banner %f </command>
+	<description></description>
+	<range>1-1</range>
+	<patterns>*</patterns>
+	<startup-notify/>
+	<audio-files/>
+	<video-files/>
+</action>
+<action>
+	<icon>archive-insert</icon>
+	<name>Compress here</name>
+	<submenu></submenu>
+	<unique-id>1774535659024812-3</unique-id>
+	<command>tar -czf archive.tar.gz %F</command>
+	<description></description>
+	<range>1-*</range>
+	<patterns>*</patterns>
+	<startup-notify/>
+	<directories/>
+	<audio-files/>
+	<image-files/>
+	<other-files/>
+	<text-files/>
+	<video-files/>
+</action>
+<action>
+	<icon>archive-extract</icon>
+	<name>Extract here</name>
+	<submenu></submenu>
+	<unique-id>1774535553751542-2</unique-id>
+	<command>unzip -o %f -d %d</command>
+	<description>For .zip tarballs</description>
+	<range>1-1</range>
+	<patterns>*.zip</patterns>
+	<startup-notify/>
+	<other-files/>
+</action>
+<action>
+	<icon>archive-extract</icon>
+	<name>Extract here</name>
+	<submenu></submenu>
+	<unique-id>1774535924429854-1</unique-id>
+	<command>bzip2 -dk %f</command>
+	<description>For .bz2 tarballs</description>
+	<range>1-1</range>
+	<patterns>*.bz2</patterns>
+	<startup-notify/>
+	<other-files/>
+</action>
+<action>
+	<icon>archive-extract</icon>
+	<name>Extract here</name>
+	<submenu></submenu>
+	<unique-id>1774538221802157-1</unique-id>
+	<command>tar -zxf %f -C %d</command>
+	<description>For gzip tarballs</description>
+	<range>1-1</range>
+	<patterns>*.tar.gz;*.tgz</patterns>
+	<startup-notify/>
+	<other-files/>
+</action>
+<action>
+	<icon>archive-extract</icon>
+	<name>Extract here</name>
+	<submenu></submenu>
+	<unique-id>1774538336001864-2</unique-id>
+	<command>tar -jxf %f -C %d</command>
+	<description>For bzip2 tarballs</description>
+	<range>1-1</range>
+	<patterns>*.tar.bz2;*.tbz2</patterns>
+	<startup-notify/>
+	<other-files/>
+</action>
+<action>
+	<icon>archive-extract</icon>
+	<name>Extract here</name>
+	<submenu></submenu>
+	<unique-id>1774538392960795-3</unique-id>
+	<command>tar -Jxf %f -C %d</command>
+	<description>For xz tarballs</description>
+	<range>1-1</range>
+	<patterns>*.tar.xz;*.txz</patterns>
+	<startup-notify/>
+	<other-files/>
+</action>
+<action>
+	<icon>archive-extract</icon>
+	<name>Extract here</name>
+	<submenu></submenu>
+	<unique-id>1774538449687677-4</unique-id>
+	<command>tar -xf %f -C %d</command>
+	<description>For plain tarballs</description>
+	<range>1-1</range>
+	<patterns>*.tar;*.tar.zst</patterns>
+	<startup-notify/>
+	<other-files/>
+</action>
+<action>
+	<icon>archive-extract</icon>
+	<name>Extract here</name>
+	<submenu></submenu>
+	<unique-id>1775172505744507-1</unique-id>
+	<command>unrar x %f</command>
+	<description>For .rar files</description>
+	<range>1-1</range>
+	<patterns>*.rar</patterns>
+	<other-files/>
+</action>
+</actions>

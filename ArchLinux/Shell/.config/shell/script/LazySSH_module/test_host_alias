@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ssh_configPath="$HOME/.ssh/config"
+
+# Print out the existing host aliases
+if [[ -f "$ssh_configPath" ]]; then
+    printf "\033[1;32mReading the SSH config file at %s...\nCurrent host aliases :\033[0m\n" "$ssh_configPath"
+    if grep -Eq "^[[:space:]]*Host[[:space:]]+" "$ssh_configPath"; then
+        awk '
+            /^[[:space:]]*Host[[:space:]]+/ {
+                print "   " $2
+            }
+        ' "$ssh_configPath"
+    else
+        printf "\033[1;31m⚠ No SSH host aliases found\033[0m\n"
+    fi
+else
+    printf "\033[1;31m⚠ SSH config file not found: %s\033[0m\n" "$ssh_configPath"
+fi
+
+# Let user enter a host alias
+printf "\n"
+read -r -p "SSH Host alias to test > " ssh_alias
+
+if [[ -z "$ssh_alias" ]]; then
+    printf "\033[1;31m⚠ Alias cannot be empty.\033[0m\n"
+    exit 0
+fi
+
+resolved_hostname="$(ssh -G "$ssh_alias" 2>/dev/null | awk '$1 == "hostname" { print $2; exit }')"
+
+if [[ "$resolved_hostname" == "github.com" ]]; then
+    ssh -T "$ssh_alias" || true
+else
+    if ssh -o ConnectTimeout=5 "$ssh_alias" true; then
+        printf "\033[1;32mSSH alias works.\033[0m\n"
+    else
+        printf "\033[1;31m⚠ SSH alias test failed.\033[0m\n"
+    fi
+fi

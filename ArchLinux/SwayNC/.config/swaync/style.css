@@ -1,0 +1,353 @@
+:root {
+    --cc-bg: #161616b3;
+    --noti-bg-focus: #47474780;
+    --noti-close-bg: #4e4e4e;
+    --noti-close-bg-hover: #5e5e5e;
+    --text-color: #c3c3c5;
+    --text-color-disabled: #8e8fe0;
+    --tile-bg: #242426cc;
+    --tile-hover: #303034e6;
+    --tile-active: #56577a99;
+    --notification-icon-size: 55px;
+    --notification-app-icon-size: calc(var(--notification-icon-size) / 3);
+    --notification-group-icon-size: 15px;
+    --border-radius: 10px;
+    --font-size-time: 14px;
+    --hover-transition: background 0.15s ease-in-out;
+    --group-collapse-transition: opacity 400ms ease-in-out;
+    --mpris-album-art-overlay: #0000008c;
+    --mpris-album-art-shadow: none;
+    --3d-shadow: inset 0 1px 2px #ffffff26, 0 2px 4px #00000066;
+}
+
+* {
+    font-family: "JetBrainsMono Nerd Font";
+}
+
+.notification-row,
+.notification-row:focus,
+.notification-row .notification-background,
+.floating-notifications {
+    background: transparent;
+}
+
+.notification-row .notification-background {
+    padding: 0;
+}
+
+.notification-row .notification-background .notification {
+    min-height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: 0 0 0 15px;
+    background: #1616168c;
+    transition: var(--hover-transition);
+}
+
+.notification-row .notification-background .notification .notification-default-action {
+    padding: 1px;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    color: var(--text-color);
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .image {
+    margin: 2px;
+    border-radius: var(--border-radius);
+    -gtk-icon-filter: none;
+    -gtk-icon-size: var(--notification-icon-size);
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .app-icon {
+    margin: 6px;
+    -gtk-icon-filter: none;
+    -gtk-icon-size: var(--notification-app-icon-size);
+    -gtk-icon-shadow: 0 1px 4px black;
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box label {
+    filter: none;
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .summary,
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .body {
+    padding-left: 10px;
+    color: var(--text-color);
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .time {
+    font-size: var(--font-size-time);
+    font-weight: normal;
+    color: var(--text-color-disabled);
+}
+
+.notification-group .notification-group-buttons,
+.notification-group .notification-group-headers {
+    margin: 0 16px;
+    color: var(--text-color);
+    border-radius: var(--border-radius);
+}
+
+.notification-group .notification-group-buttons button {
+    min-width: 24px;
+    min-height: 24px;
+    padding: 5px;
+    background: transparent;
+    box-shadow: none;
+}
+
+.notification-group {
+    background: transparent;
+}
+
+.notification-group .notification-group-headers .notification-group-icon {
+    margin-right: 6px;
+    margin-bottom: 5px;
+    -gtk-icon-size: var(--notification-group-icon-size);
+}
+
+.notification-group .notification-group-headers .notification-group-header {
+    margin-bottom: 5px;
+    font-size: 16px;
+}
+
+.notification-group.collapsed {
+    background: transparent;
+    transition: var(--group-collapse-transition);
+}
+
+.notification-group.collapsed .notification-row:not(:last-child) {
+    filter: blur(2px);
+}
+
+.notification-group.collapsed:hover .notification-row:not(:only-child) .notification {
+    background: var(--noti-bg-focus);
+}
+
+.control-center {
+    background: var(--cc-bg);
+    color: var(--text-color);
+    border: 1px solid #86868633;
+    border-right: none;
+    border-radius: 10px 0 0 10px;
+}
+
+.control-center .control-center-list-placeholder {
+    opacity: 0;
+}
+
+.control-center .control-center-list .notification {
+    box-shadow: var(--3d-shadow);
+}
+
+.widget {
+    padding: 2px 8px;
+    border-radius: var(--border-radius);
+    font-weight: bold;
+}
+
+.widget-title.header {
+    margin: 8px 10px 8px;
+    padding: 12px 0 2px 2px;
+    border-bottom: 0px solid #ffffff14;
+}
+
+.widget-title.header>label {
+    padding-left: 10px;
+    font-family: "Atkinson Hyperlegible Next";
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+.widget-title>button,
+.widget-buttons-grid flowbox>flowboxchild>button,
+.widget-mpris .widget-mpris-player .mpris-overlay>box>button {
+    border-radius: var(--border-radius);
+    box-shadow: var(--3d-shadow);
+    transition: all 0.26s ease;
+}
+
+.widget-title>button.text-button {
+    padding: 3px 7px;
+    margin: 0 10px;
+    font-family: "Atkinson Hyperlegible Next";
+    font-weight: bold;
+}
+
+.widget-title>button:hover {
+    background: var(--tile-hover);
+    border-color: #ffffff38;
+}
+
+.widget-buttons-grid flowbox {
+    padding: 0;
+}
+
+.widget-buttons-grid label {
+    margin: 0;
+    padding: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.widget-buttons-grid flowbox>flowboxchild>button {
+    margin: 0;
+    padding: 2px 0;
+    background: var(--tile-bg);
+    border: 1px solid #ffffff1f;
+}
+
+.quick flowbox>flowboxchild>button {
+    min-height: 30px;
+    min-width: 56px;
+}
+
+.quick flowbox>flowboxchild>button:hover {
+    background: var(--tile-hover);
+    border-color: #ffffff38;
+}
+
+.quick flowbox>flowboxchild>button.toggle:checked {
+    background: var(--tile-active);
+    border-color: #a5a7e066;
+}
+
+.widget-buttons-grid.quick {
+    margin: 0 10px;
+    padding: 5px 0;
+}
+
+.widget-buttons-grid.power {
+    margin: 8px 10px 10px;
+    padding: 12px 0;
+    border-top: 1px solid #ffffff14;
+    border-bottom: 1px solid #ffffff14;
+}
+
+.power flowbox>flowboxchild>button {
+    min-height: 32px;
+    background: #202022b3;
+    border-color: #ffffff14;
+    box-shadow: inset 0 1px #ffffff0f;
+}
+
+.power flowbox>flowboxchild>button:hover {
+    background: var(--tile-hover);
+    border-color: #ffffff30;
+}
+
+.power flowbox>flowboxchild:nth-child(1) label {
+    color: #e78284;
+}
+
+.power flowbox>flowboxchild:nth-child(1)>button:hover {
+    background: #5c3033cc;
+    border-color: #e7828466;
+}
+
+.power flowbox>flowboxchild:nth-child(2) label {
+    color: #e5c07b;
+}
+
+.power flowbox>flowboxchild:nth-child(2)>button:hover {
+    background: #594b2fcc;
+    border-color: #e5c07b66;
+}
+
+.widget-dnd label {
+    margin-top: 6px;
+    margin-left: 6px;
+    font-family: "Atkinson Hyperlegible Next";
+    font-size: 1.1rem;
+    color: var(--text-color);
+}
+
+.widget-mpris,
+.widget-volume,
+.widget-dnd {
+    margin-top: 6px;
+    margin-bottom: 6px;
+}
+
+.widget-dnd switch {
+    margin-top: 6px;
+    margin-right: 8px;
+    border-radius: var(--border-radius);
+}
+
+.widget-dnd switch slider {
+    border-radius: var(--border-radius);
+}
+
+.widget-mpris .widget-mpris-player {
+    min-height: 120px;
+    border-radius: var(--border-radius);
+}
+
+.widget-mpris .widget-mpris-player .mpris-background {
+    filter: blur(1px);
+}
+
+.widget-mpris .widget-mpris-player .mpris-overlay {
+    padding: 0 10px 8px;
+    background: var(--mpris-album-art-overlay);
+}
+
+.widget-mpris .widget-mpris-player .mpris-overlay button:hover {
+    background: #202020b3;
+}
+
+.widget-mpris .widget-mpris-player .mpris-overlay .widget-mpris-title {
+    font-size: 1.1rem;
+}
+
+.widget-mpris .widget-mpris-player .mpris-overlay .widget-mpris-subtitle {
+    font-size: 1rem;
+}
+
+.widget-mpris .widget-mpris-player .mpris-overlay>box>button:hover {
+    transform: translateY(-2px) scale(1.06);
+}
+
+.widget-mpris>box>button {
+    margin: 0 -8px;
+    border-radius: var(--border-radius);
+}
+
+.widget-volume {
+    font-weight: normal;
+}
+
+.widget-volume slider {
+    padding: 2px;
+    background: var(--noti-close-bg-hover);
+    box-shadow: var(--3d-shadow);
+    opacity: 0.6;
+    filter: blur(2px);
+}
+
+.widget-volume trough {
+    min-height: 5px;
+}
+
+.widget-volume highlight {
+    margin: 0;
+    background: var(--text-color);
+}
+
+.widget-volume label {
+    margin-left: 1px;
+    font-size: 1.6rem;
+}
+
+.control-center scrollbar {
+    opacity: 0.35;
+}
+
+.control-center scrollbar slider {
+    min-width: 3px;
+    min-height: 24px;
+}

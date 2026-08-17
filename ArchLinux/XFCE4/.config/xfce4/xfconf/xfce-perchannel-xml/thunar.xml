@@ -1,0 +1,59 @@
+<?xml version="1.1" encoding="UTF-8"?>
+
+<channel name="thunar" version="1.0">
+  <property name="last-view" type="string" value="ThunarDetailsView"/>
+  <property name="last-icon-view-zoom-level" type="string" value="THUNAR_ZOOM_LEVEL_100_PERCENT"/>
+  <property name="last-window-maximized" type="bool" value="true"/>
+  <property name="last-side-pane" type="string" value="THUNAR_SIDEPANE_TYPE_SHORTCUTS"/>
+  <property name="last-separator-position" type="int" value="137"/>
+  <property name="last-location-bar" type="string" value="ThunarLocationButtons"/>
+  <property name="last-image-preview-visible" type="bool" value="true"/>
+  <property name="last-statusbar-visible" type="bool" value="true"/>
+  <property name="last-menubar-visible" type="bool" value="false"/>
+  <property name="misc-symbolic-icons-in-toolbar" type="bool" value="false"/>
+  <property name="last-toolbar-items" type="string" value="menu:0,back:1,forward:1,open-parent:1,open-home:1,new-tab:0,new-window:0,toggle-split-view:0,undo:1,redo:0,zoom-out:0,zoom-in:0,zoom-reset:0,view-as-detailed-list:0,view-as-icons:0,view-as-compact-list:0,view-switcher:0,location-bar:1,reload:0,search:1,uca-action-1768390385781448-1:0,uca-action-1774538882220911-1:0"/>
+  <property name="last-details-view-zoom-level" type="string" value="THUNAR_ZOOM_LEVEL_38_PERCENT"/>
+  <property name="last-details-view-column-widths" type="string" value="160,50,2696,752,158,1644,74,110,359,50,117,91,125,182"/>
+  <property name="last-show-hidden" type="bool" value="true"/>
+  <property name="last-details-view-visible-columns" type="string" value="THUNAR_COLUMN_DATE_MODIFIED,THUNAR_COLUMN_NAME,THUNAR_COLUMN_SIZE,THUNAR_COLUMN_TYPE"/>
+  <property name="misc-folder-item-count" type="string" value="THUNAR_FOLDER_ITEM_COUNT_ALWAYS"/>
+  <property name="misc-expandable-folders" type="bool" value="true"/>
+  <property name="misc-single-click" type="bool" value="false"/>
+  <property name="misc-directory-specific-settings" type="bool" value="true"/>
+  <property name="misc-text-beside-icons" type="bool" value="false"/>
+  <property name="misc-thumbnail-mode" type="string" value="THUNAR_THUMBNAIL_MODE_ALWAYS"/>
+  <property name="misc-thumbnail-draw-frames" type="bool" value="false"/>
+  <property name="misc-date-style" type="string" value="THUNAR_DATE_STYLE_CUSTOM"/>
+  <property name="shortcuts-icon-size" type="string" value="THUNAR_ICON_SIZE_16"/>
+  <property name="shortcuts-icon-emblems" type="bool" value="true"/>
+  <property name="tree-icon-size" type="string" value="THUNAR_ICON_SIZE_16"/>
+  <property name="tree-icon-emblems" type="bool" value="true"/>
+  <property name="misc-symbolic-icons-in-sidepane" type="bool" value="true"/>
+  <property name="misc-image-preview-mode" type="string" value="THUNAR_IMAGE_PREVIEW_MODE_EMBEDDED"/>
+  <property name="misc-middle-click-in-tab" type="bool" value="true"/>
+  <property name="misc-open-new-window-as-tab" type="bool" value="false"/>
+  <property name="misc-full-path-in-tab-title" type="bool" value="false"/>
+  <property name="misc-show-delete-action" type="bool" value="true"/>
+  <property name="misc-recursive-search" type="string" value="THUNAR_RECURSIVE_SEARCH_ALWAYS"/>
+  <property name="misc-date-custom-style" type="string" value="%H:%M:%S [%m/%d/%Y]"/>
+  <property name="last-details-view-column-order" type="string" value="THUNAR_COLUMN_NAME,THUNAR_COLUMN_SIZE,THUNAR_COLUMN_TYPE,THUNAR_COLUMN_DATE_CREATED,THUNAR_COLUMN_DATE_MODIFIED,THUNAR_COLUMN_LOCATION,THUNAR_COLUMN_GROUP,THUNAR_COLUMN_MIME_TYPE,THUNAR_COLUMN_SIZE_IN_BYTES,THUNAR_COLUMN_OWNER,THUNAR_COLUMN_PERMISSIONS,THUNAR_COLUMN_DATE_ACCESSED,THUNAR_COLUMN_RECENCY,THUNAR_COLUMN_DATE_DELETED"/>
+  <property name="last-details-view-fixed-columns" type="bool" value="true"/>
+  <property name="misc-change-window-icon" type="bool" value="true"/>
+  <property name="misc-use-csd" type="bool" value="false"/>
+  <property name="hidden-devices" type="array">
+    <value type="string" value="0E5821EB5821D1EF"/>
+    <value type="string" value="283267003266D1FC"/>
+    <value type="string" value="AA04AA2B04A9FB09"/>
+    <value type="string" value="062A74592A7447A7"/>
+  </property>
+  <property name="hidden-bookmarks" type="array">
+    <value type="string" value="recent:///"/>
+    <value type="string" value="computer:///"/>
+    <value type="string" value="file:///home/Zrabbit"/>
+    <value type="string" value="network:///"/>
+  </property>
+  <property name="last-renamer-dialog-maximized" type="bool" value="true"/>
+  <property name="last-splitview-separator-position" type="int" value="-1"/>
+  <property name="misc-thumbnail-max-file-size" type="uint64" value="10485760"/>
+  <property name="misc-file-size-binary" type="bool" value="false"/>
+</channel>

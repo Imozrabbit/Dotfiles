@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+known_hosts_dir="$HOME/.ssh/known_hosts"
+
+printf "\033[1;32mScanning the SSH known hosts' folder at %s...\033[0m\n" "$known_hosts_dir"
+if [[ ! -d "$known_hosts_dir" ]]; then
+    printf "\033[1;31mCannot find such folder.\033[0m\n"
+    exit 0
+fi
+
+printf "\033[1;32mKnown Hosts :\033[0m\n"
+if find "$known_hosts_dir" -maxdepth 1 -type f 2>/dev/null | grep -q .; then
+    find "$known_hosts_dir" -maxdepth 1 -type f -printf "   %f\n" | sort
+else
+    printf "\033[1;31mNo known_hosts file found.\033[0m\n"
+fi

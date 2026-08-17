@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+vpn="$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null | awk -F: '$2=="wireguard"{print $1; exit}')"
+
+if resolvectl status 2>/dev/null | grep -q 'dns.nextdns.io'; then
+    dns="NextDNS"
+else
+    dns="No NextDNS"
+fi
+
+if [ -n "$vpn" ]; then
+    text="󰦝 "
+    tooltip="WireGuard: connected\nProfile: $vpn\nDNS: $dns"
+    class="connected"
+else
+    text=" "
+    tooltip="WireGuard: disconnected\nDNS: $dns"
+    class="disconnected"
+fi
+
+printf '{"text":"%s","tooltip":"%s","class":"%s"}\n' \
+    "$text" "$tooltip" "$class"

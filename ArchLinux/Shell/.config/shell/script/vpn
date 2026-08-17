@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+wg_config_folder="/home/Zrabbit/.config/wireguard"
+
+printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+echo "WireGuard list:"
+nmcli -f NAME,TYPE,DEVICE conn show | awk '/wireguard/'
+if nmcli -t -f NAME,TYPE connection show --active | grep -q ':wireguard$'; then
+        active_vpn="$(nmcli -t -f NAME,TYPE connection show --active | awk -F: '$2=="wireguard"{print $1; exit}')"
+    printf "\033[38;2;255;165;0mThe following WireGuard is active: %s\033[0m\n" "$active_vpn"
+else
+    printf "\033[38;2;255;165;0mNo active WireGuard connection.\033[0m\n"
+fi
+printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+printf "\033[1;36m██╗   ██╗██████╗ ███╗   ██╗               󰍜 Main Menu:\033[0m\n"
+printf "\033[1;36m██║   ██║██╔══██╗████╗  ██║                 ⤷ 󰎦  Connect\033[0m\n"
+printf "\033[1;36m██║   ██║██████╔╝██╔██╗ ██║                 ⤷ 󰎩  Disconnect\033[0m\n"
+printf "\033[1;36m╚██╗ ██╔╝██╔═══╝ ██║╚██╗██║                 ⤷ 󰎬  Manage profile\033[0m\n"
+printf "\033[1;36m ╚████╔╝ ██║     ██║ ╚████║                 ⤷ 󰎮  Manage auto connect\033[0m\n"
+printf "\033[1;36m  ╚═══╝  ╚═╝     ╚═╝  ╚═══╝                 ⤷ 󰎰  Quit\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+read -r choice
+
+case "${choice:-}" in
+  1)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    printf "\033[1;36mEnter the name of the VPN profile to connect, leave empty for default (CH-Zurich) ›\033[0m "
+    read -r vpn_conn_name
+
+    if [[ -z "$vpn_conn_name" ]]; then
+        vpn_conn_name="CH-Zurich"
+    fi
+
+    # Check vpn profile's existence
+    if nmcli -g NAME,TYPE connection show | grep -Fxq "$vpn_conn_name:wireguard"; then 
+        if [ -n "${active_vpn:-}" ]; then
+            nmcli conn down "$active_vpn"
+        fi
+        nmcli conn up "$vpn_conn_name"
+        exit 0
+    else
+        printf "\033[1;31mVPN profile not found.\033[0m\n"
+        exit 1
+    fi
+    ;;
+  2)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    if [ -n "${active_vpn:-}" ]; then
+        nmcli conn down "$active_vpn"
+        exit 0
+    else 
+        printf "\033[1;31mThere is no active VPN running.\033[0m\n"
+        exit 1
+    fi 
+    ;;
+  3)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    printf "\033[1;36mDo you want to add/remove/rename a VPN profile ›\033[0m "
+    read -r answer
+    case "${answer:-}" in
+        1|add|ADD|import|IMPORT)
+            printf "\033[1;36mList of profiles:\033[0m\n"
+            ls "$wg_config_folder"
+            printf "\033[1;36mEnter the name of the config file to add ›\033[0m "
+            read -r vpn_add_name
+            # Check if the file is there
+            [ -f "$wg_config_folder/$vpn_add_name" ] || {
+                printf "\033[1;31mWireguard config file not found.\033[0m\n"
+                exit 1
+            }
+            nmcli conn import type wireguard file "$wg_config_folder/$vpn_add_name"
+            exit 0
+            ;;
+        2|remove|delete|REMOVE|DELETE)
+            printf "\033[1;36mEnter the name of the profile to remove ›\033[0m "
+            read -r vpn_remove_name
+            # Check if the profile is on the list
+            if nmcli -g NAME,TYPE connection show | grep -Fxq "$vpn_remove_name:wireguard"; then 
+                nmcli conn delete "$vpn_remove_name"
+                printf "\033[38;2;255;165;0mConsider deleting the corresponding config file: %s.\033[0m\n" "$wg_config_folder/$vpn_remove_name"
+                exit 0
+            else
+                printf "\033[1;31mVPN profile not found.\033[0m\n"
+                exit 1
+            fi
+            ;;
+        3|rename|RENAME)
+            printf "\033[1;36mEnter the name of the profile to rename ›\033[0m "
+            read -r vpn_original_name
+            # Check if the profile exists
+            if nmcli -g NAME,TYPE connection show | grep -Fxq "$vpn_original_name:wireguard"; then 
+                printf "\033[1;36mEnter the new name of the profile ›\033[0m "
+                read -r vpn_new_name
+                if nmcli -g NAME,TYPE connection show | grep -Fxq "$vpn_new_name:wireguard"; then 
+                    printf "\033[1;31m%s\033[0m\n" "Profile name already exists or the same name was entered."
+                    exit 1
+                else
+                    nmcli conn modify "$vpn_original_name" connection.id "$vpn_new_name"
+                    exit 0
+                fi
+            else
+                printf "\033[1;31mVPN profile not found.\033[0m\n"
+                exit 1
+            fi
+            ;;
+        *)
+            printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+            exit 1
+            ;;
+    esac
+    ;;
+  4)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '=' 
+    printf "\033[1;36mCurrent status of auto-connection:\033[0m\n"
+    nmcli -f NAME,TYPE,AUTOCONNECT connection show | awk '/wireguard/'
+    printf "\033[1;36mEnter the name of the profile to change its auto-connect behavior ›\033[0m "
+    read -r profile_tochange
+    # Check if profile exists
+    if nmcli -g NAME,TYPE connection show | grep -Fxq "$profile_tochange:wireguard"; then
+        printf "\033[1;36mOn/Off ›\033[0m "
+        read -r onoroff
+        case "${onoroff:-}" in
+            1|on|ON)
+                nmcli connection modify "$profile_tochange" connection.autoconnect yes
+                exit 0
+                ;;
+            2|off|OFF)
+                nmcli connection modify "$profile_tochange" connection.autoconnect no
+                exit 0
+                ;;
+            *)
+                printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+                exit 1
+                ;;
+        esac
+    else
+        printf "\033[1;31mProfile not found.\033[0m\n"
+        exit 1
+    fi
+    ;;
+  5|q|exit|quit)
+    exit 0
+    ;;
+  *)
+    printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+    exit 1
+    ;;
+esac

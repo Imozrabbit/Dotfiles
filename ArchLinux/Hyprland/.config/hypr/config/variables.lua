@@ -1,0 +1,10 @@
+TERMINAL = "ghostty"
+MENU = "rofi -show drun"
+FILEMANAGER = "Thunar"
+BROWSER = "zen"
+BACKUPBROWSER = "brave-origin-nightly"
+NOTES = "obsidian"
+
+TOUCHPAD = "syna0001:00-06cb:ce67-touchpad"
+TRACKPOINT = "tpps/2-elan-trackpoint"
+TOUCHSCREEN = "elan901c:00-04f3:2d4c"

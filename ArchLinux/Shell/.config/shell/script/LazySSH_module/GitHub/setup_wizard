@@ -1,0 +1,260 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ----------------------------------------------------------------------------------------------------------------------------#
+# Register alias
+# ----------------------------------------------------------------------------------------------------------------------------#
+# Prompt for entering a repo/key alias, this later would become the SSH Host name, and the key files will be named from it
+printf "\033[1;4;32m1. Register alias ...\033[0m\n"
+read -r -p " GitHub repo SSH alias > " ssh_alias
+
+# Check the viability of the name given
+if [[ -z "$ssh_alias" ]]; then
+    printf "\033[1;31m   It cannot be an empty string.\033[0m\n"
+    exit 0
+fi
+
+if [[ ! "$ssh_alias" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    printf "\033[1;31m   Invalid alias. Use only letters, numbers, dots, underscores, and dashes.\033[0m\n"
+    exit 0
+fi
+
+# Check if the user SSH config exists, if not, create a baseline structure
+ssh_dir="$HOME/.ssh"
+user_ssh_config_path="$HOME/.ssh/config"
+
+if [[ ! -d "$ssh_dir" ]]; then
+    mkdir -p "$ssh_dir"
+    chmod 700 "$ssh_dir"
+fi
+
+if [[ ! -f "$user_ssh_config_path" ]]; then
+    printf "\033[1;31m User SSH config file cannot be found. \033[0m"
+    printf "\033[1;36mCreating %s...\033[0m\n" "$user_ssh_config_path"
+    touch "$user_ssh_config_path"
+    cat > "$user_ssh_config_path" <<'EOF'
+#-----------------------------------------------------------#
+#------------------------ Global ---------------------------#
+#-----------------------------------------------------------#
+# This would need the user to add key in the known_host file manually for maximum security
+StrictHostKeyChecking yes
+
+
+#-----------------------------------------------------------#
+#----------------------- Specific --------------------------#
+#-----------------------------------------------------------#
+EOF
+    chmod 600 "$user_ssh_config_path"
+fi
+
+# Check if there is already a bloc with the host name alias in the SSH config file
+if awk -v alias="$ssh_alias" '
+    /^[[:space:]]*Host[[:space:]]+/ {
+        for (i = 2; i <= NF; i++) {
+            if ($i == alias) {
+                found = 1
+            }
+        }
+    }
+
+    END {
+        exit !found
+    }
+' "$user_ssh_config_path"; then
+    printf "\033[1;31m⚠ Host alias already exists in SSH config: \033[0m%s\n" "$ssh_alias"
+    exit 0
+fi
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------------#
+# Generate SSH keys
+# ----------------------------------------------------------------------------------------------------------------------------#
+# Check for key paths, if non found, create them
+printf "\033[1;4;32m\n2. Key generation...\033[0m\n"
+
+private_dir="$HOME/.ssh/ed25519"
+public_dir="$HOME/.ssh/ed25519_pub"
+
+if [[ ! -d "$private_dir" ]]; then
+    printf "\033[1;31m The private key folder cannot be found. \033[0m"
+    printf "\033[1;36mCreating %s...\033[0m\n" "$private_dir"
+    mkdir -p "$private_dir"
+    chmod 700 "$private_dir"
+fi
+
+if [[ ! -d "$public_dir" ]]; then
+    printf "\033[1;31m The public key folder cannot be found. \033[0m"
+    printf "\033[1;36mCreating %s ...\033[0m\n" "$public_dir"
+    mkdir -p "$public_dir"
+    chmod 700 "$public_dir"
+fi
+
+# Check if the keys already exist
+key_name="${ssh_alias}_github_repo"
+private_key_path="$private_dir/$key_name"
+public_key_path="$public_dir/$key_name.pub"
+
+if [[ -e "$private_key_path" ]] || [[ -e "$public_key_path" ]]; then
+    printf "\033[1;31m The target key files already exist :\033[0m\n"
+    printf "\033[1;36m   Private key path :\033[0m %s\n" "$private_key_path"
+    printf "\033[1;36m   Public key path :\033[0m %s\n" "$public_key_path"
+    exit 0
+fi
+
+# Generating keys
+ssh-keygen -t ed25519 -f "$private_key_path" -C "github-$ssh_alias"
+mv "$private_key_path.pub" "$public_key_path"
+# Add permissions
+chmod 600 "$private_key_path"
+chmod 600 "$public_key_path"
+printf "\033[1;36mSSH key generated successfully.\033[0m\n"
+printf "\033[1;36m   Private key :\033[0m %s\n" "$private_key_path"
+printf "\033[1;36m   Public key :\033[0m %s\n" "$public_key_path"
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------------#
+# Print out public keys for GitHub and relevant instructions
+# ----------------------------------------------------------------------------------------------------------------------------#
+# Print the public key content for GitHub
+printf "\033[1;4;32m\n3. Public key for GitHub :\033[0m\n"
+cat "$public_key_path"
+printf "\033[1;36m   Follow the next steps :\033[0m\n"
+printf "\033[1;36m    i.   Go to the GitHub repository page.\033[0m\n"
+printf "\033[1;36m    ii.  Open Settings > Deploy keys.\033[0m\n"
+printf "\033[1;36m    iii. Click Add deploy key.\033[0m\n"
+printf "\033[1;36m    iv.  Paste the public key content above.\033[0m\n"
+printf "\033[1;36m    v.   Enable Allow write access if you want to push.\033[0m\n"
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------------#
+# Edit SSH config file, adding a new block
+# ----------------------------------------------------------------------------------------------------------------------------#
+# Add the SSH config Host alias
+printf "\033[1;4;32m\n4. Add SSH config Host alias:\033[0m\n"
+
+# Appending the new Host block
+cat >> "$user_ssh_config_path" <<EOF
+
+# GitHub $ssh_alias repo
+Host $ssh_alias
+    HostName github.com
+    Port 22
+    User git
+    UserKnownHostsFile ~/.ssh/known_hosts/github
+    IdentitiesOnly yes
+    IdentityFile $private_key_path
+EOF
+printf "\033[1;36mSSH config Host block added successfully for \033[0m%s.\n" "$ssh_alias"
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------------#
+# Make sure the known_hosts file for github exists
+# ----------------------------------------------------------------------------------------------------------------------------#
+known_hosts_dir="$HOME/.ssh/known_hosts"
+github_known_hosts_file_path="$known_hosts_dir/github"
+
+if [[ ! -d "$known_hosts_dir" ]]; then
+    mkdir -p "$HOME/.ssh/known_hosts"
+    chmod 700 "$HOME/.ssh/known_hosts"
+fi
+
+if [[ ! -f "$github_known_hosts_file_path" ]]; then
+    touch "$github_known_hosts_file_path"
+    # More information : https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints?utm_source=chatgpt.com
+    cat >> "$github_known_hosts_file_path" << EOF
+github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
+EOF
+    chmod 600 "$github_known_hosts_file_path"
+fi
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------------#
+# Set the git repo remote to use the SSH alias
+# ----------------------------------------------------------------------------------------------------------------------------#
+printf "\033[1;4;32m\n5. Configure Git remote...\033[0m\n"
+# Local repo location
+read -e -r -p "Enter the repo directory [Empty for current repo] > " repo_dir
+
+# If user didn't enter anything, use the current directory
+if [[ -z "$repo_dir" ]]; then
+    repo_dir="$PWD"
+fi
+
+# Resolve ~ to $HOME
+repo_dir="${repo_dir/#\~/$HOME}"
+
+# Check if the path is a directory
+if [[ ! -d "$repo_dir" ]]; then
+    printf "\033[1;31m⚠ The entered path doesn't exist.\033[0m\n"
+    exit 0
+fi
+
+# Check if that directory is inside a Git repo
+if git -C "$repo_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    repo_root="$(git -C "$repo_dir" rev-parse --show-toplevel)"
+else
+    printf "\033[1;31m⚠ This directory is not inside a Git repository.\033[0m\n"
+    exit 0
+fi
+
+# Register GitHub information
+read -r -p "Enter GitHub username [Empty for default : Imozrabbit] > " github_username
+if [[ -z "$github_username" ]]; then
+    github_username="Imozrabbit"
+fi
+
+default_github_repo_name="${ssh_alias//-/_}"
+default_github_repo_name="${default_github_repo_name^}"
+read -r -p "Enter GitHub repo name [Empty for default : $default_github_repo_name] > " github_repo_name
+if [[ -z "$github_repo_name" ]]; then
+    github_repo_name="$default_github_repo_name"
+fi
+
+read -r -p "Enter GitHub remote name [Empty for default : origin] > " github_remote_name
+if [[ -z "$github_remote_name" ]]; then
+    github_remote_name="origin"
+fi
+
+# Build remote URL
+github_remote_url="$ssh_alias:$github_username/$github_repo_name.git"
+
+# Print out visual feedback
+printf "\033[1;36m\nRepo :\033[0m\n"
+printf "\033[1;36m   \033[0m%s\n" "$repo_root"
+printf "\033[1;36mRemote : \033[0m\n"
+printf "\033[1;36m   Name : \033[0m%s\n" "$github_remote_name"
+printf "\033[1;36m   URL : \033[0m%s\n\n" "$github_remote_url"
+
+# Check if the remote git already exists
+if git -C "$repo_root" remote get-url "$github_remote_name" >/dev/null 2>&1; then
+    current_remote_url="$(git -C "$repo_root" remote get-url "$github_remote_name")"
+
+    printf "\033[1;31m⚠ Remote exists.\033[0m\n"
+    printf "\033[1;36m   Current remote URL : \033[0m%s\n" "$current_remote_url"
+    printf "\033[1;36m   New remote URL : \033[0m%s\n" "$github_remote_url"
+
+    read -r -p "Do you want to replace the current URL with the new one ?" _ifReplace
+
+    if [[ "$_ifReplace" =~ ^(y|Y|o|O|yes|Yes|YES|oui|OUI)$ ]]; then
+        git -C "$repo_root" remote set-url "$github_remote_name" "$github_remote_url"
+    else
+        exit 0
+    fi
+else
+    git -C "$repo_root" remote add "$github_remote_name" "$github_remote_url"
+fi
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------------#
+# Final step : verification
+# ----------------------------------------------------------------------------------------------------------------------------#
+printf "\033[1;4;32m\n6. Verification ...\033[0m\n"
+git -C "$repo_root" remote -v

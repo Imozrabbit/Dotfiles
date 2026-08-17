@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+private_dir="$HOME/.ssh/ed25519"
+public_dir="$HOME/.ssh/ed25519_pub"
+
+# -------------------------------- Private Keys --------------------------------
+printf "\033[1;32mScanning folder at %s...\033[0m\n" "$private_dir"
+if [[ ! -d "$private_dir" ]]; then
+    printf "\033[1;31mCannot find such folder.\033[0m\n"
+    exit 0;
+fi
+
+printf "\033[1;32mPrivate Keys :\033[0m\n"
+if find "$private_dir" -maxdepth 1 -type f 2>/dev/null | grep -q .; then
+    find "$private_dir" -maxdepth 1 -type f -printf "   %f\n" | sort
+else
+    printf "\033[1;31mNo private keys found.\033[0m\n"
+fi
+
+# --------------------------------- Public Keys ---------------------------------
+printf "\033[1;32m\nScanning folder at %s...\033[0m\n" "$public_dir"
+if [[ ! -d "$public_dir" ]]; then
+    printf "\033[1;31mCannot find such folder.\033[0m\n"
+    exit 0;
+fi
+
+printf "\033[1;32mPublic Keys :\033[0m\n"
+if find "$public_dir" -maxdepth 1 -type f -name "*.pub" 2>/dev/null | grep -q .; then
+    find "$public_dir" -maxdepth 1 -type f -name "*.pub" -printf "   %f\n" | sort
+else
+    printf "\033[1;31mNo public keys found.\033[0m\n"
+fi

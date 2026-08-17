@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+swaync-client -cp
+
+choice="$(
+  printf '%s\n' No Yes |
+    rofi -dmenu -normal-window \
+      -window-title "confirmbox" \
+      -mesg "Confirm to reboot" \
+      -theme ~/.config/rofi/themes/confirmation-box.rasi
+)"
+
+case "${choice:-}" in
+    Yes)
+        hyprctl dispatch "hl.dsp.exec_cmd('hyprshutdown -t Restarting... --post-cmd reboot')"
+        ;;
+    No|"")
+        exit 0
+        ;;
+esac

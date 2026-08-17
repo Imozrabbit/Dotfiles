@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Simple terminal menu
+printf "\033[1;36m Core Options:\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎦  Install platform core\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  List all installed platform cores\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎬  Update installed core index\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎮  Search for core\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎰  Uninstall core\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎵  Upgrade core\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎸  Back to the main menu\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+read -r choice
+
+case "${choice:-}" in
+  1)
+    # Prompt for the core name
+    printf "\033[1;36mPlatform core name ›\033[0m "
+    read -r core_name
+    [ -n "${core_name:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No name given. Exiting."; exit 1; }
+
+    # Install the selected core
+    arduino-cli core install "$core_name"
+    ;;
+  2)
+    arduino-cli core list
+    ;;
+  3)
+    arduino-cli core update-index
+    ;;
+  4)
+    # Prompt for entering the core's name to search for
+    printf "\033[1;36mEnter the core's name to search for ›\033[0m "
+    read -r search_name
+    [ -n "${search_name:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No search term given. Exiting."; exit 1; }
+
+    # Search
+    arduino-cli core search "$search_name" -a
+    ;;
+  5)
+    # Prompt for entering the core's name to uninstall
+    printf "\033[1;36mEnter the core's name to uninstall ›\033[0m "
+    read -r uninstall_name
+    [ -n "${uninstall_name:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No install name given. Exiting."; exit 1; }
+
+    # Uninstall
+    arduino-cli core uninstall "$uninstall_name"
+    ;;
+  6)
+    # upgrade everything to the latest version
+    arduino-cli core upgrade
+    ;;
+  7|b|B|back|BACK)
+    clear
+    arduino
+    ;;
+  *)
+    printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+    exit 1
+    ;;
+esac

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -u
+
+printf "\033[1;36m󰍜 Main Menu:\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎦  Initialisation\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  View Current Projects\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎬  Exit\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+read -r choice
+
+case "${choice:-}" in
+  1)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    /home/Zrabbit/.config/shell/script/VHDL/ini
+    ;;
+  2)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    find /home/Zrabbit/Projects/FPGA -mindepth 1 -maxdepth 1 -type d ! -name 'Template' -printf '%f\n' | sort | nl -w1 -s'. '
+    ;;
+  3|q|exit|quit)
+    exit 0
+    ;;
+  *)
+    printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+    exit 1
+    ;;
+esac

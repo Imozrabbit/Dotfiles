@@ -1,0 +1,15 @@
+[user]
+	email = zrabbit000@gmail.com
+	name = Zrabbit
+
+[push]
+    default = simple
+
+[pull]
+	ff = only
+
+[fetch]
+	prune = true
+
+[init]
+    defaultBranch = main

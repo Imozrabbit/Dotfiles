@@ -1,0 +1,24 @@
+#!/bin/sh
+
+# Set up a fake home directory
+REAL_HOME="$HOME"
+ZOTERO_ROOT="$REAL_HOME/.config/zotero"
+export HOME="$ZOTERO_ROOT"
+
+# Keep the rest XDG Base Directory the same
+export XDG_CACHE_HOME="$REAL_HOME/.cache"
+export XDG_CONFIG_HOME="$REAL_HOME/.config"
+export XDG_DATA_HOME="$REAL_HOME/.local/share"
+export XDG_STATE_HOME="$REAL_HOME/.local/state"
+export XDG_PICTURES_DIR="$REAL_HOME/Pictures"
+export XDG_DOWNLOAD_DIR="$REAL_HOME/Downloads"
+export XDG_DATA_DIRS="/usr/local/share:/usr/share:"
+export XDG_CONFIG_DIRS="/etc/xdg/"
+
+# Global variables
+export EDITOR="nvim"
+export BROWSER="zen-browser"
+
+mkdir -p "$HOME"
+
+exec /usr/bin/zotero "$@"
