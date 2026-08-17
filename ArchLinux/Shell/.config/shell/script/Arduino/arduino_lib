@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf "\033[1;36m Library Options:\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎦  Search for libraries\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  Install libraries\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎬  Uninstall libraries\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎮  List of installed libraries\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎰  Update the libraries index\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎵  Upgrade installed libraries\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎸  Back to the main menu\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+read -r choice_lib
+
+case "${choice_lib:-}" in
+  1)
+    # Prompt for entering the library's name to search for
+    printf "\033[1;36mEnter the library's name to search for ›\033[0m "
+    read -r search_name
+    [ -n "${search_name:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No search term given. Exiting."; exit 1; }
+
+    # Search
+    arduino-cli lib search "$search_name"
+
+    # Prompt to see if the user want to install a certain library
+    printf "\033[1;36mWould you like to install a library (yes/no) ›\033[0m "
+    read -r if_install
+    case "${if_install:-}" in
+        y|Y|yes|YES|o|O|oui|OUI)
+            # Prompt for entering the library's name to install
+            printf "\033[1;36mEnter the library's name to install ›\033[0m "
+            read -r install_name_1
+            [ -n "${install_name_1:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No install term given. Exiting."; exit 1; }
+            # Install
+            arduino-cli lib install "$install_name_1"
+            ;;
+        n|no|non|N|NO|NON)
+            exit 1
+            ;;
+        *)
+            printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+            exit 1
+            ;;
+    esac
+    ;;
+
+  2)
+    # Prompt for entering the library's name to install
+    printf "\033[1;36mEnter the library's name to install ›\033[0m "
+    read -r install_name
+    [ -n "${install_name:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No install term given. Exiting."; exit 1; }
+
+    # Install
+    arduino-cli lib install "$install_name"
+    ;;
+
+  3)
+    # Prompt for entering the library's name to uninstall
+    printf "\033[1;36mEnter the library's name to uninstall ›\033[0m "
+    read -r uninstall_name
+    [ -n "${uninstall_name:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No uninstall term given. Exiting."; exit 1; }
+
+    # Uninstall
+    arduino-cli lib uninstall "$uninstall_name"
+    ;;
+
+  4)
+    arduino-cli lib list --all
+    printf "\033[1;36mList updatable libraries:\033[0m\n"
+    arduino-cli lib list --all --updatable
+    ;;
+
+  5)
+    arduino-cli lib update-index
+    ;;
+
+  6)
+    arduino-cli lib upgrade
+    ;;
+
+  7|b|B|back|BACK)
+    clear
+    arduino
+    ;;
+
+  *)
+    printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+    exit 1
+    ;;
+esac

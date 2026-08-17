@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$HOME/.config/shell/script/LazySSH_module/back_or_exit.sh"
+MODULE_DIR="$HOME/.config/shell/script/LazySSH_module"
+
+if [[ ! -d "$HOME/.ssh" ]]; then
+    printf "\033[1;31mDude, you don't have a .ssh folder in your home directory.\033[0m\n"
+    exit 0
+fi
+
+printf "\033[1;36m󰍜 Main Menu:\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎦  View SSH keys\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  View SSH Host aliases\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎬  View known_hosts files\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎮  Github related\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎰  Test SSH Host alias\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎵  Doctor / Debug SSH alias\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎸  Edit SSH config file\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎻  Exit\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+read -r choice
+
+case "${choice:-}" in
+  1)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    "$MODULE_DIR/list_SSH_Keys"
+    back_or_exit main
+    ;;
+  2)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    "$MODULE_DIR/list_host_alias"
+    back_or_exit main
+    ;;
+  3)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    "$MODULE_DIR/list_known_hosts"
+    back_or_exit main
+    ;;
+  4)
+    clear
+    "$MODULE_DIR"/github_related_menu
+    ;;
+  5|test|Test|TEST)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    "$MODULE_DIR/test_host_alias"
+    back_or_exit main
+    ;;
+  6|debug|Debug|doctor|Doctor|d|D)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    "$MODULE_DIR/debug_host_alias"
+    back_or_exit main
+    ;;
+  7|edit|Edit|e|E)
+    printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    "$MODULE_DIR/edit_config_file"
+    back_or_exit main
+    ;;
+  8|q|exit|quit)
+    exit 0
+    ;;
+  *)
+    printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+    exit 1
+    ;;
+esac

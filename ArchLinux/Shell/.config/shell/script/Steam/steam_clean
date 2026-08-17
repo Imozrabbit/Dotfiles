@@ -1,0 +1,90 @@
+#!/bin/bash
+
+set -euxo pipefail
+
+# Source of all passthrough files
+HOST_HOME="/home/Zrabbit"
+# Real user home, Steam will still see this path as $HOME inside bwrap
+REAL_HOME="/home/Zrabbit"
+# Physical Steam container home, anything written to REAL_HOME inside bwrap lands here on the host
+FAKE_HOME="/home/Steam"
+
+args=(
+    # Kill Steam if this wrapper process dies
+    --die-with-parent
+    # Required device access : GPU, input devices, controllers, etc
+    --dev-bind /dev /dev
+    # Required process/system views
+    --proc /proc
+
+    # Required runtime services : Wayland socket, PipeWire, D-Bus, portals, etc
+    --bind /run /run
+
+    # Bind fake Steam home over the real home inside the sandbox
+    # Inside bwrap : /home/Zrabbit
+    # On disk:       /home/Steam
+    --bind "${FAKE_HOME}" "${REAL_HOME}"
+    # Start Steam from what it sees as the home directory
+    --chdir "${REAL_HOME}"
+    # Keep HOME looking normal to badly-behaved games that expect /home/Zrabbit
+    --setenv HOME "$REAL_HOME"
+
+    # Real host UI configs mounted into the fake home view.
+    --ro-bind-try "$HOST_HOME/.config" "$REAL_HOME/.hostConfig"
+    --ro-bind-try "$HOST_HOME/.local/share/icons" "$REAL_HOME/.local/share/icons"
+    --ro-bind-try "$HOST_HOME/.local/share/themes" "$REAL_HOME/.local/share/themes"
+
+    # customisations on these don't need to go into your steam bwrap
+    # it will more likely break things than do anything positive
+    --unsetenv XDG_CACHE_HOME
+    --unsetenv XDG_CONFIG_HOME
+    --unsetenv XDG_DATA_HOME
+    --unsetenv XDG_STATE_HOME
+
+    # Cap Mesa shader cache for Steam/games inside this sandbox
+    --setenv MESA_SHADER_CACHE_MAX_SIZE 12G
+
+    # Private /tmp for Steam
+    # If Steam/game launchers break, change this to:
+    # --bind /tmp /tmp
+    --tmpfs /tmp
+
+    # Empty X11 socket directory inside private /tmp.
+    # The actual current X11 socket is selectively mounted below if DISPLAY is X11/XWayland.
+    --tmpfs /tmp/.X11-unix
+)
+
+# Read-only real system directories.
+# NOTE: might wanna add /opt if you need packages inside for electron apps, dotnet (ffxiv), etc
+for dir in /sys /etc /usr /var /opt; do
+    args+=(--ro-bind "$dir" "$dir")
+done
+# Recreate Arch's merged-/usr symlinks inside bwrap.
+args+=(
+    --symlink usr/bin /bin
+    --symlink usr/bin /sbin
+    --symlink usr/lib /lib
+    --symlink usr/lib /lib64
+)
+
+# X11/XWayland socket support when DISPLAY uses a local :N display.
+# Needed because /tmp is set to be private & isolated
+if [[ "${DISPLAY:-}" == :* ]]; then
+    display_nr="${DISPLAY/#:/}"    # Strip leading ":"
+    display_nr="${display_nr/%.*}" # Strip screen suffix
+    local_socket=/tmp/.X11-unix/X"${display_nr}"
+    args+=(--ro-bind-try "${local_socket}" "${local_socket}")
+fi
+
+# X11 auth file support, only when it lives under /tmp.
+# Likely not needed under Wayland
+if [[ "${XAUTHORITY:-}" == /tmp/* ]]; then
+    args+=(--ro-bind-try "${XAUTHORITY}" "${XAUTHORITY}")
+fi
+
+# Launch Arch native Steam
+exec bwrap "${args[@]}" -- /usr/bin/steam -offline "$@"
+# Without -disable-cef-sandbox:
+# better isolation, try first
+# With -disable-cef-sandbox:
+# may fix Steam UI under bwrap, but weakens CEF/browser sandboxing

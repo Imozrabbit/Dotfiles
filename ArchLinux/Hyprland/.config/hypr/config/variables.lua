@@ -1,0 +1,6 @@
+TERMINAL = "ghostty"
+MENU = "rofi -show drun"
+FILEMANAGER = "Thunar"
+BROWSER = "zen"
+BACKUPBROWSER = "brave-origin-nightly"
+NOTES = "obsidian"

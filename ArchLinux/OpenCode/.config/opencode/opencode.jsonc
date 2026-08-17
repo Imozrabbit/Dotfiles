@@ -1,0 +1,102 @@
+{
+    "$schema": "https://opencode.ai/config.json",
+    "shell": "zsh",
+    "default_agent": "plan",
+    "share": "disabled",
+    "autoshare": false,
+    "subagent_depth": 2,
+    "agent": {
+        "explore": {
+            "disable": true
+        },
+        "build": {
+            "permission": {
+                "edit": "ask",
+                "task": {
+                    "*": "ask",
+                    "doc-writer": "allow",
+                    "scout": "allow",
+                    "cavecrew-reviewer": "allow"
+                }
+            }
+        },
+        "plan": {
+            "permission": {
+                "edit": "deny",
+                "task": {
+                    "doc-writer": "ask",
+                    "cavecrew-reviewer": "allow"
+                }
+            }
+        }
+    },
+    // OpenCode Quota: tuiCommandDisplay chooses whether native TUI command output appears in the session transcript or a local popup dialog.
+    // OpenCode Quota: loads the server plugin for slash commands and quota checks.
+    "plugin": [
+        "superpowers@git+https://github.com/obra/superpowers.git",
+        "./plugins/caveman/plugin.js",
+        "@dietrichgebert/ponytail",
+        "@slkiser/opencode-quota@latest"
+    ],
+    "permission": {
+        "*": "ask",
+        "todowrite": "allow",
+        "read": {
+            "*": "allow",
+            "*.env": "deny",
+            "*.env.*": "deny",
+            "*.env.example": "allow"
+        },
+        "list": "allow",
+        "grep": "allow",
+        "glob": "allow",
+        "lsp": "allow",
+        "bash": {
+            "*": "ask",
+            "git status": "allow",
+            "git status *": "allow",
+            "git diff": "allow",
+            "git diff *": "allow",
+            "git log": "allow",
+            "git log *": "allow",
+            "git show": "allow",
+            "git show *": "allow"
+        },
+        "task": {
+            "*": "ask",
+            "doc-writer": "allow",
+            "scout": "allow",
+            "security-auditor": "deny"
+        },
+        "skill": "allow",
+        "question": "allow",
+        "webfetch": "allow",
+        "websearch": "allow"
+    },
+    "watcher": {
+        "ignore": [
+            "node_modules/**",
+            "dist/**",
+            ".git/**",
+            ".DS_Store"
+        ]
+    },
+    "provider": {
+        "ollama": {
+            "npm": "@ai-sdk/openai-compatible",
+            "name": "Ollama",
+            "options": {
+                "baseURL": "http://localhost:11434/v1"
+            },
+            "models": {
+                "gemma4:12b": {
+                    "name": "gemma4 12b"
+                }
+            }
+        }
+    },
+    "enabled_providers": [
+        "openai",
+        "ollama"
+    ]
+}

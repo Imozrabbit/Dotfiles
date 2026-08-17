@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Get the currently focused Hyprland window as JSON.
+active="$(hyprctl activewindow -j 2>/dev/null)"
+
+# If the focused window is exactly Steam's main window,
+# ask your contained Steam instance to shut down cleanly.
+if printf '%s' "$active" | jq -e '.class == "steam" and .title == "Steam"' >/dev/null 2>&1; then
+    /home/Zrabbit/.config/shell/script/Steam/steam_clean -shutdown >/dev/null 2>&1
+    exit 0
+fi
+
+exit 1

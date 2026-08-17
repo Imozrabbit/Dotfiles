@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+printf "\033[1;32mEditting...\033[0m\n"
+
+# Check if the user SSH config exists, if not, create a baseline structure
+ssh_dir="$HOME/.ssh"
+user_ssh_config_path="$HOME/.ssh/config"
+
+if [[ ! -d "$ssh_dir" ]]; then
+    mkdir -p "$ssh_dir"
+    chmod 700 "$ssh_dir"
+fi
+
+if [[ ! -f "$user_ssh_config_path" ]]; then
+    printf "\033[1;31m⚠ User SSH config file cannot be found. \033[0m"
+    printf "\033[1;32mCreating %s...\033[0m\n" "$user_ssh_config_path"
+
+    cat > "$user_ssh_config_path" <<'EOF'
+#-----------------------------------------------------------#
+#------------------------ Global ---------------------------#
+#-----------------------------------------------------------#
+# This requires host keys to be added manually to known_hosts for maximum security
+StrictHostKeyChecking yes
+
+
+#-----------------------------------------------------------#
+#----------------------- Specific --------------------------#
+#-----------------------------------------------------------#
+EOF
+fi
+
+chmod 600 "$user_ssh_config_path"
+nvim "$user_ssh_config_path"

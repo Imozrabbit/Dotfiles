@@ -1,0 +1,10 @@
+#!/bin/sh
+
+case "$1" in
+    open)
+		xdg-open "http://127.0.0.1:21337" >/dev/null 2>&1 &
+		;;
+	quit)
+        pkill -TERM -f 'awakened-poe-trade .*--ozone-platform=x11'
+		;;
+esac

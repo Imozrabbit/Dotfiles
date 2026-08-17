@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Simple terminal menu
+printf "\033[1;36m Board Options:\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎦  List all connected boards\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  Keep watching connected boards\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎬  Print details about a board giving its FQBN\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎮  Search for a board\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎰  List all known boards and their corresponding FQBN\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎵  Back to the main menu\033[0m\n"
+printf "\033[1;36mYour choice ›\033[0m "
+read -r choice
+
+case "${choice:-}" in
+  1)
+    arduino-cli board list
+    ;;
+  2)
+    arduino-cli board list -w
+    ;;
+  3)
+    # Prompt for entering fqbn
+    printf "\033[1;36mFQBN ›\033[0m "
+    read -r fqbn
+    [ -n "${fqbn:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No fqbn given. Exiting."; exit 1; }
+
+    # Show details
+    arduino-cli board details -b "$fqbn"
+    ;;
+  4)
+    # Prompt for entering fqbn
+    printf "\033[1;36mSearch ›\033[0m "
+    read -r search
+    [ -n "${search:-}" ] || { printf "\033[1;31m%s\033[0m\n" "No search term given. Exiting."; exit 1; }
+
+    # Search
+    arduino-cli search "$search"
+    ;;
+  5)
+    arduino-cli board listall --show-hidden
+    ;;
+  6|b|B|back|BACK)
+    clear
+    arduino
+    ;;
+  *)
+    printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+    exit 1
+    ;;
+esac

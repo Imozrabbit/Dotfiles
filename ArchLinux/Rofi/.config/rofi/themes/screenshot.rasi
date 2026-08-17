@@ -1,0 +1,67 @@
+@import "~/.config/rofi/themes/spotlight-dark.rasi"
+
+configuration {
+    me-select-entry: "";
+    me-accept-entry: "MousePrimary";
+}
+
+* {
+    background-color: #00000000;
+}
+
+window { 
+    location: south;
+    anchor: south;
+    width: 460px; 
+    background-color: transparent;
+    y-offset: -10;
+}
+
+mainbox {
+    children: [message, listview];
+}
+
+message {
+    border: 0;
+    background-color: transparent;
+}
+
+textbox {
+    padding: 15px 15px 5px 15px;
+}
+
+listview {
+    columns: 3;
+    lines: 1;
+    expand: false;
+    fixed-height: true;
+    dynamic: false;
+    layout: vertical;
+    spacing: 10px;
+    padding: 10 25 15 25;
+    border: 0;
+    background-color: transparent;
+}
+
+element {
+    expand: false;
+    padding: 15px 0 15px 0;
+    border: 1px;
+    border-color: #ffffff14;
+    border-radius: 5px;
+    background-color: #2a2a2a9c;
+    border-color: #0f0f0f40;
+}
+
+element-text {
+    horizontal-align: 0.5;
+}
+
+element selected normal, element selected active {
+    background-color: #2f4a73cc;
+    border-color: #0f0f0f80;
+}
+
+element-icon {
+    enabled: false;
+}

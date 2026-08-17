@@ -1,0 +1,17 @@
+# To have colors
+truecolor on
+
+# Turn welcome message off
+startup_message off
+
+# Use the scroll bar
+termcapinfo xterm*|rxvt*|kterm*|Eterm* ti@:te@
+
+# Bottom status bar: show current window title (= your port) + time (HH:MM:SS)
+caption always "%{= bw}Serial: %t%=%{= bC}Ctrl-a q to exit%=%{= bw}Baud Rate: 9600%{-}"
+
+# Make it readable (no goofy “bars”/standout look)
+rendition so =00
+
+# Press: Ctrl-s q  -> instantly kill the session
+bind q quit

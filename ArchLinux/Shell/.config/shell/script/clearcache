@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+set -eu
+
+#-------------------- Package Manager --------------------#
+# Clear package manager caches
+yay -Scc
+printf "\033[1;36m%s\033[0m\n" "Package manager caches cleared"
+
+
+
+#---------------------- Misc Caches ----------------------#
+printf "\033[1;33m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+# Clear thunar image preview cache
+rm -rf ~/.cache/thumbnails/xx-large/*
+printf "\033[1;36m%s\033[0m\n" "Picture preview's cache removed"
+
+# Clear virt-manager log
+rm -fr /home/Zrabbit/.cache/virt-manager/virt-manager.log*
+printf "\033[1;36m%s\033[0m\n" "Virt-manager Log file deleted"
+
+# Clear obsidian cache
+rm -rf \
+  "$HOME/.config/obsidian/Cache/"* \
+  "$HOME/.config/obsidian/Code Cache/"* \
+  "$HOME/.config/obsidian/GPUCache/"*
+printf "\033[1;36m%s\033[0m\n" "Obsidian cache deleted"
+
+# Clear flatpak cache
+flatpak uninstall --user --unused
+rm -rf ~/.cache/flatpak/*
+printf "\033[1;36m%s\033[0m\n" "Flatpak's cache and unused ressources cleared"
+
+# Prompt to see if clear orcaslicer's cache
+printf "\033[38;5;208mClear OrcaSlicer's cache ? It will be rebuild on startup.\033[0m\n"
+size_1=$(du -sh /home/Zrabbit/.var/app/com.orcaslicer.OrcaSlicer/cache | awk '{print $1}' )
+size_2=$(du -sh /home/Zrabbit/.var/app/com.orcaslicer.OrcaSlicer/config/OrcaSlicer/cache | awk '{print $1}' )
+printf "\033[1;36m%s\033[0m\n" "Current cache size = $size_1, config cache size = $size_2."
+printf "\033[1;36mYour choice (default: yes) ›\033[0m "
+read -r choice_orca
+if [[ -z "$choice_orca" ]]; then
+    choice_orca="y"
+fi
+case "${choice_orca:-}" in
+    1|y|Y|yes|YES|o|O|oui|OUI)
+        find /home/Zrabbit/.var/app/com.orcaslicer.OrcaSlicer/cache -mindepth 1 -delete
+        find /home/Zrabbit/.var/app/com.orcaslicer.OrcaSlicer/config/OrcaSlicer/cache -mindepth 1 -delete
+        find /home/Zrabbit/.var/app/com.orcaslicer.OrcaSlicer/config/OrcaSlicer/log -mindepth 1 -delete
+        ;;
+    2|n|N|no|NO|non|NON)
+        ;;
+esac
+
+# Prompt to see if clear FreeCAD's cache
+printf "\033[38;5;208mClear FreeCAD's cache ? It will be rebuild on startup.\033[0m\n"
+printf "\033[1;36mYour choice (default: yes) ›\033[0m "
+read -r choice_freecad
+if [[ -z "$choice_freecad" ]]; then
+    choice_freecad="y"
+fi
+case "${choice_freecad:-}" in
+    1|y|Y|yes|YES|o|O|oui|OUI)
+        rm -rf -- "${XDG_CACHE_HOME:-$HOME/.cache}/FreeCAD"
+        ;;
+    2|n|N|no|NO|non|NON)
+        ;;
+esac
+
+# MATLAB old crash diagnostics
+rm -f -- \
+    "$HOME/Matlab"/matlab_crash_dump.* \
+    "$HOME/Matlab"/java.log.* \
+    "$HOME/Matlab"/hs_error_pid*.log
+find "$HOME/Matlab/.MathWorks" \
+    -path '*/crash_reports/completed/*.dmp' \
+    -type f \
+    -mtime +7 \
+    -delete 2>/dev/null
+printf "\033[1;36m%s\033[0m\n" "MATLAB crash log/dumps cleared"
+
+
+
+#--------------- Language/Toolchain caches ---------------#
+printf "\033[1;33m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+# Clear cargo & npm & go caches and logs
+cargo cache -r registry
+printf "\033[1;36m%s\033[0m\n" "Cargo caches cleared"
+npm cache clean --force
+npm cache npx rm --force
+rm -rf "${XDG_STATE_HOME:-$HOME/.local/state}/npm/logs/"*
+printf "\033[1;36m%s\033[0m\n" "NPM caches and logs cleared"
+go clean -cache -modcache -testcache -fuzzcache
+printf "\033[1;36m%s\033[0m\n" "Go caches cleared"
+
+# Clear python package's cache
+[ -d "$HOME/.cache/pip" ] && rm -rf -- "${HOME:?}/.cache/pip/"*
+printf "\033[1;36m%s\033[0m\n" "Python package download cache cleared"
+
+# Clear deno cache
+deno clean
+printf "\033[1;36m%s\033[0m\n" "Deno cache cleared"
+
+# Clear quickshell crash folder
+rm -fr /home/Zrabbit/.cache/quickshell/crashes/*
+printf "\033[1;36m%s\033[0m\n" "QuickShell's crash logs cleared"
+
+# Clear nvim lsp log
+rm -fr /home/Zrabbit/.local/state/nvim/lsp.log
+printf "\033[1;36m%s\033[0m\n" "NeoVim LSP Log file deleted"
+
+# Clear Arduino CLI download staging cache
+arduino-cli cache clean
+printf "\033[1;36m%s\033[0m\n" "Arduino download staging cache cleared"
+
+# Refresh shell command hash (harmless in non-interactive shells)
+command -v hash >/dev/null 2>&1 && hash -r || true
+printf "\033[1;36m%s\033[0m\n" "Shell command hash refreshed"
+
+# Clear RTK's tee recovery logs
+rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/rtk/tee"
+printf "\033[1;36m%s\033[0m\n" "RTK's tee recovery logs cleared"
+
+# CLear opencode's log and useless shit
+rm -fr ~/.local/share/opencode/log/*
+printf "\033[1;36m%s\033[0m\n" "OpenCode logs cleared"
+
+# Prune unused docker image
+sudo docker system prune
+
+
+
+#--------------------- Gaming Related --------------------#
+printf "\033[1;33m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+# Clear r2modman download cache
+sudo rm -fr /home/Steam/.config/r2modmanPlus-local/Valheim/cache/*
+printf "\033[1;36m%s\033[0m\n" "r2modman's download cache cleared"
+# Clear path of building updater leftovers
+base="${XDG_DATA_HOME:-$HOME/.local/share}"
+rm -rf -- \
+	"$base/RustyPathOfBuilding1/Update" \
+	"$base/RustyPathOfBuilding2/Update"
+printf "\033[1;36m%s\033[0m\n" "POB's updater leftovers cleared"
+# Clear awakened poe trade cache and update leftovers
+awakened_poe_trade_dir="$HOME/.config/awakened-poe-trade"
+rm -rf \
+  "$awakened_poe_trade_dir/Cache" \
+  "$awakened_poe_trade_dir/Code Cache" \
+  "$awakened_poe_trade_dir/GPUCache" \
+  "$awakened_poe_trade_dir/DawnCache" \
+  "$awakened_poe_trade_dir/DawnGraphiteCache" \
+  "$awakened_poe_trade_dir/DawnWebGPUCache" \
+  "$awakened_poe_trade_dir/ShaderCache" \
+  "$awakened_poe_trade_dir/Crashpad" \
+  "$awakened_poe_trade_dir/logs"
+rm -f /tmp/awakened-poe-trade.log
+rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/awakened-poe-trade-updater"
+printf "\033[1;36m%s\033[0m\n" "Awakened POE Trade cache, logs and update leftovers cleared"
+
+
+
+
+#------------- Final unused dependency check -------------#
+printf "\033[1;33m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+# Check if there is any orphan dependencies
+nb_orphans="$(pacman -Qdtq 2>/dev/null || true)"
+if [ -n "$nb_orphans" ]; then
+  printf "\033[1;31m%s\033[0m\n%s\n" "Orphans found:" "$nb_orphans"
+else
+  printf "\033[1;36m%s\033[0m\n" "No orphans found"
+fi

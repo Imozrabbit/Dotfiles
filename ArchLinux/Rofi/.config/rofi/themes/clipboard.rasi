@@ -1,0 +1,21 @@
+@import "~/.config/rofi/themes/spotlight-dark.rasi"
+
+* {
+    font: "Atkinson Hyperlegible Next 12";
+}
+
+configuration {
+    show-icons: false;
+}
+
+mainbox {
+    children: [inputbar,message,listview];
+}
+
+element {
+    padding: 1px 15px;
+}
+
+element-icon {
+    size: 45px;
+}

@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# -e enables Readline where shell completion would work
+read -e -r -p "Github Repo directory [Empty for current repo] > " repo_dir
+
+# If user didn't enter anything, use the current directory
+if [[ -z "$repo_dir" ]]; then
+    repo_dir="$PWD"
+fi
+
+# Resolve ~ to $HOME
+repo_dir="${repo_dir/#\~/$HOME}"
+
+# Check if the path is a directory
+if [[ ! -d "$repo_dir" ]]; then
+    printf "\033[1;31mThe entered path doesn't exit.\033[0m\n"
+    exit 0
+fi
+
+# Check if that directory is inside a Git repo
+if git -C "$repo_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    repo_root="$(git -C "$repo_dir" rev-parse --show-toplevel)"
+    printf "\033[1;32m\nRepo : \033[0m\n"
+    printf "   %s\n" "$repo_root"
+else
+    printf "\033[1;31mThis directory is not inside a Git repository.\033[0m\n"
+    exit 0
+fi
+
+# Print out remote's information : name, url, type of connection and the host
+remotes="$(git -C "$repo_root" remote -v | awk '$3 == "(fetch)" { print $1 "|" $2 }')"
+if [[ -z "$remotes" ]]; then
+    printf "\033[1;31mNo Git remotes configured.\033[0m\n"
+    exit 0
+fi
+printf "\033[1;32mRemotes :\033[0m\n"
+while IFS='|' read -r remote_name remote_url; do
+   if [[ "$remote_url" == https://* || "$remote_url" == http://* ]]; then
+    connection_type="HTTPS"
+    remote_host="${remote_url#*://}"
+    remote_host="${remote_host%%/*}"
+
+    elif [[ "$remote_url" == ssh://* ]]; then
+        connection_type="SSH"
+        remote_host="${remote_url#ssh://}"
+        remote_host="${remote_host#*@}"
+        remote_host="${remote_host%%/*}"
+
+    elif [[ "$remote_url" == *@*:* ]]; then
+        connection_type="SSH"
+        remote_host="${remote_url#*@}"
+        remote_host="${remote_host%%:*}"
+
+    elif [[ "$remote_url" == *:* ]]; then
+        connection_type="SSH"
+        remote_host="${remote_url%%:*}"
+
+    else
+        connection_type="UNKNOWN"
+        remote_host="unknown"
+    fi 
+
+    printf "   %s\n" "$remote_name"
+    printf "     URL : %s\n" "$remote_url"
+    printf "     Type : %s\n" "$connection_type"
+    printf "     Host : %s\n" "$remote_host"
+done <<< "$remotes"
+
+# Conclusion
+printf "\033[1;32mConclusion :\033[0m\n"
+if [[ "$connection_type" == "HTTPS" ]]; then
+    printf "   This remote is not using SSH. It is using HTTPS.\n"
+elif [[ "$connection_type" == "SSH" ]]; then
+    if [[ "$remote_host" == "github.com" ]]; then
+        printf "   This remote is using SSH, but not a custom SSH alias.\n"
+    else
+        printf "   This remote is using SSH through a custom SSH alias.\n"
+    fi
+else
+    printf "   Could not determine this remote connection type.\n"
+fi

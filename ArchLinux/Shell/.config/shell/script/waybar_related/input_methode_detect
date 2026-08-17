@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+im="$(fcitx5-remote -n 2>/dev/null || true)"
+
+case "$im" in
+  keyboard-us) echo "󰬌 " ;;
+  keyboard-fr) echo "󰬍 " ;;
+  rime)        echo "󰬊 " ;;
+  *)           echo "󰌌 " ;;
+esac

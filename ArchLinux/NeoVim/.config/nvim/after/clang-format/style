@@ -1,0 +1,15 @@
+ColumnLimit: 0
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+AlignTrailingComments:
+    Kind: Always
+    OverEmptyLines: 2
+
+SpacesBeforeTrailingComments: 1
+FixNamespaceComments: false
+ReflowComments: false
+
+MaxEmptyLinesToKeep: 5

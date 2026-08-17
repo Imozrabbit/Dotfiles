@@ -1,0 +1,72 @@
+#!/bin/sh
+
+# Set up variables
+REAL_HOME="$HOME"
+MATLABROOT="$REAL_HOME/.local/share/MATLAB/R2026a"
+MATLAB_HOME="$REAL_HOME/Matlab"
+MATLAB_GNUTLS="$REAL_HOME/.local/share/MATLAB/compat/gnutls"
+
+# Contain MATLAB/MathWorks runtime files
+export HOME="$MATLAB_HOME"
+export XDG_CONFIG_HOME="$MATLAB_HOME/.config"
+export XDG_CACHE_HOME="$MATLAB_HOME/.cache"
+export XDG_DATA_HOME="$MATLAB_HOME/.local/share"
+export XDG_STATE_HOME="$MATLAB_HOME/.local/state"
+export MATLAB_PREFDIR="$MATLAB_HOME/.config/matlab/R2026a"
+
+mkdir -p \
+    "$XDG_CONFIG_HOME" \
+    "$XDG_CACHE_HOME" \
+    "$XDG_DATA_HOME" \
+    "$XDG_STATE_HOME" \
+    "$MATLAB_PREFDIR"
+
+# Use MATLAB userpath as startup directory
+export MATLAB_USE_USERWORK=1
+
+# Force start with xwayland
+export QT_QPA_PLATFORM=xcb
+
+# Use older gnutls version
+export LD_LIBRARY_PATH="$MATLAB_GNUTLS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# Launch desktop
+#exec "$MATLABROOT/bin/matlab" -desktop "$@"
+"$MATLABROOT/bin/matlab" -desktop "$@" &
+matlab_pid=$!
+
+# Register PID
+wait "$matlab_pid"
+matlab_status=$?
+
+# Stop MATLAB Drive Connector cleanly
+if [ -x "$MATLAB_HOME/bin/MATLABConnector" ]; then
+    "$MATLAB_HOME/bin/MATLABConnector" stop >/dev/null 2>&1 || true
+fi
+
+# Give MathWorks processes a moment to terminate normally
+sleep 2 
+
+# Terminate remaining processes belonging to this MATLAB installation
+pkill -TERM -u "$(id -u)" -f "$MATLABROOT/" 2>/dev/null || true
+
+# Terminate contained MathWorks Service Host processes
+pkill -TERM -u "$(id -u)" -f \
+    "$MATLAB_HOME/.MathWorks/ServiceHost/" 2>/dev/null || true
+
+# Catch the Connector launcher itself if it survived
+pkill -TERM -u "$(id -u)" -f \
+    "$MATLAB_HOME/bin/MATLABConnector" 2>/dev/null || true
+
+sleep 2
+
+# Force-kill only anything that ignored SIGTERM
+pkill -KILL -u "$(id -u)" -f "$MATLABROOT/" 2>/dev/null || true
+
+pkill -KILL -u "$(id -u)" -f \
+    "$MATLAB_HOME/.MathWorks/ServiceHost/" 2>/dev/null || true
+
+pkill -KILL -u "$(id -u)" -f \
+    "$MATLAB_HOME/bin/MATLABConnector" 2>/dev/null || true
+
+exit "$matlab_status"

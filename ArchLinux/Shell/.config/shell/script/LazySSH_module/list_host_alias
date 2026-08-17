@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ssh_configPath="$HOME/.ssh/config"
+
+if [[ -f "$ssh_configPath" ]]; then
+    printf "\033[1;32mReading the SSH config file at %s...\nCurrent host aliases :\033[0m\n" "$ssh_configPath"
+    if grep -Eq "^[[:space:]]*Host[[:space:]]+" "$ssh_configPath"; then
+        awk '
+            /^[[:space:]]*Host[[:space:]]+/ {
+                print "   " $2
+            }
+        ' "$ssh_configPath"
+    else
+        printf "\033[1;31mNo SSH host aliases found\033[0m\n"
+    fi
+else
+    printf "\033[1;31mSSH config file not found: %s\033[0m\n" "$ssh_configPath"
+fi
