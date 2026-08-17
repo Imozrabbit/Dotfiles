@@ -1,0 +1,55 @@
+font=JetBrainsMono Nerd Font
+font-size=14
+
+# General
+show-failed-attempts
+ignore-empty-password
+
+# Appearance
+image=/home/Zrabbit/Pictures/Wallpaper/3840x2160/lighthouse.jpg
+scaling=fit
+
+# Circle position
+indicator-x-position=960
+indicator-y-position=100
+indicator-radius=40
+indicator-thickness=5
+
+# Color
+# Inside Color
+inside-color=081F4A66
+inside-ver-color=07173588
+inside-wrong-color=07173588
+inside-clear-color=07173588
+
+# Icy moonlight border.
+ring-color=A6D6F3E8
+
+# Remove the extra hard outline/separator.
+line-color=00000000
+separator-color=00000000
+
+# Bright moon-white text.
+text-color=E3F4FBFF
+
+# Typing highlight: brighter saturated sky blue.
+key-hl-color=2C8DD3FF
+
+# Backspace highlight: softer lavender from the clouds.
+bs-hl-color=A16CB7FF
+
+# Verifying
+ring-ver-color=5C9DE0FF
+line-ver-color=00000000
+text-ver-color=A6D6F3FF
+
+# Wrong password
+# Pulls from the pink clouds rather than introducing unrelated red.
+ring-wrong-color=D75C9AFF
+line-wrong-color=00000000
+text-wrong-color=F09BC4FF
+
+# Cleared
+ring-clear-color=2C8DD3FF
+line-clear-color=00000000
+text-clear-color=A6D6F3FF
