@@ -2,12 +2,15 @@
 set -euo pipefail
 
 wg_config_folder="/home/Zrabbit/.config/wireguard"
+ifVpn=false
+active_vpn=""
 
 printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
 echo "WireGuard list:"
 nmcli -f NAME,TYPE,DEVICE conn show | awk '/wireguard/'
 if nmcli -t -f NAME,TYPE connection show --active | grep -q ':wireguard$'; then
-        active_vpn="$(nmcli -t -f NAME,TYPE connection show --active | awk -F: '$2=="wireguard"{print $1; exit}')"
+    active_vpn="$(nmcli -t -f NAME,TYPE connection show --active | awk -F: '$2=="wireguard"{print $1; exit}')"
+    ifVpn=true
     printf "\033[38;2;255;165;0mThe following WireGuard is active: %s\033[0m\n" "$active_vpn"
 else
     printf "\033[38;2;255;165;0mNo active WireGuard connection.\033[0m\n"
@@ -25,6 +28,10 @@ read -r choice
 case "${choice:-}" in
   1)
     printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
+    if [[ $ifVpn == true ]]; then
+        printf "\033[38;2;255;165;0mThere is an active VPN running: %s. Try to connect to another VPN would result in disconnecting the current one.\033[0m\n" "$active_vpn"
+        printf "\033[38;2;255;165;0mFor a more advance setup like assigning different VPN configs to different applications, use nm-connection-editor.\033[0m\n"
+    fi
     printf "\033[1;36mEnter the name of the VPN profile to connect, leave empty for default (CH-Zurich) ›\033[0m "
     read -r vpn_conn_name
 
