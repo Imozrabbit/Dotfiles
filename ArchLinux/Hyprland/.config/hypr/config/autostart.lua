@@ -22,6 +22,7 @@ hl.on("hyprland.start", function()
 	hl.exec_cmd("qs -p ~/.config/quickshell/level-osd/shell.qml")
 	hl.exec_cmd("qs -p ~/.config/quickshell/alt-tab_view/shell.qml")
 	hl.exec_cmd("qs -p ~/.config/quickshell/bar/shell.qml")
+	hl.exec_cmd("qs -n -p ~/.config/quickshell/lockscreen")
 
 	-- Autostart the input methode framework fcitx5
 	hl.exec_cmd("fcitx5 --replace -d")

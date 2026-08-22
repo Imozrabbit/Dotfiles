@@ -121,7 +121,7 @@
                     "label": " 󰷛 ",
                     "type": "normal",
                     "active": true,
-                    "command": "hyprlock"
+                    "command": "/usr/bin/loginctl lock-session"
                 },
                 {
                     "label": " 󰗽 ",
