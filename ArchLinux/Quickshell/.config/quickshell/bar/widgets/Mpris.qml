@@ -1,29 +1,62 @@
 import QtQuick
 
 import qs.core as Core
-import qs.services as Services
 
 Rectangle {
     id: root
 
-    property bool mprisTooltipVisible: false
-    property Services.Mpris mprisService: Services.Mpris {}
-
-    //property var state: mprisService.playbackState === MprisPla
-
+    required property bool active
+    required property bool playing
+    required property bool paused
+    required property bool canTogglePlaying
+    required property string app
+    required property string title
+    required property string artist
     required property Core.Theme theme
 
-    implicitWidth: appName.implicitWidth
-    implicitHeight: appName.implicitHeight
+    signal togglePlayingRequested
 
-    visible: mprisService.active
+    property bool mprisTooltipVisible: false
+    readonly property int maximumWidth: 400
+    readonly property string displayText: {
+        const title = root.title.trim();
+        const artist = root.artist.trim();
+        if (title !== "" && artist !== "")
+            return title + " — " + artist;
+        if (title !== "")
+            return title;
+        if (artist !== "")
+            return artist;
+        return root.app.trim() || "Media";
+    }
+
+    implicitWidth: root.active ? Math.min(mediaText.implicitWidth + 16, root.maximumWidth) : 0
+    implicitHeight: mediaText.implicitHeight + 4
+
+    visible: root.active
     color: "transparent"
 
+    onActiveChanged: {
+        if (!active) {
+            mprisTooltipDelay.stop();
+            root.mprisTooltipVisible = false;
+        }
+    }
+
     Text {
-        id: appName
-        anchors.centerIn: parent
-        text: root.mprisService.canPause ? "  " + root.mprisService.app : "idk"
-        color: root.theme.whiteColor
+        id: mediaText
+
+        anchors.fill: parent
+        anchors.leftMargin: 8
+        anchors.rightMargin: 8
+        text: root.paused ? " " + root.displayText : "󰝚 " + root.displayText
+        textFormat: Text.PlainText
+        color: root.paused ? root.theme.whiteMutedColor : root.theme.whiteColor
+        elide: Text.ElideRight
+        maximumLineCount: 1
+        wrapMode: Text.NoWrap
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
         font {
             family: root.theme.fontFamily
             pixelSize: root.theme.volumeFontSize
@@ -33,6 +66,8 @@ Rectangle {
 
     HoverHandler {
         id: mprisHover
+
+        cursorShape: root.canTogglePlaying ? Qt.PointingHandCursor : Qt.ArrowCursor
         onHoveredChanged: {
             if (hovered) {
                 mprisTooltipDelay.restart();
@@ -43,25 +78,30 @@ Rectangle {
         }
     }
 
+    TapHandler {
+        enabled: root.active && root.canTogglePlaying
+        onTapped: root.togglePlayingRequested()
+    }
+
     Timer {
         id: mprisTooltipDelay
         interval: 300
         repeat: false
-        onTriggered: root.mprisTooltipVisible = mprisHover.hovered
+        onTriggered: root.mprisTooltipVisible = root.active && mprisHover.hovered
     }
 
     SystemStatTooltip {
-        visible: root.mprisTooltipVisible
+        visible: root.active && root.mprisTooltipVisible
         anchorItem: root
-        heading: root.mprisService.app
+        heading: root.app !== "" ? root.app : "Media"
         rows: [
             {
                 label: "Title",
-                value: root.mprisService.title
+                value: root.title !== "" ? root.title : "N/A"
             },
             {
                 label: "Artist",
-                value: root.mprisService.artist
+                value: root.artist !== "" ? root.artist : "N/A"
             }
         ]
         theme: root.theme

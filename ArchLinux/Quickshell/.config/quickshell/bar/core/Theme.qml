@@ -65,6 +65,23 @@ QtObject {
     property int calendarDayFontSize: fontSizeSmall
 
     // -----------------------------------------------------------------------
+    // Battery panel
+    // -----------------------------------------------------------------------
+    property color batteryPanelBackgroundColor: calendarBackgroundColor
+    property color batteryPanelBorderColor: calendarBorderColor
+    property color batteryPanelHeaderColor: calendarHeaderColor
+    property color batteryPanelTextColor: calendarDayColor
+    property color batteryPanelMutedColor: calendarAdjacentDayColor
+    property color batteryPanelAccentColor: calendarTodayTextColor
+    property color batteryPanelActiveButtonColor: calendarTodayColor
+    property color batteryPanelInactiveButtonColor: Qt.darker(calendarBackgroundColor, 1.15)
+    property color batteryPanelInactiveButtonTextColor: calendarAdjacentDayColor
+    property color batteryPanelTrackColor: calendarBorderColor
+    property color batteryPanelErrorColor: overloadColor
+    property int batteryPanelHeaderFontSize: calendarHeaderFontSize
+    property int batteryPanelFontSize: calendarDayFontSize
+
+    // -----------------------------------------------------------------------
     // System usage
     // -----------------------------------------------------------------------
     // Module

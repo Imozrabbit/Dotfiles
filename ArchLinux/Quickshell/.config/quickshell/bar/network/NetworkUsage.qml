@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 
 import qs.core as Core
+import qs.network.vpn as Vpn
 import qs.network.wifi as Wifi
 
 Rectangle {
@@ -136,6 +137,11 @@ Rectangle {
                 bold: true
             }
         }
+
+        Vpn.VpnIndicator {
+            id: vpnIndicator
+            theme: root.theme
+        }
     }
 
     // Network overlays are owned here so module interaction remains local.
@@ -150,6 +156,9 @@ Rectangle {
         gatewayAddress: root.gatewayAddress
         ipAddressCidr: root.ipAddressCidr
         frequencyMhz: root.frequencyMhz
+        vpnStatusKnown: vpnIndicator.statusKnown
+        vpnName: vpnIndicator.vpnName
+        dnsName: vpnIndicator.dnsName
         theme: root.theme
     }
 

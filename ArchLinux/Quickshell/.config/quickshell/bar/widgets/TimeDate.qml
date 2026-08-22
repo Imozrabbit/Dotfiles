@@ -16,11 +16,19 @@ Rectangle {
     required property bool acOnline
     required property real batteryEnergyNowUwh
     required property real batteryEnergyFullUwh
+    required property real batteryEnergyFullDesignUwh
     required property real batteryPowerNowUw
     required property int batteryChargeStartThreshold
     required property int batteryChargeEndThreshold
+    required property int batteryCycleCount
+    required property string batteryPowerProfile
+    required property bool batteryActionBusy
+    required property string batteryActionError
 
     signal notificationsRequested
+    signal batteryPanelOpened
+    signal batteryPowerProfileRequested(string profile)
+    signal batteryChargeThresholdsRequested(int startValue, int endValue)
 
     implicitWidth: contentLayout.implicitWidth
     implicitHeight: contentLayout.implicitHeight
@@ -48,10 +56,18 @@ Rectangle {
                 acOnline: root.acOnline
                 energyNowUwh: root.batteryEnergyNowUwh
                 energyFullUwh: root.batteryEnergyFullUwh
+                energyFullDesignUwh: root.batteryEnergyFullDesignUwh
                 powerNowUw: root.batteryPowerNowUw
                 chargeStartThreshold: root.batteryChargeStartThreshold
                 chargeEndThreshold: root.batteryChargeEndThreshold
+                cycleCount: root.batteryCycleCount
+                activePowerProfile: root.batteryPowerProfile
+                actionBusy: root.batteryActionBusy
+                actionError: root.batteryActionError
                 theme: root.theme
+                onPanelOpened: root.batteryPanelOpened()
+                onPowerProfileRequested: profile => root.batteryPowerProfileRequested(profile)
+                onChargeThresholdsRequested: (startValue, endValue) => root.batteryChargeThresholdsRequested(startValue, endValue)
             }
 
             Rectangle {

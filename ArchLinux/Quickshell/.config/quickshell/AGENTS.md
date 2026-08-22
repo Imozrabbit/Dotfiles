@@ -10,6 +10,7 @@
 Independent runtime Quickshell QML configs; each top-level config has its own shell.qml.
 
 - `alt-tab_view/`: Hyprland expose/window picker with IPC target `expose`; layouts are registered through `layouts/qmldir`.
+- `bar/`: bottom bar; `shell.qml` owns services, `services/` collects/mutates state, and `widgets/` presents it. `network/README.md` documents its larger network/Wi-Fi subsystem.
 - `clock/`: desktop clock pinned to one screen.
 - `ram-osd/`: RAM bar backed by the `Mem` singleton and `/proc/meminfo`.
 - `system-osd/`: host-specific CPU/GPU monitor built around `HWInfoProvider`.
@@ -22,7 +23,7 @@ Independent runtime Quickshell QML configs; each top-level config has its own sh
 - There is no build system, formatter, code generation, automated test runner, or configured repository-wide lint/typecheck command; `wallpaper_switcher/.qmlls.ini` is the only tooling file.
 - Run available static checks on new or changed files before runtime testing.
 - Before the final runtime smoke test, ask whether the user will test manually or wants the assistant to run it; default to the user's manual testing preference.
-- If the assistant runs the smoke test, test only the changed config with `quickshell -c /home/Zrabbit/Documents/Dotfiles/ArchLinux/QuickShell/.config/quickshell/<config-dir>`; for example, `quickshell -c /home/Zrabbit/Documents/Dotfiles/ArchLinux/QuickShell/.config/quickshell/clock`.
+- If the assistant runs the smoke test, test only the changed config with `quickshell -c /home/Zrabbit/Documents/Dotfiles/ArchLinux/Quickshell/.config/quickshell/<config-dir>`; for example, `quickshell -c /home/Zrabbit/Documents/Dotfiles/ArchLinux/Quickshell/.config/quickshell/clock`.
 - There is no single-test command. Exercise the changed config's actual trigger or data source and inspect Quickshell's runtime output.
 
 ## Structure And Modularity
@@ -48,6 +49,9 @@ Independent runtime Quickshell QML configs; each top-level config has its own sh
 
 - `clock`, `ram-osd`, `system-osd`, and `weather` currently target `HDMI-A-1`; do not assume monitor names are portable.
 - `alt-tab_view` and `wallpaper_switcher` require Hyprland. The former uses Wayland screencopy; the latter invokes `swaybg` or `hyprctl hyprpaper`.
+- `bar` battery paths are host-specific (`BAT0`, `AC`); threshold writes use `sudo -n`, and profiles use `powerprofilesctl`. Start/end controls allow `45–95%`/`50–100%` with end greater than start.
+- `bar` MPRIS selects Playing before Paused, hides Stopped, toggles playback on click, and caps text at 280 px.
+- `bar/network/` polls kernel counters; VPN state polls NetworkManager and maps active VPN to Proton DNS, inactive to NextDNS.
 - `volume-osd` reads the default PipeWire sink and intentionally supports displayed volume above 100% while clamping only the bar fill.
 - `system-osd` polls once per second, runs `sudo -n turbostat`, and reads hard-coded AMD GPU and hwmon paths under `/sys`. Card and hwmon indexes are host-specific, and turbostat requires non-interactive sudo permission.
 - `weather` runs `curl` against Open-Meteo every 15 minutes and embeds Strasbourg coordinates.

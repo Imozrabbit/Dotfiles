@@ -2,9 +2,9 @@
 
 ## Overview
 
-This directory supplies bar network indicator, hover tooltip, and Wi-Fi control menu.
+This directory supplies bar network and VPN indicators, hover tooltip, and Wi-Fi control menu.
 
-For normal use: bar shows connection icon plus current download/upload rates. Hover shows connection details after short delay. Click opens Wi-Fi menu, where user can turn Wi-Fi radio on/off, disconnect active Wi-Fi, scan, activate saved profiles, join new networks, or open NetworkManager advanced editor.
+For normal use: bar shows connection icon, current download/upload rates, and VPN status icon. Hover shows connection, VPN, and DNS details after short delay. Click opens Wi-Fi menu, where user can turn Wi-Fi radio on/off, disconnect active Wi-Fi, scan, activate saved profiles, join new networks, or open NetworkManager advanced editor.
 
 Two sources intentionally coexist:
 
@@ -22,6 +22,9 @@ network/
 ├── NetworkTooltip.qml              # Hover popup
 ├── NetworkUsage.qml                # Click/hover bar widget; owns overlays
 ├── README.md
+├── vpn/
+│   ├── VpnDnsStatus.qml            # Active VPN query and laptop DNS mapping
+│   └── VpnIndicator.qml            # Bar separator/icon and status ownership
 └── wifi/
     ├── WifiMenu.qml                 # Full-screen overlay lifecycle and focus
     ├── WifiController.qml           # Menu state machine and service orchestration
@@ -46,18 +49,19 @@ network/
 
 ## What appears on screen
 
-- **Bar:** connection icon, down-arrow rate, up-arrow rate. Offline, wired, unknown, and five Wi-Fi signal ranges have separate Nerd Font glyphs.
-- **Tooltip:** `Disconnected`, Wi-Fi SSID, Ethernet, or generic Network title. Online Wi-Fi adds signal and frequency; all online links add interface, IPv4 CIDR address, and gateway. Unknown values show `N/A`.
+- **Bar:** connection icon, down-arrow rate, up-arrow rate, and VPN icon. Offline, wired, unknown, and five Wi-Fi signal ranges have separate Nerd Font glyphs. VPN icon uses online color while active and neutral separator color otherwise.
+- **Tooltip:** `Disconnected`, Wi-Fi SSID, Ethernet, or generic Network title. Online Wi-Fi adds signal and frequency; all online links add interface, IPv4 CIDR address, gateway, VPN connection, and DNS provider. Unknown values show `N/A`.
 - **Menu:** bottom-right card, 10 px from right and 48 px above bottom. `Networks` expands scan lists. Connection summary has Wi-Fi toggle and active Wi-Fi disconnect button. Error output shows final ten captured lines; internal `__EXIT:<status>` marker may occupy one line.
 
 ## Startup and runtime flow
 
 1. `shell.qml` creates one `Network.NetworkStats` as `root.networkStats`.
 2. It passes stats properties and `refreshDetails()` request signal to `Network.NetworkUsage`.
-3. `NetworkUsage.qml` owns `NetworkTooltip` and `Wifi.WifiMenu`; only this module toggles menu visibility.
+3. `NetworkUsage.qml` owns `NetworkTooltip`, `Vpn.VpnIndicator`, and `Wifi.WifiMenu`; only this module toggles menu visibility.
 4. `NetworkStats` reloads `/proc/net/route` every 1000 ms, selects lowest-metric valid IPv4 default route, then reloads `/proc/net/dev` and computes byte-per-second deltas.
 5. Hover enters bar: `NetworkUsage` requests details immediately and opens tooltip after 300 ms, unless menu is open. `NetworkDetails` runs `ip` and, for Wi-Fi, `iw` only then.
 6. Click toggles menu. `WifiMenu` reports visibility to `WifiController`; opening refreshes live status and saved profiles. Controller scanned list stays collapsed until user chooses `Networks`.
+7. `VpnDnsStatus` queries active NetworkManager connections every two seconds. Successful state maps active VPN to Proton DNS and inactive VPN to NextDNS.
 
 ### Network monitor flow
 
@@ -66,6 +70,12 @@ network/
 `updateInterface()` resets details, rates, online state, and prior counter sample whenever interface changes. `parseInterfaceCounters()` finds selected interface in `/proc/net/dev`, reads RX byte field 0 and TX byte field 8, then `sampleInterfaceCounters()` divides nonnegative counter deltas by actual elapsed wall time. First sample and counter reset yield zero rates while valid counters keep link online. Missing interface, invalid data, route read failure, and counter read failure yield stable zero/offline fallback.
 
 `Quickshell.Networking` identifies selected device type and connected Wi-Fi network. It provides `connectionType`, SSID, and normalized signal strength; kernel files remain source for route and transfer totals. Tooltip detail commands reject stale output if interface/type changed while command ran.
+
+### VPN indicator flow
+
+`VpnIndicator.qml` owns one `VpnDnsStatus` service and exposes its state to `NetworkUsage`. The service directly runs a two-second-bounded `nmcli` active-connection query, accepts `wireguard` and `vpn` connection types, and selects the first active VPN name. It does not run `resolvectl`: this laptop uses Proton DNS whenever VPN is active and NextDNS otherwise, so DNS name is derived from validated VPN state.
+
+The indicator remains one glyph separated from upload rate. A successful query with no VPN uses neutral separator color and reports `VPN: Disconnected`, `DNS: NextDNS`; active VPN uses online color and reports its connection name plus `DNS: Proton`. Failed queries clear stale state and make both tooltip values `N/A`.
 
 ## Wi-Fi menu flow
 
@@ -117,9 +127,11 @@ onDetailsRequested: root.networkStats.refreshDetails()
 
 ### Widget ↔ tooltip/menu
 
-`NetworkUsage` supplies `NetworkTooltip` its anchor, connection fields, and theme. Tooltip accepts only presentation data; it never runs commands.
+`NetworkUsage` supplies `NetworkTooltip` its anchor, connection fields, VPN/DNS state, and theme. Tooltip accepts only presentation data; it never runs commands.
 
 `NetworkUsage` supplies `WifiMenu` with `standalone: false` and theme. `WifiMenu.closeRequested` is handled by setting its `visible` false. For separate config use, default `standalone: true` makes dismissal call `Qt.quit()`.
+
+`VpnIndicator` requires `Core.Theme` and exposes readonly `vpnActive`, `vpnName`, `dnsName`, and `statusKnown`. `VpnDnsStatus` owns collection; indicator owns only bar presentation.
 
 ### Controller ↔ UI/services
 
@@ -130,7 +142,7 @@ UI receives `controller` and `style`. It invokes controller functions (`startSca
 | Item | Used by | Purpose |
 |---|---|---|
 | NetworkManager service | all `wifi/services` | Owns radio, profiles, activation, scanning. Must be running. |
-| `nmcli` | all Wi-Fi services | Status, scan, profile listing, connection mutations. |
+| `nmcli` | all Wi-Fi services, `vpn/VpnDnsStatus` | Wi-Fi status/actions and active VPN detection. |
 | `bash` | Wi-Fi services | Executes compound commands, redirection, cleanup. |
 | `awk` | status/saved services | Filters active wireless connection and profile UUIDs; extracts source IP. |
 | `head` | status service | Selects first SSID line from a saved connection profile. |
@@ -150,6 +162,7 @@ UI receives `controller` and `style`. It invokes controller functions (`startSca
 ## Timing
 
 - Route and rate sample: every **1000 ms**.
+- VPN status query: every **2000 ms**, with **2-second** `nmcli` wait bound.
 - Tooltip delay: **300 ms** after hover begins.
 - Menu status poll: every **5000 ms**, only while menu visible and neither scan nor action active; no immediate timer trigger.
 - Menu open: immediately refreshes status and saved profiles. Component creation also refreshes status and schedules saved refresh.
@@ -164,6 +177,7 @@ UI receives `controller` and `style`. It invokes controller functions (`startSca
 - No valid default route, unreadable proc files, missing counter row, or invalid numbers leave zero rates and offline state. Counter reset yields zero rates for that sample while valid counters keep link online.
 - Tooltip omits rows while offline; missing values display `N/A`. `ip` JSON parse failure clears IPv4; `iw` mismatch/missing frequency becomes `N/A`.
 - Wi-Fi cache is optional. Invalid JSON/type fields are ignored; live `nmcli` state supersedes cache.
+- VPN query failure clears stale VPN state and exposes unknown VPN/DNS values; successful empty VPN result means disconnected VPN with NextDNS.
 - Expanding `Networks` while Wi-Fi is disabled reports `WiFi is off`; rescan returns without starting a scan. Empty completed scan with no saved profiles gives `No networks found`; scan nonzero exit gives `Scan failed`.
 - Generic failed actions show `Connection failed` and final ten captured lines, potentially including internal exit marker. NetworkManager secret errors show `Password required` and open credential page. Action process abnormal nonzero exit with no collected result reports generic failure.
 
@@ -171,6 +185,7 @@ UI receives `controller` and `style`. It invokes controller functions (`startSca
 
 - Bar colors, tooltip colors/sizes, font names: `core/Theme.qml` network section (lines 71–87) and general typography (15–20).
 - Bar layout, rate format, hover delay, icon thresholds: `NetworkUsage.qml`.
+- VPN polling and DNS mapping: `vpn/VpnDnsStatus.qml`; VPN glyph/layout: `vpn/VpnIndicator.qml`.
 - Route selection, 1-second cadence, counter logic: `NetworkStats.qml`.
 - Tooltip labels/rows and anchoring: `NetworkTooltip.qml`; on-demand commands: `NetworkDetails.qml`.
 - Menu placement, standalone behavior, dismissal/focus: `wifi/WifiMenu.qml`.
@@ -182,6 +197,7 @@ UI receives `controller` and `style`. It invokes controller functions (`startSca
 
 - Keep bar monitoring and Wi-Fi control separate: route/counter data must not be replaced with `nmcli` unless intentional behavior change.
 - Preserve `NetworkUsage` ownership of tooltip and menu; `shell.qml` only wires data.
+- Keep VPN collection in `VpnDnsStatus` and presentation in `VpnIndicator`; DNS mapping intentionally follows this laptop's VPN state.
 - Preserve `WifiMenu` overlay layer, exclusive keyboard focus, outside-click check, and `standalone` distinction.
 - Keep `WifiController` as sole coordinator for pages, models, timers, and action outcomes. UI should emit intent, services should collect/mutate state.
 - Keep saved-profile filtering after **both** scan and saved refresh paths.
@@ -200,11 +216,13 @@ UI receives `controller` and `style`. It invokes controller functions (`startSca
 8. **Scan missing/duplicate rows:** inspect `WifiScanner.qml` and controller `rebuildAvailableModel()`; run `nmcli -g BSSID,SSID,SECURITY,SIGNAL dev wifi list --rescan yes`.
 9. **Cannot connect / password loop:** inspect `WifiActionRunner.qml` and controller action signals. Use `nmcli --ask connection up uuid <uuid>` or `nmcli --ask dev wifi connect <ssid>` where supported; never paste passwords into command line. Check NetworkManager logs and whether profile cleanup removed failed SSID profile. For saved-profile secret prompts, also inspect retained `targetIsEnterprise` state.
 10. **Menu visual effect/module load error:** inspect `WifiMenuCard.qml`/`NetworkListPage.qml`; verify `Qt5Compat.GraphicalEffects`, both configured fonts, and imports.
+11. **Wrong VPN icon or tooltip DNS:** inspect `vpn/VpnDnsStatus.qml`; run `nmcli --wait 2 --terse --escape no --fields NAME,TYPE connection show --active`. Confirm active Proton connection reports `wireguard` or `vpn`.
 
 ## Runtime test checklist
 
 - Start changed config with `quickshell -c /home/Zrabbit/Documents/Dotfiles/ArchLinux/Quickshell/.config/quickshell/bar`; confirm no QML import/runtime errors.
 - With route active, verify icon, interface-specific rates, and one-second rate updates. Disconnect route and verify zero/offline fallback.
+- With VPN off, verify VPN icon uses neutral separator color and tooltip shows `VPN: Disconnected`, `DNS: NextDNS`. Enable Proton VPN, wait up to two seconds, and verify online color, connection name, and `DNS: Proton`.
 - Hover 300 ms: check title, gateway, IPv4; on Wi-Fi check signal and frequency. Move pointer away and verify tooltip closes. Click and verify tooltip remains hidden while menu open.
 - Open menu: verify focus, `Esc`, outside click, Wi-Fi toggle, summary, and close behavior.
 - Expand networks: verify saved profiles, scan result deduplication, and saved SSIDs excluded from Available. Rescan.

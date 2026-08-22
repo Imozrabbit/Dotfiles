@@ -11,10 +11,19 @@ Item {
     required property bool acOnline
     required property real energyNowUwh
     required property real energyFullUwh
+    required property real energyFullDesignUwh
     required property real powerNowUw
     required property int chargeStartThreshold
     required property int chargeEndThreshold
+    required property int cycleCount
+    required property string activePowerProfile
+    required property bool actionBusy
+    required property string actionError
     required property Core.Theme theme
+
+    signal panelOpened
+    signal powerProfileRequested(string profile)
+    signal chargeThresholdsRequested(int startValue, int endValue)
 
     property bool tooltipVisible: false
 
@@ -87,12 +96,26 @@ Item {
     }
 
     function tooltipRows() {
-        const rows = [{ label: "Status", value: root.statusText() }];
+        const rows = [
+            {
+                label: "Status",
+                value: root.statusText()
+            }
+        ];
         const time = root.estimatedTime();
         if (time !== "")
-            rows.push({ label: "Time", value: time });
-        rows.push({ label: "Rate", value: root.rateText() });
-        rows.push({ label: "Charge limits", value: root.thresholdText() });
+            rows.push({
+                label: "Time",
+                value: time
+            });
+        rows.push({
+            label: "Rate",
+            value: root.rateText()
+        });
+        rows.push({
+            label: "Charge limits",
+            value: root.thresholdText()
+        });
         return rows;
     }
 
@@ -115,8 +138,10 @@ Item {
     HoverHandler {
         id: batteryHover
 
+        cursorShape: Qt.PointingHandCursor
+
         onHoveredChanged: {
-            if (hovered) {
+            if (hovered && !batteryPanel.visible) {
                 tooltipDelay.restart();
             } else {
                 tooltipDelay.stop();
@@ -130,7 +155,17 @@ Item {
 
         interval: 300
         repeat: false
-        onTriggered: root.tooltipVisible = batteryHover.hovered
+        onTriggered: root.tooltipVisible = batteryHover.hovered && !batteryPanel.visible
+    }
+
+    TapHandler {
+        onTapped: {
+            tooltipDelay.stop();
+            root.tooltipVisible = false;
+            batteryPanel.visible = !batteryPanel.visible;
+            if (batteryPanel.visible)
+                root.panelOpened();
+        }
     }
 
     SystemStatTooltip {
@@ -139,5 +174,27 @@ Item {
         heading: "Battery"
         rows: root.tooltipRows()
         theme: root.theme
+    }
+
+    BatteryPanel {
+        id: batteryPanel
+
+        anchorItem: root
+        icon: root.batteryIcon()
+        available: root.available
+        capacity: root.capacity
+        status: root.status
+        acOnline: root.acOnline
+        energyFullUwh: root.energyFullUwh
+        energyFullDesignUwh: root.energyFullDesignUwh
+        cycleCount: root.cycleCount
+        chargeStartThreshold: root.chargeStartThreshold
+        chargeEndThreshold: root.chargeEndThreshold
+        activePowerProfile: root.activePowerProfile
+        actionBusy: root.actionBusy
+        actionError: root.actionError
+        theme: root.theme
+        onPowerProfileRequested: profile => root.powerProfileRequested(profile)
+        onChargeThresholdsRequested: (startValue, endValue) => root.chargeThresholdsRequested(startValue, endValue)
     }
 }

@@ -61,6 +61,14 @@ PanelWindow { // qmllint disable uncreatable-type
         }
 
         Widgets.Mpris {
+            active: root.mprisService.active
+            playing: root.mprisService.playing
+            paused: root.mprisService.paused
+            canTogglePlaying: root.mprisService.canTogglePlaying
+            app: root.mprisService.app
+            title: root.mprisService.title
+            artist: root.mprisService.artist
+            onTogglePlayingRequested: root.mprisService.togglePlaying()
             theme: root.theme
             transform: Translate {
                 y: root.bottomMargin
@@ -173,9 +181,17 @@ PanelWindow { // qmllint disable uncreatable-type
             acOnline: root.batteryService.acOnline
             batteryEnergyNowUwh: root.batteryService.energyNowUwh
             batteryEnergyFullUwh: root.batteryService.energyFullUwh
+            batteryEnergyFullDesignUwh: root.batteryService.energyFullDesignUwh
             batteryPowerNowUw: root.batteryService.powerNowUw
             batteryChargeStartThreshold: root.batteryService.chargeStartThreshold
             batteryChargeEndThreshold: root.batteryService.chargeEndThreshold
+            batteryCycleCount: root.batteryService.cycleCount
+            batteryPowerProfile: root.batteryService.activePowerProfile
+            batteryActionBusy: root.batteryService.actionBusy
+            batteryActionError: root.batteryService.actionError
+            onBatteryPanelOpened: root.batteryService.refreshPowerProfile()
+            onBatteryPowerProfileRequested: profile => root.batteryService.setPowerProfile(profile)
+            onBatteryChargeThresholdsRequested: (startValue, endValue) => root.batteryService.setChargeThresholds(startValue, endValue)
             onNotificationsRequested: root.swayncService.openPanel()
             transform: Translate {
                 y: root.bottomMargin

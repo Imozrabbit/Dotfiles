@@ -17,6 +17,9 @@ PopupWindow {
     required property string gatewayAddress
     required property string ipAddressCidr
     required property int frequencyMhz
+    required property bool vpnStatusKnown
+    required property string vpnName
+    required property string dnsName
     required property Core.Theme theme
 
     function valueOrUnavailable(value) {
@@ -65,6 +68,14 @@ PopupWindow {
         rows.push({
             label: "Gateway",
             value: root.valueOrUnavailable(root.gatewayAddress)
+        });
+        rows.push({
+            label: "VPN",
+            value: root.vpnStatusKnown ? (root.vpnName === "" ? "Disconnected" : root.vpnName) : "N/A"
+        });
+        rows.push({
+            label: "DNS",
+            value: root.vpnStatusKnown ? root.valueOrUnavailable(root.dnsName) : "N/A"
         });
         return rows;
     }
