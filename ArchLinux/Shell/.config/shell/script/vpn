@@ -77,6 +77,8 @@ case "${choice:-}" in
                 exit 1
             }
             nmcli conn import type wireguard file "$wg_config_folder/$vpn_add_name"
+            vpn_profile_name="${vpn_add_name%.conf}"
+            sudo nmcli connection modify "$vpn_profile_name" connection.dns-over-tls no
             exit 0
             ;;
         2|remove|delete|REMOVE|DELETE)
