@@ -17,6 +17,9 @@ hl.config({
 		workspace_swipe_touch = true,
 		workspace_swipe_create_new = true,
 	},
+	cursor = {
+		no_hardware_cursors = true,
+	},
 })
 
 hl.device({
