@@ -283,7 +283,7 @@ window_rule(
 	},
 	STYLE.floating,
 	{
-		move = "1303 776",
+		move = "1303 644",
 	}
 )
 
