@@ -23,7 +23,7 @@ network/
 ├── NetworkUsage.qml                # Click/hover bar widget; owns overlays
 ├── README.md
 ├── vpn/
-│   ├── VpnDnsStatus.qml            # Active VPN query and laptop DNS mapping
+│   ├── VpnDnsStatus.qml            # Router-managed home and away VPN/live DNS
 │   └── VpnIndicator.qml            # Bar separator/icon and status ownership
 └── wifi/
     ├── WifiMenu.qml                 # Full-screen overlay lifecycle and focus
@@ -36,9 +36,9 @@ network/
     │   ├── SavedNetworksService.qml # Saved NetworkManager Wi-Fi profiles
     │   └── WifiStatusService.qml    # Current Wi-Fi state and disk cache
     └── ui/
-        ├── WifiMenuCard.qml         # Card composition
+        ├── WifiMenuCard.qml         # Summary, saved profiles, feedback, pages
         ├── ConnectionSummary.qml    # Radio toggle, live connection, disconnect
-        ├── NetworkListPage.qml      # Saved/available lists and rescan
+        ├── NetworkListPage.qml      # Available networks and rescan
         ├── CredentialsPage.qml      # Personal/enterprise credential form
         ├── SavedNetworkRow.qml      # One saved profile row
         ├── AvailableNetworkRow.qml  # One scanned AP row
@@ -49,9 +49,9 @@ network/
 
 ## What appears on screen
 
-- **Bar:** connection icon, down-arrow rate, up-arrow rate, and VPN icon. Offline, wired, unknown, and five Wi-Fi signal ranges have separate Nerd Font glyphs. VPN icon uses online color while active and neutral separator color otherwise.
-- **Tooltip:** `Disconnected`, Wi-Fi SSID, Ethernet, or generic Network title. Online Wi-Fi adds signal and frequency; all online links add interface, IPv4 CIDR address, gateway, VPN connection, and DNS provider. Unknown values show `N/A`.
-- **Menu:** bottom-right card, 10 px from right and 48 px above bottom. `Networks` expands scan lists. Connection summary has Wi-Fi toggle and active Wi-Fi disconnect button. Error output shows final ten captured lines; internal `__EXIT:<status>` marker may occupy one line.
+- **Bar:** connection icon, down-arrow rate, up-arrow rate, and protection icon. Offline, wired, unknown, and five Wi-Fi signal ranges have separate Nerd Font glyphs. Protection icon distinguishes trusted home, away VPN with expected DNS, away VPN with other DNS, unprotected away, and unknown states.
+- **Tooltip:** `Disconnected`, Wi-Fi SSID, Ethernet, or generic Network title. Online Wi-Fi adds signal and frequency; all online links add interface, IPv4 CIDR address, gateway, protection path, VPN connection, and DNS provider. Away connections with unexpected DNS also show resolver addresses for diagnosis. Unknown values show `N/A`.
+- **Menu:** bottom-right card, 10 px from right and 48 px above bottom. Saved profiles remain visible for quick switching; `Networks` expands the available-network scan. Connection summary has Wi-Fi toggle and active Wi-Fi disconnect button. Error output shows final ten captured lines; internal `__EXIT:<status>` marker may occupy one line.
 
 ## Startup and runtime flow
 
@@ -60,8 +60,8 @@ network/
 3. `NetworkUsage.qml` owns `NetworkTooltip`, `Vpn.VpnIndicator`, and `Wifi.WifiMenu`; only this module toggles menu visibility.
 4. `NetworkStats` reloads `/proc/net/route` every 1000 ms, selects lowest-metric valid IPv4 default route, then reloads `/proc/net/dev` and computes byte-per-second deltas.
 5. Hover enters bar: `NetworkUsage` requests details immediately and opens tooltip after 300 ms, unless menu is open. `NetworkDetails` runs `ip` and, for Wi-Fi, `iw` only then.
-6. Click toggles menu. `WifiMenu` reports visibility to `WifiController`; opening refreshes live status and saved profiles. Controller scanned list stays collapsed until user chooses `Networks`.
-7. `VpnDnsStatus` queries active NetworkManager connections every two seconds. Successful state maps active VPN to Proton DNS and inactive VPN to NextDNS.
+6. Click toggles menu. `WifiMenu` reports visibility to `WifiController`; opening refreshes live status and the always-visible saved profiles. Available scan results stay collapsed until user chooses `Networks`.
+7. `VpnDnsStatus` trusts `HouseOfAnton_5GHz` as router-managed protection without running commands. Away from home, active VPN and live DNS queries run together every two seconds.
 
 ### Network monitor flow
 
@@ -73,9 +73,9 @@ network/
 
 ### VPN indicator flow
 
-`VpnIndicator.qml` owns one `VpnDnsStatus` service and exposes its state to `NetworkUsage`. The service directly runs a two-second-bounded `nmcli` active-connection query, accepts `wireguard` and `vpn` connection types, and selects the first active VPN name. It does not run `resolvectl`: this laptop uses Proton DNS whenever VPN is active and NextDNS otherwise, so DNS name is derived from validated VPN state.
+`VpnIndicator.qml` owns one `VpnDnsStatus` service and exposes its state to `NetworkUsage`. The current SSID identifies trusted home immediately. Away from home, one `nmcli` query finds the first active `wireguard` or `vpn` connection while `resolvectl dns` reads live resolvers in parallel. Both commands stop at home.
 
-The indicator remains one glyph separated from upload rate. A successful query with no VPN uses neutral separator color and reports `VPN: Disconnected`, `DNS: NextDNS`; active VPN uses online color and reports its connection name plus `DNS: Proton`. Failed queries clear stale state and make both tooltip values `N/A`.
+The indicator remains one glyph separated from upload rate. Trusted home uses `󰳌` and reports both VPN and DNS as `Router-managed`. Away VPN with a known live NextDNS address uses `󱚨`; away VPN with other or unavailable DNS uses `󱗑`; away without VPN always uses `󱙲`, even when DNS is NextDNS. Unknown VPN state uses ``. Tooltip rows report live DNS provider and show up to two resolver addresses only when DNS is not NextDNS.
 
 ## Wi-Fi menu flow
 
@@ -131,7 +131,7 @@ onDetailsRequested: root.networkStats.refreshDetails()
 
 `NetworkUsage` supplies `WifiMenu` with `standalone: false` and theme. `WifiMenu.closeRequested` is handled by setting its `visible` false. For separate config use, default `standalone: true` makes dismissal call `Qt.quit()`.
 
-`VpnIndicator` requires `Core.Theme` and exposes readonly `vpnActive`, `vpnName`, `dnsName`, and `statusKnown`. `VpnDnsStatus` owns collection; indicator owns only bar presentation.
+`VpnIndicator` requires `Core.Theme` and `networkName`, and exposes readonly `protectionMode`, `vpnName`, `dnsName`, `dnsServers`, `dnsExpected`, and `dnsKnown`. `VpnDnsStatus` owns collection; indicator owns only bar presentation.
 
 ### Controller ↔ UI/services
 
@@ -143,6 +143,7 @@ UI receives `controller` and `style`. It invokes controller functions (`startSca
 |---|---|---|
 | NetworkManager service | all `wifi/services` | Owns radio, profiles, activation, scanning. Must be running. |
 | `nmcli` | all Wi-Fi services, `vpn/VpnDnsStatus` | Wi-Fi status/actions and active VPN detection. |
+| `resolvectl` | `vpn/VpnDnsStatus` | Live away-from-home DNS resolvers. |
 | `bash` | Wi-Fi services | Executes compound commands, redirection, cleanup. |
 | `awk` | status/saved services | Filters active wireless connection and profile UUIDs; extracts source IP. |
 | `head` | status service | Selects first SSID line from a saved connection profile. |
@@ -162,7 +163,7 @@ UI receives `controller` and `style`. It invokes controller functions (`startSca
 ## Timing
 
 - Route and rate sample: every **1000 ms**.
-- VPN status query: every **2000 ms**, with **2-second** `nmcli` wait bound.
+- Away VPN and DNS queries: every **2000 ms** in parallel, with a **2-second** `nmcli` wait bound. No VPN/DNS commands run at home.
 - Tooltip delay: **300 ms** after hover begins.
 - Menu status poll: every **5000 ms**, only while menu visible and neither scan nor action active; no immediate timer trigger.
 - Menu open: immediately refreshes status and saved profiles. Component creation also refreshes status and schedules saved refresh.
@@ -177,7 +178,7 @@ UI receives `controller` and `style`. It invokes controller functions (`startSca
 - No valid default route, unreadable proc files, missing counter row, or invalid numbers leave zero rates and offline state. Counter reset yields zero rates for that sample while valid counters keep link online.
 - Tooltip omits rows while offline; missing values display `N/A`. `ip` JSON parse failure clears IPv4; `iw` mismatch/missing frequency becomes `N/A`.
 - Wi-Fi cache is optional. Invalid JSON/type fields are ignored; live `nmcli` state supersedes cache.
-- VPN query failure clears stale VPN state and exposes unknown VPN/DNS values; successful empty VPN result means disconnected VPN with NextDNS.
+- Failed away VPN queries clear VPN confidence; failed or empty resolver queries clear DNS confidence. Away without VPN remains unprotected while still showing the live DNS provider.
 - Expanding `Networks` while Wi-Fi is disabled reports `WiFi is off`; rescan returns without starting a scan. Empty completed scan with no saved profiles gives `No networks found`; scan nonzero exit gives `Scan failed`.
 - Generic failed actions show `Connection failed` and final ten captured lines, potentially including internal exit marker. NetworkManager secret errors show `Password required` and open credential page. Action process abnormal nonzero exit with no collected result reports generic failure.
 
@@ -185,7 +186,7 @@ UI receives `controller` and `style`. It invokes controller functions (`startSca
 
 - Bar colors, tooltip colors/sizes, font names: `core/Theme.qml` network section (lines 71–87) and general typography (15–20).
 - Bar layout, rate format, hover delay, icon thresholds: `NetworkUsage.qml`.
-- VPN polling and DNS mapping: `vpn/VpnDnsStatus.qml`; VPN glyph/layout: `vpn/VpnIndicator.qml`.
+- Home shortcut and away VPN/live DNS polling: `vpn/VpnDnsStatus.qml`; state glyph/layout: `vpn/VpnIndicator.qml`.
 - Route selection, 1-second cadence, counter logic: `NetworkStats.qml`.
 - Tooltip labels/rows and anchoring: `NetworkTooltip.qml`; on-demand commands: `NetworkDetails.qml`.
 - Menu placement, standalone behavior, dismissal/focus: `wifi/WifiMenu.qml`.
@@ -197,7 +198,7 @@ UI receives `controller` and `style`. It invokes controller functions (`startSca
 
 - Keep bar monitoring and Wi-Fi control separate: route/counter data must not be replaced with `nmcli` unless intentional behavior change.
 - Preserve `NetworkUsage` ownership of tooltip and menu; `shell.qml` only wires data.
-- Keep VPN collection in `VpnDnsStatus` and presentation in `VpnIndicator`; DNS mapping intentionally follows this laptop's VPN state.
+- Keep protection/DNS collection in `VpnDnsStatus` and presentation in `VpnIndicator`; home state comes directly from SSID, while away state comes from active VPN type and live `resolvectl` addresses.
 - Preserve `WifiMenu` overlay layer, exclusive keyboard focus, outside-click check, and `standalone` distinction.
 - Keep `WifiController` as sole coordinator for pages, models, timers, and action outcomes. UI should emit intent, services should collect/mutate state.
 - Keep saved-profile filtering after **both** scan and saved refresh paths.
@@ -216,16 +217,16 @@ UI receives `controller` and `style`. It invokes controller functions (`startSca
 8. **Scan missing/duplicate rows:** inspect `WifiScanner.qml` and controller `rebuildAvailableModel()`; run `nmcli -g BSSID,SSID,SECURITY,SIGNAL dev wifi list --rescan yes`.
 9. **Cannot connect / password loop:** inspect `WifiActionRunner.qml` and controller action signals. Use `nmcli --ask connection up uuid <uuid>` or `nmcli --ask dev wifi connect <ssid>` where supported; never paste passwords into command line. Check NetworkManager logs and whether profile cleanup removed failed SSID profile. For saved-profile secret prompts, also inspect retained `targetIsEnterprise` state.
 10. **Menu visual effect/module load error:** inspect `WifiMenuCard.qml`/`NetworkListPage.qml`; verify `Qt5Compat.GraphicalEffects`, both configured fonts, and imports.
-11. **Wrong VPN icon or tooltip DNS:** inspect `vpn/VpnDnsStatus.qml`; run `nmcli --wait 2 --terse --escape no --fields NAME,TYPE connection show --active`. Confirm active Proton connection reports `wireguard` or `vpn`.
+11. **Wrong protection icon or tooltip DNS:** inspect `vpn/VpnDnsStatus.qml`; confirm current SSID, then run `nmcli --wait 2 --terse --escape no --fields NAME,TYPE connection show --active` and `resolvectl dns`. Away VPN requires type `wireguard` or `vpn`; NextDNS requires one live address matching the service constants.
 
 ## Runtime test checklist
 
 - Start changed config with `quickshell -c /home/Zrabbit/Documents/Dotfiles/ArchLinux/Quickshell/.config/quickshell/bar`; confirm no QML import/runtime errors.
 - With route active, verify icon, interface-specific rates, and one-second rate updates. Disconnect route and verify zero/offline fallback.
-- With VPN off, verify VPN icon uses neutral separator color and tooltip shows `VPN: Disconnected`, `DNS: NextDNS`. Enable Proton VPN, wait up to two seconds, and verify online color, connection name, and `DNS: Proton`.
+- At home, verify `󰳌`, trusted-router protection, and `Router-managed` for both VPN and DNS with no polling. Away, verify `󱚨` plus NextDNS with VPN, `󱗑` plus raw resolver for other VPN DNS, `󱙲` without VPN, and `` after VPN-query failure.
 - Hover 300 ms: check title, gateway, IPv4; on Wi-Fi check signal and frequency. Move pointer away and verify tooltip closes. Click and verify tooltip remains hidden while menu open.
 - Open menu: verify focus, `Esc`, outside click, Wi-Fi toggle, summary, and close behavior.
-- Expand networks: verify saved profiles, scan result deduplication, and saved SSIDs excluded from Available. Rescan.
+- Open the collapsed menu and switch through Saved profiles. Expand networks and verify scan deduplication, saved SSIDs excluded from Available, and Saved profiles remain visible. Rescan.
 - Test saved activation, secured personal connection, open connection, enterprise credentials if environment supports it, disconnect, and advanced editor.
 - Deliberately use wrong password on disposable/test profile: verify password/error route and failed new-profile cleanup. Do not test cleanup against profile user needs to keep.
 - Verify cache updates after resolved status change and malformed cache does not crash menu.

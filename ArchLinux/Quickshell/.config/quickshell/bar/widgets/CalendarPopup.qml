@@ -3,15 +3,18 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Wayland
 
 import qs.core as Core
+import qs.services as Services
 
-PopupWindow {
+PanelWindow {
     id: root
 
-    required property Item anchorItem
+    required property bool barRevealed
     required property date currentDate
     required property Core.Theme theme
+    required property Services.Weather weatherService
 
     property date displayedDate: currentDate
     function moveMonth(offset) {
@@ -20,33 +23,88 @@ PopupWindow {
 
     visible: false
     onVisibleChanged: {
-        if (visible)
+        if (visible) {
             displayedDate = currentDate;
+            root.weatherService.refreshIfStale();
+        }
     }
 
-    implicitWidth: 280
-    implicitHeight: 240
     color: "transparent"
-    grabFocus: true
+    focusable: true
 
-    anchor.item: anchorItem
-    anchor.rect.x: 9
-    anchor.rect.y: -8
-    anchor.rect.width: anchorItem.width
-    anchor.rect.height: anchorItem.height
+    anchors {
+        top: true
+        bottom: true
+        left: true
+        right: true
+    }
 
-    anchor.edges: Edges.Top | Edges.Right
-    anchor.gravity: Edges.Top | Edges.Left
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.exclusiveZone: -1
+    WlrLayershell.namespace: "calendar-menu"
+
+    Shortcut {
+        sequence: "Esc"
+        enabled: root.visible
+        onActivated: root.visible = false
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        onClicked: mouse => {
+            const inside = calendarCard.x <= mouse.x && mouse.x <= calendarCard.x + calendarCard.width && calendarCard.y <= mouse.y && mouse.y <= calendarCard.y + calendarCard.height;
+            if (!inside)
+                root.visible = false;
+        }
+    }
 
     Rectangle {
-        anchors.fill: parent
+        id: calendarCard
+
+        width: 680
+        height: 320
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: root.barRevealed ? 17 : 10
+        anchors.bottomMargin: root.barRevealed ? 40 : 10
         color: root.theme.calendarBackgroundColor
         border.color: root.theme.calendarBorderColor
         border.width: 1
         radius: 8
 
+        WeatherPanel {
+            id: weatherPanel
+
+            width: 360
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.margins: 12
+            theme: root.theme
+            weatherService: root.weatherService
+        }
+
+        Rectangle {
+            id: panelSeparator
+
+            width: 1
+            anchors.left: weatherPanel.right
+            anchors.leftMargin: 12
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.topMargin: 16
+            anchors.bottomMargin: 16
+            color: root.theme.calendarBorderColor
+            opacity: 0.55
+        }
+
         ColumnLayout {
-            anchors.fill: parent
+            anchors.left: panelSeparator.right
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
             anchors.margins: 12
             spacing: 8
 

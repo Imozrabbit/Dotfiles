@@ -13,6 +13,7 @@ PanelWindow {
     visible: false
 
     required property Core.Theme theme
+    required property bool barRevealed
     property bool standalone: true
 
     signal closeRequested
@@ -73,8 +74,8 @@ PanelWindow {
 
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.rightMargin: 10
-        anchors.bottomMargin: 48
+        anchors.rightMargin: root.barRevealed ? 17 : 10
+        anchors.bottomMargin: root.barRevealed ? 40 : 10
         controller: controller
         style: style
     }

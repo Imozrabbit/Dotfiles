@@ -1,14 +1,14 @@
 # Lockscreen
 
-Quickshell session lock using `WlSessionLock`, separate password and fingerprint PAM contexts, per-output wallpaper state, and IPC target `lock`. `shell.qml` composes service; service owns lock/auth/suspend state; view only renders input. Hyprland starts it once; `hypridle` requests lock lifecycle through IPC.
+Quickshell session lock using `WlSessionLock`, separate password and fingerprint PAM contexts, per-output wallpaper state, and IPC target `lock`. `shell.qml` composes service; service owns lock/auth/suspend state; view renders the clock, greeting, authentication status, and input. Hyprland starts it once; `hypridle` requests lock lifecycle through IPC.
 
-Requires Quickshell with PAM/session-lock support, Hyprland, `hypridle`, `fprintd`, PAM, `jq`, and `JetBrainsMono Nerd Font Mono`.
+Requires Quickshell with PAM/session-lock support, Hyprland, `hypridle`, `fprintd`, PAM, `jq`, `JetBrainsMono Nerd Font Mono`, `BigBlueTermPlus Nerd Font Mono`, `Departure Mono`, `Atkinson Hyperlegible Next`, and `Great Vibes`.
 
 ## File map
 
 - `shell.qml` — `ShellRoot` entrypoint; instantiates `Service`.
 - `Service.qml` — session-lock lifecycle, PAM, fingerprint cycles, suspend handling, IPC, stranded-lock recovery.
-- `LockView.qml` — lock/preview UI, password input, blurred wallpaper, fingerprint retry.
+- `LockView.qml` — lock/preview UI, clock and time-based greeting, password input, balanced wallpaper effect, fingerprint retry.
 - `Theme.qml` — fixed colors, font, dimensions, fallback wallpaper.
 - `WallpaperState.qml` — watches wallpaper state; resolves output path and image mode.
 - `pam/quickshell-lock-password` — password-only `pam_unix.so` stack.

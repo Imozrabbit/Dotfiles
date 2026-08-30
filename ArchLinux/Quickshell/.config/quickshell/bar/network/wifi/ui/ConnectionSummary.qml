@@ -19,6 +19,7 @@ ColumnLayout {
 
         Label {
             text: "Internet"
+            Layout.leftMargin: 5
             font.family: root.style.textFont
             font.pixelSize: 18
             font.weight: 700
@@ -27,6 +28,9 @@ ColumnLayout {
         }
 
         Rectangle {
+            transform: Translate {
+                x: -5
+            }
             width: 46
             height: 24
             radius: 12

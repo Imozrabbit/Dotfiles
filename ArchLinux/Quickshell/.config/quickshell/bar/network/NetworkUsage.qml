@@ -12,6 +12,7 @@ Rectangle {
     required property real downloadBps
     required property real uploadBps
     required property bool online
+    required property bool barRevealed
     required property string connectionType
 
     required property string interfaceName
@@ -140,7 +141,10 @@ Rectangle {
 
         Vpn.VpnIndicator {
             id: vpnIndicator
+            Layout.leftMargin: 1
+            Layout.rightMargin: 1
             theme: root.theme
+            networkName: root.networkName
         }
     }
 
@@ -156,15 +160,17 @@ Rectangle {
         gatewayAddress: root.gatewayAddress
         ipAddressCidr: root.ipAddressCidr
         frequencyMhz: root.frequencyMhz
-        vpnStatusKnown: vpnIndicator.statusKnown
+        protectionMode: vpnIndicator.protectionMode
         vpnName: vpnIndicator.vpnName
         dnsName: vpnIndicator.dnsName
+        dnsServers: vpnIndicator.dnsServers
         theme: root.theme
     }
 
     Wifi.WifiMenu {
         id: wifiMenu
 
+        barRevealed: root.barRevealed
         standalone: false
         theme: root.theme
         onCloseRequested: visible = false

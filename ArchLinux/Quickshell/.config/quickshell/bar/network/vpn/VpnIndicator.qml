@@ -8,10 +8,31 @@ RowLayout {
     id: root
 
     required property Core.Theme theme
-    readonly property bool vpnActive: vpnStatus.ifVpn
+    required property string networkName
+    readonly property string protectionMode: vpnStatus.protectionMode
     readonly property string vpnName: vpnStatus.vpnName
     readonly property string dnsName: vpnStatus.dnsName
-    readonly property bool statusKnown: vpnStatus.statusKnown
+    readonly property string dnsServers: vpnStatus.dnsServers
+    readonly property bool dnsExpected: vpnStatus.dnsExpected
+    readonly property bool dnsKnown: vpnStatus.dnsKnown
+
+    function indicatorIcon() {
+        if (root.protectionMode === "home")
+            return !root.dnsKnown ? "" : root.dnsExpected ? "󰣫" : "󱗑";
+        if (root.protectionMode === "vpn")
+            return !root.dnsKnown ? "" : root.dnsExpected ? "" : "󱗑";
+        if (root.protectionMode === "unprotected")
+            return "󱙲";
+        return "";
+    }
+
+    function indicatorColor() {
+        if ((root.protectionMode === "home" || root.protectionMode === "vpn") && root.dnsKnown && root.dnsExpected)
+            return root.theme.networkOnlineColor;
+        if (((root.protectionMode === "home" || root.protectionMode === "vpn") && root.dnsKnown) || root.protectionMode === "unprotected")
+            return root.theme.networkOfflineColor;
+        return root.theme.networkSeparatorColor;
+    }
 
     spacing: 6
 
@@ -22,8 +43,8 @@ RowLayout {
     }
 
     Text {
-        text: "󰖂"
-        color: root.vpnActive ? root.theme.networkOnlineColor : root.theme.networkSeparatorColor
+        text: root.indicatorIcon()
+        color: root.indicatorColor()
         font {
             family: root.theme.fontFamily
             pixelSize: root.theme.networkUsageFontSize
@@ -33,5 +54,6 @@ RowLayout {
 
     VpnDnsStatus {
         id: vpnStatus
+        networkName: root.networkName
     }
 }

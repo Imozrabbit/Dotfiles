@@ -59,6 +59,8 @@ QtObject {
     property color calendarWeekdayColor: "#B47C6A"
     property color calendarDayColor: "#D8D8D8"
     property color calendarAdjacentDayColor: "#666666"
+    property color weatherSecondaryColor: "#A89B87"
+    property color weatherCardBorderColor: "#0CFFFFFF"
     property color calendarTodayColor: "#5A3530"
     property color calendarTodayTextColor: "#E6C7A1"
     property int calendarHeaderFontSize: fontSizeLarge
@@ -131,6 +133,25 @@ QtObject {
     property color volumeSliderTrackColor: "#45495A"
     property color volumeSliderHandleColor: "#E0E0E1"
     property int volumeFontSize: systemUsageFontSize
+
+    // -----------------------------------------------------------------------
+    // Bluetooth
+    // -----------------------------------------------------------------------
+    property color bluetoothColor: volumeColor
+    property color bluetoothConnectedColor: "#94E2D5"
+    property color bluetoothMutedColor: volumeMutedColor
+    property color bluetoothHoverColor: volumeHoverColor
+    property color bluetoothPanelBackgroundColor: calendarBackgroundColor
+    property color bluetoothPanelBorderColor: calendarBorderColor
+    property color bluetoothPanelTextColor: calendarDayColor
+    property color bluetoothPanelMutedColor: calendarAdjacentDayColor
+    property color bluetoothPanelAccentColor: bluetoothConnectedColor
+    property color bluetoothPanelCardColor: Qt.darker(calendarBackgroundColor, 1.12)
+    property color bluetoothPanelButtonColor: Qt.darker(calendarBackgroundColor, 1.18)
+    property color bluetoothPanelTrackColor: calendarBorderColor
+    property color bluetoothPanelErrorColor: overloadColor
+    property int bluetoothPanelHeaderFontSize: calendarHeaderFontSize
+    property int bluetoothPanelFontSize: calendarDayFontSize
 
     // -----------------------------------------------------------------------
     // Input method

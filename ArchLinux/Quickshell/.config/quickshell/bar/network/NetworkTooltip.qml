@@ -17,9 +17,10 @@ PopupWindow {
     required property string gatewayAddress
     required property string ipAddressCidr
     required property int frequencyMhz
-    required property bool vpnStatusKnown
+    required property string protectionMode
     required property string vpnName
     required property string dnsName
+    required property string dnsServers
     required property Core.Theme theme
 
     function valueOrUnavailable(value) {
@@ -40,6 +41,16 @@ PopupWindow {
         if (root.frequencyMhz <= 0)
             return "N/A";
         return (root.frequencyMhz / 1000).toFixed(2) + " GHz";
+    }
+
+    function protectionText() {
+        if (root.protectionMode === "unknown")
+            return "N/A";
+        if (root.protectionMode === "home")
+            return "Trusted home router";
+        if (root.protectionMode === "vpn")
+            return "Laptop VPN";
+        return "Unprotected";
     }
 
     // Build only the detail rows that apply to the current connection type.
@@ -70,13 +81,23 @@ PopupWindow {
             value: root.valueOrUnavailable(root.gatewayAddress)
         });
         rows.push({
+            label: "Protection",
+            value: root.protectionText()
+        });
+        rows.push({
             label: "VPN",
-            value: root.vpnStatusKnown ? (root.vpnName === "" ? "Disconnected" : root.vpnName) : "N/A"
+            value: root.protectionMode === "unknown" ? "N/A" : root.vpnName === "" ? "Disconnected" : root.vpnName
         });
         rows.push({
             label: "DNS",
-            value: root.vpnStatusKnown ? root.valueOrUnavailable(root.dnsName) : "N/A"
+            value: root.protectionMode === "unknown" ? "N/A" : root.valueOrUnavailable(root.dnsName)
         });
+        if (root.protectionMode !== "unknown" && root.dnsName !== "NextDNS" && root.dnsServers !== "") {
+            rows.push({
+                label: "Resolver",
+                value: root.dnsServers
+            });
+        }
         return rows;
     }
 
@@ -107,6 +128,7 @@ PopupWindow {
             Text {
                 Layout.alignment: Qt.AlignHCenter
                 text: root.connectionTitle()
+                textFormat: Text.PlainText
                 color: root.theme.tooltipColor
                 font {
                     family: root.theme.tooltipFontFamily
@@ -129,6 +151,7 @@ PopupWindow {
                     }
                     Text {
                         text: parent.modelData.value
+                        textFormat: Text.PlainText
                         color: root.theme.tooltipColor
                         font {
                             family: root.theme.tooltipFontFamily

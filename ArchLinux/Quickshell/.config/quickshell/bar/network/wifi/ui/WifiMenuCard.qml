@@ -54,12 +54,12 @@ Item {
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.margins: 14
+            anchors.margins: 12
             spacing: 8
 
             MenuButton {
                 style: root.style
-                Layout.alignment: Qt.AlignRight
+                Layout.alignment: Qt.AlignCenter
                 Layout.preferredWidth: 93
                 Layout.preferredHeight: 26
                 text: root.controller.isExpanded ? " Collapse" : "Networks"
@@ -72,6 +72,50 @@ Item {
             ConnectionSummary {
                 controller: root.controller
                 style: root.style
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: 5
+                Layout.topMargin: 3
+                Layout.bottomMargin: -5
+                visible: root.controller.savedModel.count > 0
+
+                Label {
+                    text: "Saved"
+                    font.family: root.style.textFont
+                    font.pixelSize: 12
+                    font.weight: 600
+                    color: root.style.muted
+                    Layout.fillWidth: true
+                }
+
+                BusyIndicator {
+                    running: root.controller.scanRunning
+                    visible: root.controller.scanRunning
+                    layer.enabled: true
+                    layer.effect: ColorOverlay {
+                        color: root.style.success
+                    }
+                }
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(210, Math.max(0, root.controller.savedModel.count * 48))
+                visible: root.controller.savedModel.count > 0
+                clip: true
+                model: root.controller.savedModel
+                spacing: 6
+                ScrollBar.vertical: ScrollBar {
+                    active: true
+                    width: 4
+                }
+                delegate: SavedNetworkRow {
+                    style: root.style
+                    isBusy: root.controller.isBusy
+                    onClicked: (uuid, ssid) => root.controller.connectSaved(uuid, ssid)
+                }
             }
 
             Label {

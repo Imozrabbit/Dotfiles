@@ -4,16 +4,20 @@ import QtQuick.Controls
 import Quickshell
 
 import qs.core as Core
+import qs.services as Services
 
 Rectangle {
     id: root
 
     required property Core.Theme theme
     required property bool dnd
+    required property bool hasNotifications
+    required property Services.Weather weatherService
     required property bool batteryAvailable
     required property int batteryCapacity
     required property string batteryStatus
     required property bool acOnline
+    required property bool barRevealed
     required property real batteryEnergyNowUwh
     required property real batteryEnergyFullUwh
     required property real batteryEnergyFullDesignUwh
@@ -64,6 +68,7 @@ Rectangle {
                 activePowerProfile: root.batteryPowerProfile
                 actionBusy: root.batteryActionBusy
                 actionError: root.batteryActionError
+                barRevealed: root.barRevealed
                 theme: root.theme
                 onPanelOpened: root.batteryPanelOpened()
                 onPowerProfileRequested: profile => root.batteryPowerProfileRequested(profile)
@@ -131,7 +136,7 @@ Rectangle {
                 id: notificationText
 
                 anchors.centerIn: parent
-                text: root.dnd ? "󰂛" : "󰂚"
+                text: root.dnd ? (root.hasNotifications ? "󰂛" : "󰪑") : (root.hasNotifications ? "" : "")
                 color: notificationMouse.containsMouse ? root.theme.timeDateHoverColor : root.theme.timeDateColor
                 font {
                     family: root.theme.fontFamily
@@ -155,8 +160,9 @@ Rectangle {
     CalendarPopup {
         id: calendar_popup
 
-        anchorItem: clock_button
+        barRevealed: root.barRevealed
         currentDate: clock.date
         theme: root.theme
+        weatherService: root.weatherService
     }
 }

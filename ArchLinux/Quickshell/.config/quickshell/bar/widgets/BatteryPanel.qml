@@ -3,18 +3,19 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Wayland
 
 import qs.core as Core
 
-PopupWindow {
+PanelWindow {
     id: root
 
-    required property Item anchorItem
     required property string icon
     required property bool available
     required property int capacity
     required property string status
     required property bool acOnline
+    required property bool barRevealed
     required property real energyFullUwh
     required property real energyFullDesignUwh
     required property int cycleCount
@@ -116,9 +117,19 @@ PopupWindow {
 
     visible: false
     color: "transparent"
-    grabFocus: true
-    implicitWidth: 450
-    implicitHeight: panelContent.implicitHeight + 32
+    focusable: true
+
+    anchors {
+        top: true
+        bottom: true
+        left: true
+        right: true
+    }
+
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.exclusiveZone: -1
+    WlrLayershell.namespace: "battery-menu"
 
     onVisibleChanged: {
         if (visible)
@@ -127,16 +138,31 @@ PopupWindow {
     onChargeStartThresholdChanged: Qt.callLater(root.syncPendingThresholds)
     onChargeEndThresholdChanged: Qt.callLater(root.syncPendingThresholds)
 
-    anchor.item: root.anchorItem
-    anchor.rect.x: 9
-    anchor.rect.y: -8
-    anchor.rect.width: root.anchorItem.width
-    anchor.rect.height: root.anchorItem.height
-    anchor.edges: Edges.Top | Edges.Right
-    anchor.gravity: Edges.Top | Edges.Left
+    Shortcut {
+        sequence: "Esc"
+        enabled: root.visible
+        onActivated: root.visible = false
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        onClicked: mouse => {
+            const inside = mouse.x >= panelCard.x && mouse.x <= panelCard.x + panelCard.width && mouse.y >= panelCard.y && mouse.y <= panelCard.y + panelCard.height;
+            if (!inside)
+                root.visible = false;
+        }
+    }
 
     Rectangle {
-        anchors.fill: parent
+        id: panelCard
+
+        width: 450
+        height: panelContent.implicitHeight + 32
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: root.barRevealed ? 17 : 10
+        anchors.bottomMargin: root.barRevealed ? 40 : 10
         color: root.theme.batteryPanelBackgroundColor
         border.color: root.theme.batteryPanelBorderColor
         border.width: 1

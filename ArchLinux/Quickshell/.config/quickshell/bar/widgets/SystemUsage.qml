@@ -5,7 +5,7 @@ import qs.core as Core
 
 RowLayout {
     id: root
-    spacing: 4
+    spacing: 0
 
     required property int cpuUsage
     required property string cpuModel
@@ -49,6 +49,25 @@ RowLayout {
         implicitHeight: cpuUsage_text.implicitHeight + 4
         radius: root.theme.radiusMedium
         color: root.theme.cpuUsageBg
+
+        Rectangle {
+            anchors {
+                top: parent.top
+                right: parent.right
+                bottom: parent.bottom
+            }
+            width: parent.radius
+            color: parent.color
+        }
+
+        Rectangle {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: 1
+            height: root.theme.systemUsageFontSize
+            color: root.theme.networkSeparatorColor
+        }
+
         Text {
             id: cpuUsage_text
             anchors.centerIn: parent
@@ -105,8 +124,15 @@ RowLayout {
 
         implicitWidth: gpuUsageText.implicitWidth + 24
         implicitHeight: gpuUsageText.implicitHeight + 4
-        radius: root.theme.radiusMedium
         color: root.theme.gpuUsageBg
+
+        Rectangle {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: 1
+            height: root.theme.systemUsageFontSize
+            color: root.theme.networkSeparatorColor
+        }
 
         Text {
             id: gpuUsageText
@@ -166,6 +192,17 @@ RowLayout {
         implicitHeight: memUsage_text.implicitHeight + 4
         color: root.theme.memUsageBg
         radius: root.theme.radiusMedium
+
+        Rectangle {
+            anchors {
+                top: parent.top
+                left: parent.left
+                bottom: parent.bottom
+            }
+            width: parent.radius
+            color: parent.color
+        }
+
         Text {
             id: memUsage_text
             anchors.centerIn: parent

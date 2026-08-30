@@ -9,6 +9,7 @@ Item {
     required property int capacity
     required property string status
     required property bool acOnline
+    required property bool barRevealed
     required property real energyNowUwh
     required property real energyFullUwh
     required property real energyFullDesignUwh
@@ -179,7 +180,6 @@ Item {
     BatteryPanel {
         id: batteryPanel
 
-        anchorItem: root
         icon: root.batteryIcon()
         available: root.available
         capacity: root.capacity
@@ -193,6 +193,7 @@ Item {
         activePowerProfile: root.activePowerProfile
         actionBusy: root.actionBusy
         actionError: root.actionError
+        barRevealed: root.barRevealed
         theme: root.theme
         onPowerProfileRequested: profile => root.powerProfileRequested(profile)
         onChargeThresholdsRequested: (startValue, endValue) => root.chargeThresholdsRequested(startValue, endValue)

@@ -1,11 +1,10 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import Qt5Compat.GraphicalEffects
 
 import "./controls"
 
-// Renders saved and available network lists and their list-level actions.
+// Renders scanned network results and list-level actions.
 ColumnLayout {
     id: root
 
@@ -46,47 +45,6 @@ ColumnLayout {
                 disabled: root.controller.scanRunning || root.controller.isBusy
                 onClicked: root.controller.rescanNow()
             }
-        }
-    }
-
-    RowLayout {
-        Layout.fillWidth: true
-        visible: root.controller.savedModel.count > 0
-
-        Label {
-            text: "Saved"
-            font.family: root.style.textFont
-            font.pixelSize: 12
-            font.weight: 600
-            color: root.style.muted
-            Layout.fillWidth: true
-        }
-
-        BusyIndicator {
-            running: root.controller.scanRunning
-            visible: root.controller.scanRunning
-            layer.enabled: true
-            layer.effect: ColorOverlay {
-                color: root.style.success
-            }
-        }
-    }
-
-    ListView {
-        Layout.fillWidth: true
-        Layout.preferredHeight: Math.min(210, Math.max(0, root.controller.savedModel.count * 48))
-        visible: root.controller.savedModel.count > 0
-        clip: true
-        model: root.controller.savedModel
-        spacing: 6
-        ScrollBar.vertical: ScrollBar {
-            active: true
-            width: 4
-        }
-        delegate: SavedNetworkRow {
-            style: root.style
-            isBusy: root.controller.isBusy
-            onClicked: (uuid, ssid) => root.controller.connectSaved(uuid, ssid)
         }
     }
 
