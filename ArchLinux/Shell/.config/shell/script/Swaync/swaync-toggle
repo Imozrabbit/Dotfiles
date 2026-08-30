@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if hyprctl layers | grep -q 'swaync-control-center'; then
+    wtype -k Escape
+else
+    swaync-client -op
+fi
