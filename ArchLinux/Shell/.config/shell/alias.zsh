@@ -45,3 +45,6 @@ alias -g L='| less'
 
 # Wine Prefix
 alias winecfg-ltspice='WINEPREFIX="$HOME/.local/share/wineprefixes/LTSpice" winecfg'
+
+# NetworkManager TUI
+alias nmtui="NEWT_COLORS='root=white,black;window=white,black;border=white,black;title=white,black;textbox=white,black;label=white,black;listbox=white,black;actlistbox=black,white;entry=white,black;button=black,white;actbutton=black,lightgray' /usr/bin/nmtui"
