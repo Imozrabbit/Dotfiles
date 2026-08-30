@@ -8,6 +8,7 @@ hl.config({
 		-- Focus will shift to the window under the cursor when a window is closed
 		focus_on_close = 1,
 		touchpad = {
+			disable_while_typing = true,
 			tap_and_drag = false,
 			natural_scroll = true,
 			scroll_factor = 0.4,
