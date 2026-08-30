@@ -9,6 +9,7 @@ $c\
 $python\
 $lua\
 $docker_context\
+$hostname\
 $time\
 $line_break$character"""
 
@@ -42,11 +43,12 @@ base = "#2e3440"
 mantle = "#3b4252"
 crust = "#434c5e"
 
-# Local IP Module
-[localip]
+# Hostname Module
+[hostname]
 ssh_only = false
-style = "fg:surface0"
-format = '[ $localipv4 ]($style)'
+ssh_symbol = " 󰢹"
+format = '[$ssh_symbol]($style)'
+style = "fg:teal"
 disabled = false
 
 # Directory Module
@@ -106,7 +108,7 @@ format = '[[ $symbol( $context) ](fg:color_bg3)]($style)'
 disabled = false
 time_format = "%T"
 style = "fg:peach"
-format = '[[  $time ](fg:purple)]($style)'
+format = ' [[  $time ](fg:purple)]($style)'
 
 # Line Break Module
 [line_break]
