@@ -1,277 +1,87 @@
 :root {
     --cc-bg: #161616b3;
-    --noti-bg: #6e6e6e;
-    --noti-bg-alpha: 0.3;
     --noti-bg-focus: #47474780;
     --noti-close-bg: #4e4e4e;
     --noti-close-bg-hover: #5e5e5e;
     --text-color: #c3c3c5;
     --text-color-disabled: #8e8fe0;
+    --tile-bg: #242426cc;
+    --tile-hover: #303034e6;
+    --tile-active: #56577a99;
     --notification-icon-size: 55px;
     --notification-app-icon-size: calc(var(--notification-icon-size) / 3);
-    --notification-group-icon-size: 20px;
+    --notification-group-icon-size: 15px;
     --border-radius: 10px;
-    --notification-shadow:
-        0 0 0 1px #0000004D,
-        0 1px 3px 1px #000000B3,
-        0 2px 6px 2px #0000004D;
     --font-size-time: 14px;
-    --font-size-icon: 1rem;
-
-    /* Deprecated variables */
-    --hover-tranistion: background 0.15s ease-in-out;
-    --group-collapse-tranistion: opacity 400ms ease-in-out;
-    --hover-transition: var(--hover-tranistion);
-    --group-collapse-transition: var(--group-collapse-tranistion);
-
-    --mpris-album-art-overlay: #0000008C;
-    --mpris-button-hover: #00000080;
-    --mpris-album-art-icon-size: 0px;
-    --mpris-album-art-shadow: 0px 0px 0px #000000BF;
-
-    --3d-shadow:
-        inset 0 1px 2px #FFFFFF26,
-        0 2px 4px #00000066;
+    --hover-transition: background 0.15s ease-in-out;
+    --group-collapse-transition: opacity 400ms ease-in-out;
+    --mpris-album-art-overlay: #0000008c;
+    --mpris-album-art-shadow: none;
+    --3d-shadow: inset 0 1px 2px #ffffff26, 0 2px 4px #00000066;
 }
 
 * {
     font-family: "JetBrainsMono Nerd Font";
 }
 
-notificationwindow,
-blankwindow,
-blankwindow {
+.notification-row,
+.notification-row:focus,
+.notification-row .notification-background,
+.floating-notifications {
     background: transparent;
-}
-
-.close-button {
-    /* The notification Close Button */
-    background: var(--noti-close-bg);
-    color: var(--text-color);
-    text-shadow: none;
-    padding: 0;
-    border-radius: 100%;
-    margin-top: 8px;
-    margin-right: 10px;
-    box-shadow: none;
-    border: none;
-    min-width: 24px;
-    min-height: 24px;
-}
-
-.close-button:hover {
-    box-shadow: none;
-    background: var(--noti-close-bg-hover);
-    transition: var(--hover-tranistion);
-    border: none;
-}
-
-/*  Stacking Notifications */
-.notification-row {
-    background: transparent;
-    outline: none;
-}
-
-.notification-row:focus {
-    background: none;
 }
 
 .notification-row .notification-background {
-    padding: 0px;
-    background: transparent;
-}
-
-/* Popup Notification */
-.notification-row .notification-background .notification {
-    /* The actual notification */
-    border-radius: 0 0 0 15px;
-    border: none;
     padding: 0;
+}
+
+.notification-row .notification-background .notification {
     min-height: 40px;
-    transition: var(--hover-tranistion);
+    padding: 0;
+    border: none;
+    border-radius: 0 0 0 15px;
     background: #1616168c;
-}
-
-/* * */
-
-.notification-row .notification-background .notification.low {
-    /* Low Priority Notification */
-}
-
-.notification-row .notification-background .notification.normal {
-    /* Normal Priority Notification */
-}
-
-.notification-row .notification-background .notification.critical {
-    /* Critical Priority Notification */
+    transition: var(--hover-transition);
 }
 
 .notification-row .notification-background .notification .notification-default-action {
-    /* the notification at the top of the stack */
     padding: 1px;
     margin: 0;
-    box-shadow: none;
-    background: none;
     border: none;
-    color: var(--text-color);
-    transition: var(--hover-tranistion);
     border-radius: 0;
-}
-
-.notification-row .notification-background .notification .notification-default-action:hover {
-    -gtk-icon-filter: none;
-}
-
-.notification-row .notification-background .notification .notification-default-action:not(:only-child) {}
-
-.notification-row .notification-background .notification .notification-default-action .notification-content {
-    background: none;
-    border-radius: 2px;
+    box-shadow: none;
+    background: transparent;
+    color: var(--text-color);
 }
 
 .notification-row .notification-background .notification .notification-default-action .notification-content .image {
-    /* Notification Primary Image */
+    margin: 2px;
+    border-radius: var(--border-radius);
     -gtk-icon-filter: none;
     -gtk-icon-size: var(--notification-icon-size);
-    border-radius: 10px;
-    /* Size in px */
-    margin: 2px;
 }
 
 .notification-row .notification-background .notification .notification-default-action .notification-content .app-icon {
-    /* Notification app icon (only visible when the primary image is set) */
+    margin: 6px;
     -gtk-icon-filter: none;
     -gtk-icon-size: var(--notification-app-icon-size);
     -gtk-icon-shadow: 0 1px 4px black;
-    margin: 6px;
 }
 
 .notification-row .notification-background .notification .notification-default-action .notification-content .text-box label {
-    /* Fixes base GTK 4 CSS setting a filter of opacity 50% for some odd reason */
     filter: none;
 }
 
-.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .summary {
-    /* Notification summary/title */
-    font-size: 16px;
-    font-weight: bold;
-    background: none;
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .summary,
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .body {
+    padding-left: 10px;
     color: var(--text-color);
-    text-shadow: none;
-    padding: 0px 0px 0px 10px;
 }
 
 .notification-row .notification-background .notification .notification-default-action .notification-content .text-box .time {
-    /* Notification time-ago */
-    font-size: var(--cc-bg);
+    font-size: var(--font-size-time);
     font-weight: normal;
-    background: transparent;
     color: var(--text-color-disabled);
-    text-shadow: none;
-}
-
-.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .body {
-    /* Notification body */
-    padding: 0px 0px 0px 10px;
-    font-size: 14px;
-    font-weight: normal;
-    background: transparent;
-    color: var(--text-color);
-    text-shadow: none;
-}
-
-.notification-row .notification-background .notification .notification-default-action .notification-content slider {
-    /* Notification body */
-    background: transparent;
-    color: var(--text-color);
-    text-shadow: none;
-}
-
-.notification-row .notification-background .notification .notification-default-action .notification-content progressbar {
-    /* The optional notification progress bar */
-    margin-top: 4px;
-}
-
-.notification-row .notification-background .notification .notification-default-action .notification-content .body-image {
-    /* The "extra" optional bottom notification image */
-    margin-top: 4px;
-    -gtk-icon-filter: none;
-}
-
-.notification-row .notification-background .notification .notification-default-action .notification-content .inline-reply {
-    /* The inline reply section */
-    margin-top: 4px;
-}
-
-.notification-row .notification-background .notification .notification-default-action .notification-content .inline-reply .inline-reply-entry {
-    background: transparent;
-    color: var(--text-color);
-    caret-color: var(--text-color);
-    border: none;
-    border-radius: var(--border-radius);
-}
-
-.notification-row .notification-background .notification .notification-default-action .notification-content .inline-reply .inline-reply-button {
-    margin-left: 4px;
-    background: transparent;
-    border: none;
-    border-radius: var(--border-radius);
-    color: var(--text-color);
-}
-
-.notification-row .notification-background .notification .notification-default-action .notification-content .inline-reply .inline-reply-button:disabled {
-    background: initial;
-    color: var(--text-color-disabled);
-    border: var(--border);
-    border-color: transparent;
-}
-
-.notification-row .notification-background .notification .notification-default-action .notification-content .inline-reply .inline-reply-button:hover {
-    background: var(--noti-bg-focus);
-}
-
-.notification-row .notification-background .notification .notification-alt-actions {
-    background: none;
-    border-bottom-left-radius: var(--border-radius);
-    border-bottom-right-radius: var(--border-radius);
-    padding: 4px;
-}
-
-.notification-row .notification-background .notification .notification-action {
-    /* The alternative actions below the default action */
-    margin: 4px;
-    padding: 0;
-}
-
-.notification-row .notification-background .notification .notification-action>button {
-    border-radius: var(--border-radius);
-    color: var(--text-color);
-}
-
-.notification-group {
-    /* Styling only for Grouped Notifications */
-    transition: opacity 0.2s ease-in-out;
-    /* The groups close button */
-}
-
-.notification-group:focus {
-    background: none;
-}
-
-.notification-group.low {
-    /* Low Priority Group */
-}
-
-.notification-group.normal {
-    /* Low Priority Group */
-}
-
-.notification-group.critical {
-    /* Low Priority Group */
-}
-
-.notification-group .notification-group-close-button .close-button {
-    margin: 12px 20px;
 }
 
 .notification-group .notification-group-buttons,
@@ -281,168 +91,204 @@ blankwindow {
     border-radius: var(--border-radius);
 }
 
-.notification-group .notification-group-headers {
-    /* Notification Group Headers */
+.notification-group .notification-group-buttons button {
+    min-width: 24px;
+    min-height: 24px;
+    padding: 5px;
+    background: transparent;
+    box-shadow: none;
+}
+
+.notification-group {
+    background: transparent;
 }
 
 .notification-group .notification-group-headers .notification-group-icon {
-    color: var(--text-color);
-    -gtk-icon-size: var(--notification-group-icon-size);
     margin-right: 6px;
     margin-bottom: 5px;
+    -gtk-icon-size: var(--notification-group-icon-size);
 }
 
 .notification-group .notification-group-headers .notification-group-header {
-    color: var(--text-color);
-    font-size: 24px;
     margin-bottom: 5px;
-}
-
-.notification-group .notification-group-buttons {
-    /* Notification Group Buttons */
-    margin-bottom: 5px;
+    font-size: 16px;
 }
 
 .notification-group.collapsed {
-    /* When another group is expanded, lower the opacity of the collapsed ones */
     background: transparent;
-    transition: var(--group-collapse-tranistion);
+    transition: var(--group-collapse-transition);
 }
-
-.notification-group.collapsed.not-expanded {
-    opacity: 0.4;
-}
-
-.notification-group.collapsed .notification-row .notification {}
 
 .notification-group.collapsed .notification-row:not(:last-child) {
-    /* Top notification in stack */
-    /* Set lower stacked notifications opacity to 0 */
     filter: blur(2px);
 }
 
-.notification-group.collapsed .notification-row:not(:last-child) .notification-action,
-.notification-group.collapsed .notification-row:not(:last-child) .notification-default-action {
-    opacity: 0;
-}
-
 .notification-group.collapsed:hover .notification-row:not(:only-child) .notification {
-    background-color: var(--noti-bg-focus);
+    background: var(--noti-bg-focus);
 }
 
 .control-center {
-    /* The Control Center which contains the old notifications + widgets */
     background: var(--cc-bg);
     color: var(--text-color);
+    border: 1px solid #86868633;
+    border-right: none;
     border-radius: 10px 0 0 10px;
-    border: 1px solid rgba(134, 134, 134, 0.2);
-    border-right: 0px;
+}
+
+.control-center * {
+    outline: none;
 }
 
 .control-center .control-center-list-placeholder {
-    /* The placeholder when there are no notifications */
     opacity: 0;
-}
-
-.control-center .control-center-list {
-    /* List of notifications */
-    background: transparent;
 }
 
 .control-center .control-center-list .notification {
     box-shadow: var(--3d-shadow);
 }
 
-.control-center .control-center-list .notification .notification-default-action,
-.control-center .control-center-list .notification .notification-action {
-    transition: var(--group-collapse-tranistion), var(--hover-tranistion);
-}
-
-.control-center .control-center-list .notification .notification-default-action:hover,
-.control-center .control-center-list .notification .notification-action:hover {
-    background: none;
-}
-
-.blank-window {
-    /* Window behind control center and on all other monitors */
-    background: transparent;
-}
-
-.floating-notifications {
-    background: transparent;
-}
-
-.floating-notifications .notification {
-    box-shadow: none;
-}
-
-/*** Widgets ***/
 .widget {
-    padding: 1px 12px;
+    padding: 2px 8px;
     border-radius: var(--border-radius);
     font-weight: bold;
 }
 
-/* Title widget */
-.widget-title>label {
-    font-size: 1.4rem;
-    margin-top: 10px;
-    margin-left: 0px;
+.widget-title.header {
+    margin: 8px 10px 8px;
+    padding: 12px 0 2px 2px;
+    border-bottom: 0px solid #ffffff14;
 }
 
-.widget-title>button {
+.widget-title.header>label {
+    padding-left: 10px;
+    font-family: "Atkinson Hyperlegible Next";
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+.widget-title>button,
+.widget-buttons-grid flowbox>flowboxchild>button,
+.widget-mpris .widget-mpris-player .mpris-overlay>box>button {
     border-radius: var(--border-radius);
     box-shadow: var(--3d-shadow);
     transition: all 0.26s ease;
 }
 
-.widget-title>button:hover {
-    transform: translateY(-2px);
-    transform: scale(1.05);
-}
-
 .widget-title>button.text-button {
+    padding: 3px 11px 1px 10px;
+    margin: 0 4px;
+    font-family: "Atkinson Hyperlegible Next";
     font-weight: bold;
-    padding: 4px 8px;
-    margin-top: 10px;
-    font-size: var(--font-size-icon);
 }
 
-/* DND widget */
-.widget-dnd {
-    /* align-items: center; */
-    /* justify-content: center; */
+.widget-title>button:hover {
+    background: var(--tile-hover);
+    border-color: #ffffff38;
+}
+
+.widget-buttons-grid flowbox {
+    padding: 0;
+}
+
+.widget-buttons-grid label {
+    margin: 0;
+    padding: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.widget-buttons-grid flowbox>flowboxchild>button {
+    margin: 0;
+    padding: 2px 0;
+    background: var(--tile-bg);
+    border: 1px solid #ffffff1f;
+}
+
+.quick flowbox>flowboxchild>button {
+    min-height: 30px;
+    min-width: 56px;
+}
+
+.quick flowbox>flowboxchild>button:hover {
+    background: var(--tile-hover);
+    border-color: #ffffff38;
+}
+
+.quick flowbox>flowboxchild>button.toggle:checked {
+    background: var(--tile-active);
+    border-color: #a5a7e066;
+}
+
+.widget-buttons-grid.quick {
+    margin: 0 10px;
+    padding: 5px 0;
+}
+
+.widget-buttons-grid.power {
+    margin: 8px 10px 10px;
+    padding: 12px 0;
+    border-top: 1px solid #ffffff14;
+    border-bottom: 1px solid #ffffff14;
+}
+
+.power flowbox>flowboxchild>button {
+    min-height: 32px;
+    background: #202022b3;
+    border-color: #ffffff14;
+    box-shadow: inset 0 1px #ffffff0f;
+}
+
+.power flowbox>flowboxchild>button:hover {
+    background: var(--tile-hover);
+    border-color: #ffffff30;
+}
+
+.power flowbox>flowboxchild:nth-child(1) label {
+    color: #e78284;
+}
+
+.power flowbox>flowboxchild:nth-child(1)>button:hover {
+    background: #5c3033cc;
+    border-color: #e7828466;
+}
+
+.power flowbox>flowboxchild:nth-child(2) label {
+    color: #e5c07b;
+}
+
+.power flowbox>flowboxchild:nth-child(2)>button:hover {
+    background: #594b2fcc;
+    border-color: #e5c07b66;
 }
 
 .widget-dnd label {
-    font-family: "Atkinson Hyperlegible Next";
-    color: var(--text-color);
-    margin-top: 10px;
+    margin-top: 6px;
     margin-left: 6px;
-    font-size: 1.2rem;
+    font-family: "Atkinson Hyperlegible Next";
+    font-size: 1.1rem;
+    color: var(--text-color);
+}
+
+.widget-mpris,
+.widget-volume,
+.widget-dnd {
+    margin-top: 6px;
+    margin-bottom: 6px;
 }
 
 .widget-dnd switch {
-    border-radius: var(--border-radius);
+    margin-top: 6px;
     margin-right: 8px;
-    margin-top: 10px;
+    border-radius: var(--border-radius);
 }
 
 .widget-dnd switch slider {
     border-radius: var(--border-radius);
-    box-shadow: var(--mpris-album-art-shadow);
-}
-
-/* Mpris widget */
-.widget-mpris {
-    /* The parent to all players */
-    border-radius: var(--border-radius);
 }
 
 .widget-mpris .widget-mpris-player {
-    min-height: 150px;
+    min-height: 160px;
     border-radius: var(--border-radius);
-    box-shadow: var(--mpris-album-art-shadow);
 }
 
 .widget-mpris .widget-mpris-player .mpris-background {
@@ -450,121 +296,31 @@ blankwindow {
 }
 
 .widget-mpris .widget-mpris-player .mpris-overlay {
-    padding: 0px 10px 10px 10px;
-    background-color: var(--mpris-album-art-overlay);
+    padding: 0 10px 8px;
+    background: var(--mpris-album-art-overlay);
 }
 
 .widget-mpris .widget-mpris-player .mpris-overlay button:hover {
-    /* The media player buttons (play, pause, next, etc...) */
     background: #202020b3;
 }
 
-/*.widget-mpris .widget-mpris-player .mpris-overlay .widget-mpris-album-art {
-    border-radius: var(--border-radius);
-    box-shadow: var(--mpris-album-art-shadow);
-    -gtk-icon-size: var(--mpris-album-art-icon-size);
-}*/
-
 .widget-mpris .widget-mpris-player .mpris-overlay .widget-mpris-title {
-    font-size: 1.1rem;
+    font-size: 1rem;
+    font-weight: bold;
 }
 
 .widget-mpris .widget-mpris-player .mpris-overlay .widget-mpris-subtitle {
-    font-size: 1.0rem;
-}
-
-.widget-mpris .widget-mpris-player .mpris-overlay>box>button {
-    /* Change player control buttons */
-    box-shadow: var(--3d-shadow);
-    transition: all 0.26s ease;
+    font-size: 0.8rem;
+    font-weight: normal;
+    opacity: 0.75;
 }
 
 .widget-mpris .widget-mpris-player .mpris-overlay>box>button:hover {
-    transform: translateY(-2px);
-    transform: scale(1.06);
+    transform: translateY(-2px) scale(1.06);
 }
 
 .widget-mpris>box>button {
-    /* Change player side buttons */
-    margin: 0 -10px;
-    border-radius: var(--border-radius);
-}
-
-/* Change player side buttons insensitive*/
-/*.widget-mpris>box>button:disabled {
-}*/
-
-/* Buttons widget */
-.widget-buttons-grid flowbox {
-    padding: 0;
-}
-
-.widget-buttons-grid label {
-    font-size: 1.4rem;
-    font-weight: 600;
-    margin: 0;
-    padding: 0;
-}
-
-.widget-buttons-grid flowbox>flowboxchild>button {
-    padding: 2px 0px;
-    margin: 0;
-    box-shadow: var(--mpris-album-art-shadow);
-    border-radius: var(--border-radius);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    /* borde suave */
-    box-shadow: var(--3d-shadow);
-    transition: all 0.26s ease;
-}
-
-/* Remove GTK keyboard-focus/selection highlight */
-.widget-buttons-grid flowbox>flowboxchild:focus,
-.widget-buttons-grid flowbox>flowboxchild:selected,
-.widget-buttons-grid flowbox>flowboxchild>button:focus {
-    outline: none;
-    box-shadow: none;
-    background-color: transparent;
-}
-
-.widget-buttons-grid flowbox>flowboxchild>button:hover {
-    transform: translateY(-2px);
-    transform: scale(1.05);
-}
-
-.widget-buttons-grid flowbox>flowboxchild:hover {
-    border-radius: var(--border-radius);
-}
-
-/* Volume widget */
-:root {
-    --widget-volume-row-icon-size: 24px;
-}
-
-/* Each row app icon */
-.widget-volume row image {
-    -gtk-icon-size: var(--widget-volume-row-icon-size);
-}
-
-.per-app-volume {
-    background-color: var(--noti-bg-alt);
-    margin: 8px;
-    margin-bottom: 0;
-    border-radius: var(--border-radius);
-}
-
-/* Slider widget */
-.widget-slider label {
-    border-radius: var(--border-radius);
-}
-
-/* Inhibitors widget */
-.widget-inhibitors>label {
-    margin-right: 8px;
-    font-size: 1.5rem;
-}
-
-.widget-inhibitors>button {
-    margin-left: 8px;
+    margin: 0 -8px;
     border-radius: var(--border-radius);
 }
 
@@ -574,7 +330,7 @@ blankwindow {
 
 .widget-volume slider {
     padding: 2px;
-    background-color: var(--noti-close-bg-hover);
+    background: var(--noti-close-bg-hover);
     box-shadow: var(--3d-shadow);
     opacity: 0.6;
     filter: blur(2px);
@@ -582,24 +338,29 @@ blankwindow {
 
 .widget-volume trough {
     min-height: 5px;
-    box-shadow: var(--mpris-album-art-shadow);
 }
 
 .widget-volume highlight {
     margin: 0;
-    background-color: #c3c3c5;
+    background: var(--text-color);
 }
 
 .widget-volume label {
-    font-size: 2rem;
     margin-left: 1px;
+    font-size: 1.6rem;
 }
 
 .control-center scrollbar {
     opacity: 0;
+    min-width: 0;
+    min-height: 0;
 }
 
 .control-center scrollbar slider {
-    min-width: 0;
-    min-height: 0;
+    min-width: 3px;
+    min-height: 24px;
+}
+
+tooltip {
+    opacity: 0;
 }
