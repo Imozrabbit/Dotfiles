@@ -57,14 +57,14 @@
         "title#header": {
             "text": "  Central Hub",
             "clear-all-button": true,
-            "button-text": "Clear"
+            "button-text": "󰃢"
         },
         "dnd": {
             "text": "Do Not Disturb"
         },
         "mpris": {
             "autohide": false,
-            "show-album-art": "always",
+            "show-album-art": "never",
             "loop-carousel": true
         },
         "volume": {

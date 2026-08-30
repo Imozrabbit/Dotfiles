@@ -135,6 +135,10 @@
     border-radius: 10px 0 0 10px;
 }
 
+.control-center * {
+    outline: none;
+}
+
 .control-center .control-center-list-placeholder {
     opacity: 0;
 }
@@ -171,8 +175,8 @@
 }
 
 .widget-title>button.text-button {
-    padding: 3px 7px;
-    margin: 0 10px;
+    padding: 3px 11px 1px 10px;
+    margin: 0 4px;
     font-family: "Atkinson Hyperlegible Next";
     font-weight: bold;
 }
@@ -283,7 +287,7 @@
 }
 
 .widget-mpris .widget-mpris-player {
-    min-height: 120px;
+    min-height: 150px;
     border-radius: var(--border-radius);
 }
 
@@ -301,11 +305,14 @@
 }
 
 .widget-mpris .widget-mpris-player .mpris-overlay .widget-mpris-title {
-    font-size: 1.1rem;
+    font-size: 1rem;
+    font-weight: bold;
 }
 
 .widget-mpris .widget-mpris-player .mpris-overlay .widget-mpris-subtitle {
-    font-size: 1rem;
+    font-size: 0.8rem;
+    font-weight: normal;
+    opacity: 0.75;
 }
 
 .widget-mpris .widget-mpris-player .mpris-overlay>box>button:hover {
@@ -344,10 +351,16 @@
 }
 
 .control-center scrollbar {
-    opacity: 0.35;
+    opacity: 0;
+    min-height: 0;
+    min-width: 0;
 }
 
 .control-center scrollbar slider {
     min-width: 3px;
     min-height: 24px;
+}
+
+tooltip {
+    opacity: 0;
 }
