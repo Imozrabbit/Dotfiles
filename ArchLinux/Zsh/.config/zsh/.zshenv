@@ -15,7 +15,7 @@ export SYSTEMD_EDITOR="nvim"
 export BROWSER="zen-browser"
 export BROWSER2="brave-origin-nightly"
 
-# IME
+#---------------- IME ----------------#
 export QT_IM_MODULE='fcitx'
 export SDL_IM_MODULE='fcitx'
 export XMODIFIERS='@im=fcitx'
@@ -69,3 +69,6 @@ export OLLAMA_HOST="172.17.0.1:11434"
 
 #---------------- OpenCode ----------------#
 export SUPERPOWERS_DISABLE_TELEMETRY=1
+
+#------------------- QT -------------------#
+export QT_QPA_PLATFORMTHEME=qt5ct:qt6ct
