@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+default_vpn="CH-Zurich"
+active_vpn=""
+
+if nmcli -t -f NAME,TYPE connection show --active | grep -q ':wireguard$'; then
+    active_vpn="$(nmcli -t -f NAME,TYPE connection show --active | awk -F: '$2=="wireguard"{print $1; exit}')"
+fi
+
+if [ "$SWAYNC_TOGGLE_STATE" = "true" ]; then
+    nmcli conn up "$default_vpn"
+elif [ -n "$active_vpn" ]; then
+    nmcli conn down "$active_vpn"
+fi
