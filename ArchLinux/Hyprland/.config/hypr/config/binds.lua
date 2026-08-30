@@ -10,7 +10,7 @@ hl.bind(mainMod .. "+ E", hl.dsp.exec_cmd(FILEMANAGER)) -- Open file manager
 hl.bind(mainMod .. "+ SPACE", hl.dsp.exec_cmd(MENU)) -- Open app launcher
 hl.bind(mainMod .. "+ B", hl.dsp.exec_cmd("zen-browser")) -- Open zen browser
 hl.bind(mainMod .. "+ N", hl.dsp.exec_cmd(NOTES)) -- Open obsidian
-hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("swaync-client -t")) -- Open side hub
+hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("~/.config/shell/script/Swaync/swaync-toggle")) -- Open side hub
 
 -- Move focus with mainMod + arrow keys
 hl.bind(mainMod .. "+ H", hl.dsp.focus({ direction = "left" })) -- Move focus to left
@@ -30,6 +30,8 @@ end
 hl.bind(mainMod .. "+ M", hl.dsp.workspace.toggle_special("rmpc"))
 -- Special workspace for steam
 hl.bind(mainMod .. "+ S", hl.dsp.workspace.toggle_special("steam"))
+-- Special workspace for opencode window
+hl.bind(mainMod .. "+ O", hl.dsp.workspace.toggle_special("opencode"))
 
 -- Scrolling with mainMod + scroll
 local function scrollingBind(keybind, msg)
@@ -62,15 +64,20 @@ hl.bind(
 hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"), { locked = true })
 hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"), { locked = true })
 hl.bind("XF86AudioMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked = true })
---hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), {locked = true})
+hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true })
 
 -- Set up media control
-hl.bind("F7", hl.dsp.exec_cmd("playerctl previous"), { locked = true })
-hl.bind("F8", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
-hl.bind("F9", hl.dsp.exec_cmd("playerctl next"), { locked = true })
-hl.bind("F10", hl.dsp.exec_cmd("rmpc remote keybind p"), { locked = true })
-hl.bind("F11", hl.dsp.exec_cmd('rmpc remote keybind ","'), { locked = true, repeating = true })
-hl.bind("F12", hl.dsp.exec_cmd('rmpc remote keybind "."'), { locked = true, repeating = true })
+hl.bind(mainMod .. "+ left", hl.dsp.exec_cmd("playerctl previous"), { locked = true })
+hl.bind(mainMod .. "+ right", hl.dsp.exec_cmd("playerctl next"), { locked = true })
+hl.bind(mainMod .. "+ down", hl.dsp.exec_cmd("playerctl pause"), { locked = true })
+hl.bind(mainMod .. "+ up", hl.dsp.exec_cmd("playerctl play"), { locked = true })
+
+-- RMPC control
+hl.bind(mainMod .. "+ P", hl.dsp.exec_cmd("rmpc remote keybind p"), { locked = true })
+hl.bind(mainMod .. "+ SHIFT + comma", hl.dsp.exec_cmd('rmpc remote keybind "<"'), { locked = true })
+hl.bind(mainMod .. "+ SHIFT + period", hl.dsp.exec_cmd('rmpc remote keybind ">"'), { locked = true })
+hl.bind(mainMod .. "+ comma", hl.dsp.exec_cmd('rmpc remote keybind ","'), { locked = true, repeating = true })
+hl.bind(mainMod .. "+ period", hl.dsp.exec_cmd('rmpc remote keybind "."'), { locked = true, repeating = true })
 
 -- Screenshot
 hl.bind(mainMod .. "+ DELETE", hl.dsp.exec_cmd("/home/Zrabbit/.config/shell/script/Screenshot/screenshot_region"))
