@@ -115,6 +115,10 @@ register_rules({
 		match = { class = "qt6ct" },
 	},
 	{
+		name = "Qt5 Configuration Tool: floating",
+		match = { class = "qt5ct" },
+	},
+	{
 		name = "nwg-look: floating",
 		match = { title = "nwg-look" },
 	},
@@ -200,6 +204,10 @@ window_rule("feh: floating opaque window", {
 	class = "feh",
 }, STYLE.floating, STYLE.opaque)
 
+window_rule("Telegram: floating window", {
+	class = "org.telegram.desktop",
+}, STYLE.floating, STYLE.opaque, { size = "1582 890", center = true })
+
 ----------------------------------------------------------
 -------------------- ENGINEERING TOOLS -------------------
 ----------------------------------------------------------
@@ -268,7 +276,7 @@ window_rule(
 window_rule(
 	"LocalSend: floating window",
 	{
-		class = "localsend",
+		class = "org.localsend.localsend_app",
 		title = "LocalSend",
 	},
 	STYLE.floating,
