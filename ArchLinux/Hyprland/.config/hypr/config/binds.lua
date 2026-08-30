@@ -10,7 +10,13 @@ hl.bind(mainMod .. "+ E", hl.dsp.exec_cmd(FILEMANAGER)) -- Open file manager
 hl.bind(mainMod .. "+ SPACE", hl.dsp.exec_cmd(MENU)) -- Open app launcher
 hl.bind(mainMod .. "+ B", hl.dsp.exec_cmd("zen-browser")) -- Open zen browser
 hl.bind(mainMod .. "+ N", hl.dsp.exec_cmd(NOTES)) -- Open obsidian
-hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("swaync-client -t")) -- Open side hub
+hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("~/.config/shell/script/Swaync/swaync-toggle")) -- Open side hub
+
+-- Toggle bottom bar
+hl.bind(
+	mainMod .. "+ SHIFT + S",
+	hl.dsp.exec_cmd("qs -p /home/Zrabbit/.config/quickshell/bar/shell.qml ipc call bar toggle")
+)
 
 -- Move focus with mainMod + arrow keys
 hl.bind(mainMod .. "+ H", hl.dsp.focus({ direction = "left" })) -- Move focus to left
@@ -91,12 +97,17 @@ hl.bind("XF86TouchpadToggle", function()
 end, { locked = true })
 
 -- Set up media control
--- hl.bind("F7", hl.dsp.exec_cmd("playerctl previous"), { locked = true })
--- hl.bind("F8", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
--- hl.bind("F9", hl.dsp.exec_cmd("playerctl next"), { locked = true })
--- hl.bind("F10", hl.dsp.exec_cmd("rmpc remote keybind p"), { locked = true })
--- hl.bind("F11", hl.dsp.exec_cmd('rmpc remote keybind ","'), { locked = true, repeating = true })
--- hl.bind("F12", hl.dsp.exec_cmd('rmpc remote keybind "."'), { locked = true, repeating = true })
+hl.bind("XF86AudioPause", hl.dsp.exec_cmd("playerctl pause"), { locked = true })
+hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("playerctl play"), { locked = true })
+hl.bind(mainMod .. "+ left", hl.dsp.exec_cmd("playerctl previous"), { locked = true })
+hl.bind(mainMod .. "+ right", hl.dsp.exec_cmd("playerctl next"), { locked = true })
+
+-- RMPC control
+hl.bind(mainMod .. "+ SHIFT + P", hl.dsp.exec_cmd("rmpc remote keybind p"), { locked = true })
+hl.bind(mainMod .. "+ SHIFT + comma", hl.dsp.exec_cmd('rmpc remote keybind "<"'), { locked = true })
+hl.bind(mainMod .. "+ SHIFT + period", hl.dsp.exec_cmd('rmpc remote keybind ">"'), { locked = true })
+hl.bind(mainMod .. "+ comma", hl.dsp.exec_cmd('rmpc remote keybind ","'), { locked = true, repeating = true })
+hl.bind(mainMod .. "+ period", hl.dsp.exec_cmd('rmpc remote keybind "."'), { locked = true, repeating = true })
 
 -- Screenshot
 hl.bind(mainMod .. "+ Print", hl.dsp.exec_cmd("/home/Zrabbit/.config/shell/script/Screenshot/screenshot_region"))
