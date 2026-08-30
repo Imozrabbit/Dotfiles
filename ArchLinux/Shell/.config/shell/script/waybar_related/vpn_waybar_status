@@ -2,11 +2,7 @@
 
 vpn="$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null | awk -F: '$2=="wireguard"{print $1; exit}')"
 
-if resolvectl status 2>/dev/null | grep -q 'dns.nextdns.io'; then
-    dns="NextDNS"
-else
-    dns="No NextDNS"
-fi
+dns="AdGuard Home (router)"
 
 if [ -n "$vpn" ]; then
     text="󰦝 "
