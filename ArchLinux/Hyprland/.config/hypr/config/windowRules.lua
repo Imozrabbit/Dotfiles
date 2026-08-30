@@ -115,6 +115,10 @@ register_rules({
 		match = { class = "qt6ct" },
 	},
 	{
+		name = "Qt5 Configuration Tool: floating",
+		match = { class = "qt5ct" },
+	},
+	{
 		name = "nwg-look: floating",
 		match = { title = "nwg-look" },
 	},
@@ -284,6 +288,18 @@ window_rule(
 	STYLE.floating,
 	{
 		move = "1303 644",
+	}
+)
+
+window_rule(
+	"Bluetui: centered floating window",
+	{
+		class = "bluetui",
+	},
+	STYLE.floating,
+	{
+		size = "900 650",
+		center = true,
 	}
 )
 
