@@ -182,6 +182,7 @@
         "tooltip-format": "Network: <big><b>{essid}</b></big>\nSignal strength: <b>{signaldBm}dBm ({signalStrength}%)</b>\nFrequency: <b>{frequency}MHz</b>\nInterface: <b>{ifname}</b>\nIP: <b>{ipaddr}/{cidr}</b>\nGateway: <b>{gwaddr}</b>\nNetmask: <b>{netmask}</b>",
         "format-disconnected": "  ",
         "tooltip-format-disconnected": "Disconnected",
+        "on-click": "nm-connection-editor",
         "interval": 2
     },
     "group/expand-3": {
