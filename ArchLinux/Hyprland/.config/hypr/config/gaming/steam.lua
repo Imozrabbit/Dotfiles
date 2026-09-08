@@ -2,7 +2,7 @@ hl.window_rule({
 	name = "make steam popup windows float",
 	match = {
 		class = "steam",
-		title = "^(Friends List|Steam Settings|Path of Exile|Path of Exile 2|Valheim|Gothic 1 Remake|Abiotic Factor|Project Zomboid|Stoneshard)$",
+		title = "^(Friends List|Steam Settings|Path of Exile|Path of Exile 2|Valheim|Gothic 1 Remake|Abiotic Factor|Project Zomboid|Stoneshard|The Blood of Dawnwalker)$",
 	},
 	float = true,
 	persistent_size = true,

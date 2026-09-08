@@ -238,6 +238,21 @@ window_rule(
 ----------------------------------------------------------
 ------------------- FLOATING UTILITIES -------------------
 ----------------------------------------------------------
+window_rule(
+	"calendar: floating window",
+	{
+		class = "org.quickshell",
+		title = "Calendar",
+	},
+	STYLE.floating,
+	STYLE.opaque,
+	{
+		move = { "monitor_w/2 - window_w/2", "0" },
+		size = "950 937",
+		animation = "slide",
+	}
+)
+
 window_rule("nm-connection-editor: floating window", {
 	class = "nm-connection-editor",
 }, STYLE.floating)
