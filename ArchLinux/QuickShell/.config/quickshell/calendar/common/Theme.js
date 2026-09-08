@@ -1,0 +1,13 @@
+var fontMono = "JetBrainsMono Nerd Font"
+var font = "Atkinson Hyperlegible Next"
+var background = "#101217"
+var surface = "#171a21"
+var surfaceRaised = "#1e222b"
+var border = "#2a303b"
+var grid = "#252b35"
+var text = "#e7e9ee"
+var textMuted = "#969daa"
+var accent = "#8ba7d6"
+var currentTime = "#d98282"
+var radius = 7
+var spacing = 8
