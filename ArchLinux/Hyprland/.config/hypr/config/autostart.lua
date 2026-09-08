@@ -30,6 +30,7 @@ hl.on("hyprland.start", function()
 	hl.exec_cmd("qs -p ~/.config/quickshell/ram-osd/shell.qml")
 	hl.exec_cmd("qs -p ~/.config/quickshell/weather/shell.qml")
 	hl.exec_cmd("qs -p ~/.config/quickshell/alt-tab_view/shell.qml")
+	hl.exec_cmd("qs -c calendar -d")
 
 	-- Autostart the input methode framework fcitx5
 	hl.exec_cmd("fcitx5 --replace -d")

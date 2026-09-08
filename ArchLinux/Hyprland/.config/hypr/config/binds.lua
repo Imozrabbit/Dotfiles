@@ -11,6 +11,7 @@ hl.bind(mainMod .. "+ SPACE", hl.dsp.exec_cmd(MENU)) -- Open app launcher
 hl.bind(mainMod .. "+ B", hl.dsp.exec_cmd("zen-browser")) -- Open zen browser
 hl.bind(mainMod .. "+ N", hl.dsp.exec_cmd(NOTES)) -- Open obsidian
 hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("~/.config/shell/script/Swaync/swaync-toggle")) -- Open side hub
+hl.bind(mainMod .. "+ C", hl.dsp.exec_cmd("qs -c calendar ipc call calendar toggle")) -- Toggle Calendar
 
 -- Move focus with mainMod + arrow keys
 hl.bind(mainMod .. "+ H", hl.dsp.focus({ direction = "left" })) -- Move focus to left
@@ -89,6 +90,9 @@ local function close_bind()
 		-- If steam is the active window then shut it down
 		if window and window.class == "steam" and window.title == "Steam" then
 			hl.dispatch(hl.dsp.exec_cmd("/home/Zrabbit/.config/shell/script/Steam/steam_clean -shutdown"))
+			return
+		elseif window and window.class == "org.quickshell" and window.title == "Calendar" then
+			hl.dispatch(hl.dsp.exec_cmd("qs -c calendar ipc call calendar toggle"))
 			return
 		end
 		-- Otherwise close normally
