@@ -6,8 +6,8 @@ description: >
   scope. Returns caveman diff receipt. Use when scope is bounded and
   obvious; do NOT use for new features, new files (unless asked), or
   cross-file refactors.
-model: openai/gpt-5.6-sol
-reasoningEffort: high
+model: openai/gpt-5.6-luna
+reasoningEffort: medium
 temperature: 0.1
 ---
 

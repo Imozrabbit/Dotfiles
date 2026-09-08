@@ -1,7 +1,7 @@
 ---
 description: Writes and maintains project documentation
 mode: subagent
-model: openai/gpt-5.6-terra
+model: openai/gpt-5.6-luna
 reasoningEffort: medium
 temperature: 0.1
 permission:

@@ -1,8 +1,8 @@
 ---
 description: Teaching assistant that guides without writing solutions
 mode: primary
-model: openai/gpt-5.6-sol
-reasoningEffort: high
+model: openai/gpt-6-astra-fast
+reasoningEffort: medium
 temperature: 0.1
 permission:
   "*": deny
