@@ -1,8 +1,8 @@
 ---
 description: Validates and analyzes suspected security vulnerabilities
 mode: subagent
-model: openai/gpt-5.6-sol
-reasoningEffort: high
+model: openai/gpt-6-astra
+reasoningEffort: medium
 temperature: 0.1
 permission:
   "*": deny
