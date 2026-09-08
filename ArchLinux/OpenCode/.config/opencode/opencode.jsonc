@@ -10,6 +10,8 @@
             "disable": true
         },
         "build": {
+            "model": "openai/gpt-5.6-luna",
+            "reasoningEffort": "medium",
             "permission": {
                 "edit": "ask",
                 "task": {
@@ -21,6 +23,8 @@
             }
         },
         "plan": {
+            "model": "openai/gpt-6-astra",
+            "reasoningEffort": "low",
             "permission": {
                 "edit": "deny",
                 "task": {
