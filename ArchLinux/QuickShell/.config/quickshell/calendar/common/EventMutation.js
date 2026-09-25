@@ -162,9 +162,9 @@ function storageFailure(message) {
     return failure("storage", message)
 }
 
-function canonicalPersonalEvents(value, calendars, reservedUids) {
+function canonicalLocalEvents(value, calendars, reservedUids, expectedCalendarId) {
     if (!Array.isArray(value))
-        return storageFailure("Personal calendar events must be a list")
+        return storageFailure("Local calendar events must be a list")
 
     const required = [
         "uid", "calendarId", "title", "description", "location",
@@ -177,32 +177,32 @@ function canonicalPersonalEvents(value, calendars, reservedUids) {
 
     for (const source of value) {
         if (!source || typeof source !== "object" || Array.isArray(source))
-            return storageFailure("Personal calendar contains an invalid event")
+            return storageFailure("Local calendar contains an invalid event")
         if (Object.keys(source).some(key => !allowed.has(key))
                 || required.some(key => !Object.prototype.hasOwnProperty.call(source, key)))
-            return storageFailure("Personal calendar event schema is invalid")
-        if (source.calendarId !== "personal")
-            return storageFailure("Personal calendar contains a non-Personal event")
+            return storageFailure("Local calendar event schema is invalid")
+        if (source.calendarId !== expectedCalendarId)
+            return storageFailure("Local calendar contains an event for another calendar")
         if (typeof source.uid !== "string" || source.uid.length === 0
                 || seen.has(source.uid) || reserved.has(source.uid))
-            return storageFailure("Personal calendar event UIDs must be unique")
+            return storageFailure("Local calendar event UIDs must be unique")
         if (typeof source.title !== "string"
                 || typeof source.description !== "string"
                 || typeof source.location !== "string"
                 || typeof source.start !== "string"
                 || typeof source.end !== "string"
                 || typeof source.allDay !== "boolean")
-            return storageFailure("Personal calendar event fields are invalid")
+            return storageFailure("Local calendar event fields are invalid")
         if (!Array.isArray(source.reminders)
                 || source.reminders.some(reminder => !reminder
                     || typeof reminder !== "object" || Array.isArray(reminder)
                     || Object.keys(reminder).length !== 1
                     || !Object.prototype.hasOwnProperty.call(reminder, "minutesBefore")))
-            return storageFailure("Personal calendar reminder schema is invalid")
+            return storageFailure("Local calendar reminder schema is invalid")
 
         const validation = validateEvent(source, calendars, source.uid)
         if (!validation.ok)
-            return storageFailure("Invalid Personal event " + source.uid
+            return storageFailure("Invalid local event " + source.uid
                 + ": " + validation.message)
 
         seen.add(source.uid)
@@ -212,15 +212,15 @@ function canonicalPersonalEvents(value, calendars, reservedUids) {
     return { ok: true, rawEvents }
 }
 
-function parsePersonalStore(text, calendars, reservedUids) {
+function parseLocalStore(text, calendars, calendarId, reservedUids) {
     if (typeof text !== "string")
-        return storageFailure("Personal calendar JSON is invalid")
+        return storageFailure("Local calendar JSON is invalid")
 
     let document
     try {
         document = JSON.parse(text)
     } catch (error) {
-        return storageFailure("Personal calendar JSON is malformed")
+        return storageFailure("Local calendar JSON is malformed")
     }
 
     if (!document || typeof document !== "object" || Array.isArray(document)
@@ -228,13 +228,141 @@ function parsePersonalStore(text, calendars, reservedUids) {
             || !Object.prototype.hasOwnProperty.call(document, "version")
             || !Object.prototype.hasOwnProperty.call(document, "events")
             || document.version !== 1 || !Array.isArray(document.events))
-        return storageFailure("Personal calendar schema is unsupported")
+        return storageFailure("Local calendar schema is unsupported")
 
-    return canonicalPersonalEvents(document.events, calendars, reservedUids)
+    return canonicalLocalEvents(document.events, calendars, reservedUids, calendarId)
 }
 
-function serializePersonalStore(rawEvents, calendars, reservedUids) {
-    const result = canonicalPersonalEvents(rawEvents, calendars, reservedUids)
+function parseSyncedStore(text, calendars, expectedCalendarId) {
+    if (typeof text !== "string" || typeof expectedCalendarId !== "string"
+            || expectedCalendarId.length === 0)
+        return storageFailure("Synced calendar JSON is invalid")
+
+    let document
+    try {
+        document = JSON.parse(text)
+    } catch (error) {
+        return storageFailure("Synced calendar JSON is malformed")
+    }
+
+    if (!document || typeof document !== "object" || Array.isArray(document)
+            || Object.keys(document).length !== 3 || document.version !== 2
+            || !Array.isArray(document.events) || !Array.isArray(document.warnings))
+        return storageFailure("Synced calendar schema is unsupported")
+
+    const required = [
+        "uid", "sourceUid", "revision", "calendarId", "title", "description",
+        "location", "start", "end", "allDay", "reminders"
+    ]
+    const allowed = new Set(required)
+    const seen = new Set()
+    const rawEvents = []
+    for (const source of document.events) {
+        if (!source || typeof source !== "object" || Array.isArray(source)
+                || Object.keys(source).length !== required.length
+                || Object.keys(source).some(key => !allowed.has(key))
+                || required.some(key => !Object.prototype.hasOwnProperty.call(source, key)))
+            return storageFailure("Synced calendar event schema is invalid")
+        if (source.calendarId !== expectedCalendarId
+                || typeof source.uid !== "string"
+                || !source.uid.startsWith(expectedCalendarId + ":")
+                || source.uid.length <= expectedCalendarId.length + 1
+                || typeof source.sourceUid !== "string" || source.sourceUid.length === 0
+                || typeof source.revision !== "string" || source.revision.length === 0
+                || seen.has(source.uid))
+            return storageFailure("Synced calendar event identity is invalid")
+
+        const validation = validateEvent(source, calendars, source.uid)
+        if (!validation.ok)
+            return storageFailure("Invalid synced event " + source.uid + ": " + validation.message)
+        seen.add(source.uid)
+        rawEvents.push(Object.assign({}, source, { readOnly: false }))
+    }
+    return { ok: true, rawEvents, warnings: document.warnings.slice() }
+}
+
+function parseImportedStore(text, expectedCalendarId) {
+    if (typeof text !== "string" || typeof expectedCalendarId !== "string"
+            || expectedCalendarId.length === 0)
+        return storageFailure("Imported calendar JSON is invalid")
+
+    let document
+    try {
+        document = JSON.parse(text)
+    } catch (error) {
+        return storageFailure("Imported calendar JSON is malformed")
+    }
+
+    if (!document || typeof document !== "object" || Array.isArray(document)
+            || Object.keys(document).length !== 2
+            || !Object.prototype.hasOwnProperty.call(document, "version")
+            || !Object.prototype.hasOwnProperty.call(document, "events")
+            || document.version !== 1 || !Array.isArray(document.events))
+        return storageFailure("Imported calendar schema is unsupported")
+
+    const required = [
+        "uid", "calendarId", "title", "description", "location",
+        "start", "end", "allDay", "reminders"
+    ]
+    const allowed = new Set(required)
+    const seen = new Set()
+    const rawEvents = []
+
+    for (const source of document.events) {
+        if (!source || typeof source !== "object" || Array.isArray(source)
+                || Object.keys(source).length !== required.length
+                || Object.keys(source).some(key => !allowed.has(key))
+                || required.some(key => !Object.prototype.hasOwnProperty.call(source, key)))
+            return storageFailure("Imported calendar event schema is invalid")
+        if (source.calendarId !== expectedCalendarId
+                || typeof source.uid !== "string"
+                || !source.uid.startsWith(expectedCalendarId + ":")
+                || source.uid.length <= expectedCalendarId.length + 1
+                || seen.has(source.uid))
+            return storageFailure("Imported calendar event UIDs are invalid")
+        if (typeof source.title !== "string"
+                || typeof source.description !== "string"
+                || typeof source.location !== "string"
+                || typeof source.start !== "string"
+                || typeof source.end !== "string"
+                || typeof source.allDay !== "boolean"
+                || !Array.isArray(source.reminders))
+            return storageFailure("Imported calendar event fields are invalid")
+
+        const reminderResult = validateReminders(source.reminders)
+        if (!reminderResult.ok)
+            return storageFailure("Imported calendar reminder schema is invalid")
+
+        const startMs = source.allDay ? localDateMs(source.start) : timestampMs(source.start)
+        const endMs = source.allDay ? localDateMs(source.end) : timestampMs(source.end)
+        if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs)
+            return storageFailure("Imported calendar event time range is invalid")
+
+        seen.add(source.uid)
+        rawEvents.push(Object.assign({}, source, { reminders: reminderResult.reminders }))
+    }
+    return { ok: true, rawEvents }
+}
+
+function normalizeHoliday(source) {
+    if (!source || typeof source !== "object" || Array.isArray(source)
+            || source.calendarId !== "holidays_fr" || source.allDay !== true
+            || typeof source.uid !== "string"
+            || !source.uid.startsWith("holidays_fr:")
+            || typeof source.title !== "string"
+            || typeof source.start !== "string" || typeof source.end !== "string"
+            || !Array.isArray(source.reminders))
+        return null
+
+    const startMs = localDateMs(source.start)
+    const endMs = localDateMs(source.end)
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs)
+        return null
+    return Object.assign({}, source, { startMs, endMs, allDay: true })
+}
+
+function serializeLocalStore(rawEvents, calendars, calendarId, reservedUids) {
+    const result = canonicalLocalEvents(rawEvents, calendars, reservedUids, calendarId)
     if (!result.ok)
         return result
     return {
@@ -314,8 +442,11 @@ if (typeof module !== "undefined") {
         createEvent,
         deleteEvent,
         normalizeEvent,
-        parsePersonalStore,
-        serializePersonalStore,
+        normalizeHoliday,
+        parseLocalStore,
+        parseImportedStore,
+        parseSyncedStore,
+        serializeLocalStore,
         updateEvent
     }
 }

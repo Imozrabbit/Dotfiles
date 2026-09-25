@@ -16,7 +16,7 @@ Item {
     property bool invalid: false
     property bool padNumbers: false
     property bool trimModelEnds: true
-    readonly property int labelHeight: 14
+    readonly property int labelHeight: root.label.length > 0 ? 14 : 0
     readonly property int collapsedHeight: 34
     readonly property int availableRowsAbove: Math.max(0, currentIndex)
     readonly property int availableRowsBelow: Math.max(0, model.length - currentIndex - 1)
@@ -220,6 +220,7 @@ Item {
                 }
             }
             delegate: Text {
+                id: wheelEntry
                 required property int index
                 required property var modelData
 
@@ -231,6 +232,13 @@ Item {
                 font.weight: Math.abs(Controls.Tumbler.displacement) < 0.5 ? Font.DemiBold : Font.Normal
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
+
+                TapHandler {
+                    onTapped: {
+                        wheel.currentIndex = wheelEntry.index;
+                        root.collapseRequested();
+                    }
+                }
             }
             Component.onCompleted: ready = true
             onCurrentIndexChanged: {

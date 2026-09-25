@@ -21,7 +21,8 @@ Item {
     readonly property date rangeStart: CalendarMath.dayStart(selectedDate)
     readonly property date rangeEnd: CalendarMath.addDays(rangeStart, 14)
     readonly property var rangeEvents: calendarService.eventsInRange(rangeStart, rangeEnd)
-    readonly property var days: CalendarMath.buildAgendaDays(rangeEvents, rangeStart, 14)
+    readonly property var rangeHolidays: calendarService.holidaysInRange(rangeStart, rangeEnd)
+    readonly property var days: buildDays()
 
     function clearSelection() {
         root.selectedEventUid = "";
@@ -61,6 +62,16 @@ Item {
 
     function sameDay(left, right) {
         return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
+    }
+
+    function buildDays() {
+        const days = CalendarMath.buildAgendaDays(root.rangeEvents, root.rangeStart, 14);
+        for (const day of days) {
+            const dayStartMs = CalendarMath.dayStart(day.date).getTime();
+            const dayEndMs = CalendarMath.addDays(day.date, 1).getTime();
+            day.holidays = root.rangeHolidays.filter(holiday => CalendarMath.rangesOverlap(holiday.startMs, holiday.endMs, dayStartMs, dayEndMs));
+        }
+        return days;
     }
 
     function eventTimeLabel(event) {
@@ -125,14 +136,22 @@ Item {
 
                     readonly property bool today: root.sameDay(modelData.date, root.now)
                     readonly property int eventCount: modelData.events.length
+                    readonly property bool holiday: modelData.holidays.length > 0
 
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Math.max(72 * root.zoomScale, (20 + eventCount * 46) * root.zoomScale)
+                    Layout.preferredHeight: Math.max(72 * root.zoomScale, (20 + eventCount * 46 + (holiday ? 20 : 0)) * root.zoomScale)
 
                     Rectangle {
                         anchors.fill: parent
                         color: dayRow.index % 2 === 0 ? Theme.background : Theme.surface
                         opacity: dayRow.index % 2 === 0 ? 1 : 0.32
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        visible: dayRow.modelData.holidays.length > 0
+                        color: Theme.accent
+                        opacity: 0.06
                     }
 
                     Rectangle {
@@ -169,7 +188,7 @@ Item {
                             x: 4
                             y: 12 * root.zoomScale
                             text: Qt.formatDate(dayRow.modelData.date, "ddd").toUpperCase()
-                            color: dayRow.today ? Theme.currentTime : Theme.textMuted
+                            color: dayRow.holiday ? "#b5aa96" : dayRow.today ? Theme.currentTime : Theme.textMuted
                             font.pixelSize: 10 * root.zoomScale
                             font.letterSpacing: 1
                             font.weight: Font.DemiBold
@@ -186,18 +205,34 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 text: Qt.formatDate(dayRow.modelData.date, "MMM d")
-                                color: dayRow.today ? Theme.background : Theme.text
+                                color: dayRow.holiday ? "#b5aa96" : dayRow.today ? Theme.background : Theme.text
                                 font.pixelSize: 14 * root.zoomScale
                                 font.weight: Font.DemiBold
                             }
                         }
                     }
 
+                    Text {
+                        x: 128
+                        y: dayRow.eventCount === 0 ? (dayRow.height - height) / 2 : 10 * root.zoomScale
+                        width: Math.max(0, dayRow.width - x - 12 * root.zoomScale)
+                        height: 18 * root.zoomScale
+                        visible: dayRow.holiday
+                        text: CalendarMath.holidayLabel(dayRow.modelData.holidays)
+                        textFormat: Text.PlainText
+                        color: "#b5aa96"
+                        font.pixelSize: 12 * root.zoomScale
+                        font.weight: Font.Medium
+                        font.italic: true
+                        elide: Text.ElideRight
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
                     ColumnLayout {
                         id: eventColumn
 
                         x: 128
-                        y: 10
+                        y: dayRow.eventCount === 0 ? (dayRow.height - 40 * root.zoomScale) / 2 : (dayRow.holiday ? 30 * root.zoomScale : 0) + Math.max(0, (dayRow.height - (dayRow.holiday ? 30 * root.zoomScale : 0) - eventColumn.implicitHeight) / 2)
                         width: Math.max(0, dayRow.width - x)
                         spacing: 6
 
@@ -212,11 +247,12 @@ Item {
 
                                 property color eventColor: modelData.color
                                 readonly property bool selected: root.selectedEventUid === modelData.uid
+                                readonly property bool conflicted: root.calendarService.conflictService.isConflicted(modelData.uid)
                                 readonly property color selectionColor: Qt.lighter(eventColor, 1.18)
 
                                 Layout.fillWidth: true
-                            Layout.preferredHeight: 40 * root.zoomScale
-                            radius: 5 * root.zoomScale
+                                Layout.preferredHeight: 40 * root.zoomScale
+                                radius: 5 * root.zoomScale
                                 color: selected ? Qt.rgba(selectionColor.r, selectionColor.g, selectionColor.b, 0.28) : Qt.rgba(eventColor.r, eventColor.g, eventColor.b, 0.16)
                                 border.width: 1
                                 border.color: selected ? Qt.rgba(selectionColor.r, selectionColor.g, selectionColor.b, 0.72) : Qt.rgba(eventColor.r, eventColor.g, eventColor.b, 0.52)
@@ -246,13 +282,36 @@ Item {
 
                                 Text {
                                     x: 192 * root.zoomScale
-                                    width: Math.max(0, parent.width - x - 12 * root.zoomScale)
+                                    width: Math.max(0, parent.width - x - (agendaEvent.conflicted ? 28 : 12) * root.zoomScale)
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: parent.modelData.location ? parent.modelData.title + "  ·  " + parent.modelData.location : parent.modelData.title
+                                    textFormat: Text.PlainText
                                     color: Theme.text
                                     font.pixelSize: 12 * root.zoomScale
                                     font.weight: Font.Medium
                                     elide: Text.ElideRight
+                                }
+
+                                Rectangle {
+                                    visible: agendaEvent.conflicted
+                                    anchors.top: parent.top
+                                    anchors.right: parent.right
+                                    anchors.topMargin: 3 * root.zoomScale
+                                    anchors.rightMargin: 3 * root.zoomScale
+                                    width: 14 * root.zoomScale
+                                    height: 14 * root.zoomScale
+                                    radius: 7 * root.zoomScale
+                                    color: Theme.currentTime
+                                    z: 1
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        anchors.verticalCenterOffset: 1
+                                        text: "!"
+                                        color: Theme.background
+                                        font.pixelSize: 10 * root.zoomScale
+                                        font.weight: Font.Bold
+                                    }
                                 }
 
                                 MouseArea {
@@ -270,7 +329,7 @@ Item {
                         }
 
                         Text {
-                            visible: dayRow.eventCount === 0
+                            visible: dayRow.eventCount === 0 && !dayRow.holiday
                             Layout.preferredHeight: visible ? 40 * root.zoomScale : 0
                             verticalAlignment: Text.AlignVCenter
                             text: "No events"
