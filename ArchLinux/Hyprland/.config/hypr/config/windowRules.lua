@@ -245,8 +245,8 @@ window_rule(
 		title = "Calendar",
 	},
 	STYLE.floating,
-	STYLE.opaque,
 	{
+		xray = false,
 		move = { "monitor_w/2 - window_w/2", "0" },
 		size = "950 937",
 		animation = "slide",
@@ -308,7 +308,8 @@ window_rule(
 	},
 	STYLE.persistent_floating,
 	{
-		move = "2850 1000",
+		move = "2741 900",
+		size = "692 533",
 	}
 )
 
