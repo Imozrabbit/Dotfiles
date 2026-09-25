@@ -1,9 +1,6 @@
 return {
-	"refractalize/oil-git-status.nvim",
-	pin = true,
-	dependencies = {
-		"stevearc/oil.nvim",
-	},
+	dir = vim.fn.expand("~/.local/share/nvim/local/oil-git-status.nvim"),
+	dependencies = { "stevearc/oil.nvim" },
 	config = function()
 		require("oil-git-status").setup({
 			show_ignored = true,
