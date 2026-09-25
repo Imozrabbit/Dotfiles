@@ -1,8 +1,20 @@
 -- Set up R2modman
 hl.window_rule({
-	name = "make r2modman window float and opaque",
+	name = "make gale mod manager window float and opaque",
 	match = {
-		class = "r2modman",
+		class = "gale",
+	},
+	float = true,
+	persistent_size = true,
+	opaque = true,
+	xray = false,
+})
+
+hl.window_rule({
+	name = "make WOW mod manager window float and opaque",
+	match = {
+		class = "WowUpCf",
+		title = "WowUp.io",
 	},
 	float = true,
 	persistent_size = true,
