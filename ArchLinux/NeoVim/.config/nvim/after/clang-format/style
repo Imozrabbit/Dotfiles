@@ -4,6 +4,8 @@ IndentWidth: 4
 TabWidth: 4
 UseTab: Never
 
+AlignConsecutiveAssignments: true
+
 AlignTrailingComments:
     Kind: Always
     OverEmptyLines: 2
