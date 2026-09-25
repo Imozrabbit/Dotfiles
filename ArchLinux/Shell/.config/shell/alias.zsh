@@ -34,7 +34,8 @@ alias untargz='tar -zvxf' # Extract verbally a .gz file
 
 # Pacman
 alias updatesys='sudo pacman -Syu'
-alias updateall='yay -Syu && flatpak update --user'
+alias updateall='yay -Syu && flatpak update --user && npx --allow-git=all -y github:JuliusBrussee/caveman -- --only opencode --non-interactive'
+alias updateall='yay -Syu && flatpak update --user && npx -y @slkiser/opencode-quota@latest update --yes && rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/opencode/packages/@dietrichgebert/ponytail" "${XDG_CACHE_HOME:-$HOME/.cache}/opencode/packages/@dietrichgebert/ponytail@latest" "${XDG_CACHE_HOME:-$HOME/.cache}/opencode/packages/superpowers@git+https:" && npx --allow-git=all -y github:JuliusBrussee/caveman -- --only opencode --non-interactive'
 alias orphan='yay -Qdtq'
 
 # Global
