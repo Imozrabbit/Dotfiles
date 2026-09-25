@@ -4,3 +4,4 @@ FILEMANAGER = "Thunar"
 BROWSER = "zen"
 BACKUPBROWSER = "brave-origin-nightly"
 NOTES = "obsidian"
+GAME_WORKSPACE = 7
