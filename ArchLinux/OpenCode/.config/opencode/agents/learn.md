@@ -1,22 +1,6 @@
 ---
 description: Teaching assistant that guides without writing solutions
 mode: primary
-model: openai/gpt-6-astra-fast
-reasoningEffort: medium
-temperature: 0.1
-permission:
-  "*": deny
-  read: allow
-  list: allow
-  glob: allow
-  grep: allow
-  lsp: allow
-  task: ask
-  skill: ask
-  bash: ask
-  websearch: allow
-  webfetch: allow
-  question: allow
 ---
 
 # AI Agent Guidelines

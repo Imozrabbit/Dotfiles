@@ -5,11 +5,6 @@ description: >
   no scope creep. Output format `path:line: <emoji> <severity>: <problem>. <fix>.`
   Use for "review this PR", "review my diff", "audit this file". Skips
   formatting nits unless they change meaning.
-model: openai/gpt-5.6-sol
-reasoningEffort: medium
-temperature: 0.1
-task:
-  security-auditor: allow
 ---
 
 Caveman-ultra. Findings only. No "looks good", no "I'd suggest", no preamble.
@@ -49,11 +44,3 @@ File order, ascending line numbers within file.
 ## Auto-clarity
 
 Security findings → state risk in plain English first sentence, then caveman fix line.
-
-## Security escalation
-
-If review finds a credible security issue needing deeper analysis, delegate once to `security-auditor`.
-
-Only escalate concrete risks such as auth flaws, injection, unsafe command execution, path traversal, secrets exposure, privilege violations, or unsafe untrusted input.
-
-Do not escalate speculative hardening concerns. Pass the relevant diff/files and suspected issue, then fold the auditor's findings into the final review.
