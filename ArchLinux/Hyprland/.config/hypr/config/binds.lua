@@ -31,6 +31,8 @@ end
 hl.bind(mainMod .. "+ M", hl.dsp.workspace.toggle_special("rmpc"))
 -- Special workspace for steam
 hl.bind(mainMod .. "+ S", hl.dsp.workspace.toggle_special("steam"))
+-- Special workspace for battle.net
+hl.bind(mainMod .. "+ W", hl.dsp.workspace.toggle_special("battlenet"))
 -- Special workspace for opencode window
 hl.bind(mainMod .. "+ O", hl.dsp.workspace.toggle_special("opencode"))
 
