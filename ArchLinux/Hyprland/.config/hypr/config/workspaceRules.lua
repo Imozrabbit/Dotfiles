@@ -47,7 +47,7 @@ hl.workspace_rule({
 hl.workspace_rule({
 	workspace = "7",
 	monitor = "DP-1",
-	layout = "master",
+	layout = "monocle",
 })
 
 ---------------------- Set up my secondary monitor ----------------------
@@ -59,4 +59,10 @@ hl.workspace_rule({
 	layout_opts = {
 		direction = "down",
 	},
+})
+
+---------------------- Set up my secondary monitor ----------------------
+hl.workspace_rule({
+	workspace = "special:opencode",
+	layout = "dwindle",
 })
