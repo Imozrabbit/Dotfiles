@@ -7,7 +7,7 @@ return {
 		servers = {
 			neocmake = {},
 			qmlls = {
-				cmd = { "qmlls", "-E" },
+				cmd = { "/usr/lib/qt6/bin/qmlls", "-E" },
 				on_init = function(client)
 					client.server_capabilities.semanticTokensProvider = nil
 				end,
