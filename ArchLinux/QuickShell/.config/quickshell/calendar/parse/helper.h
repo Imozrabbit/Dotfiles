@@ -1,31 +1,27 @@
-#ifndef HELPER_h
-#define HELPER_h
 #pragma once
-
-#include <cstdio>
 #include <string>
-using namespace std;
+#include <string_view>
+#include <vector>
 
 struct Event {
-    string descrption;
-    string summary;
-    // Start
-    int startYear;
-    int startMonth;
-    int startDay;
-    int startHour;
-    int startMinute;
-    // End
-    int endYear;
-    int endMonth;
-    int endDay;
-    int endHour;
-    int endMinute;
+    std::string uid;
+    std::string summary;
+    std::string description;
+    std::string location;
+    std::string startTime;
+    std::string endTime;
+    bool allDay = false;
+    std::vector<int> reminders;
 };
 
-string get_oneLine(FILE *file);
+struct ParseResult {
+    std::vector<Event> events;
+    std::string error;
+};
 
-string extractKey(string s);
-string extractValue(string s, int separatorPos);
-
-#endif
+ParseResult parseCalendar(std::string_view source);
+std::string serializeEvent(const Event &event);
+bool writeEventFile(const std::string &path, const Event &event, std::string &error);
+bool writeAtomicallyFile(const std::string &path, const std::string &contents, std::string &error);
+bool writeEventFilePreserving(const std::string &path, const Event &event,
+                              const std::string &existing, std::string &error);

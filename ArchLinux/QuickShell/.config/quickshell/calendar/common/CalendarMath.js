@@ -14,21 +14,6 @@ function weekStart(date) {
     return result
 }
 
-function weekCount(startDate, endDate) {
-    let cursor = dayStart(startDate)
-    const end = dayStart(endDate)
-    let count = 0
-    while (cursor < end) {
-        cursor = addDays(cursor, 7)
-        ++count
-    }
-    return count
-}
-
-function monthGridStart(date) {
-    return weekStart(new Date(date.getFullYear(), date.getMonth(), 1))
-}
-
 function monthStartIndex(weekStartDate) {
     for (let index = 0; index < 7; ++index) {
         if (addDays(weekStartDate, index).getDate() === 1)
@@ -52,26 +37,25 @@ function buildAgendaDays(events, startDate, dayCount) {
         ? Math.max(0, Math.floor(Number(dayCount))) : 0
     const start = dayStart(startDate)
     const days = []
-    const dayIndexes = {}
-    for (let index = 0; index < count; ++index)
-        days.push({ date: addDays(start, index), events: [] })
-
-    for (let index = 0; index < days.length; ++index) {
-        const date = days[index].date
-        dayIndexes[date.getFullYear() + "-" + date.getMonth() + "-" + date.getDate()] = index
+    const dayEnds = []
+    for (let index = 0; index < count; ++index) {
+        const date = addDays(start, index)
+        days.push({ date, events: [] })
+        dayEnds.push(addDays(date, 1).getTime())
     }
 
     if (!Array.isArray(events))
         return days
 
     for (const event of events) {
-        if (!event || !Number.isFinite(event.startMs))
+        if (!event || !Number.isFinite(event.startMs) || !Number.isFinite(event.endMs)
+                || event.endMs <= event.startMs)
             continue
-        const eventDate = dayStart(new Date(event.startMs))
-        const key = eventDate.getFullYear() + "-" + eventDate.getMonth() + "-" + eventDate.getDate()
-        const dayIndex = dayIndexes[key]
-        if (dayIndex !== undefined)
-            days[dayIndex].events.push(event)
+        // ponytail: UI shows 14 days; index intervals if that range grows significantly.
+        for (let index = 0; index < days.length; ++index) {
+            if (rangesOverlap(event.startMs, event.endMs, days[index].date.getTime(), dayEnds[index]))
+                days[index].events.push(event)
+        }
     }
     return days
 }
@@ -109,6 +93,12 @@ function reminderLabel(minutes) {
     if (minutes === 1440)
         return "1 day before"
     return minutes + " minutes before"
+}
+
+function holidayLabel(holidays) {
+    if (!holidays || holidays.length === 0)
+        return ""
+    return holidays[0].title + (holidays.length > 1 ? " +" + (holidays.length - 1) : "")
 }
 
 function eventDetails(event, calendars) {
@@ -168,24 +158,11 @@ function wallClockRange(startTimestamp, endTimestamp, day) {
     return { start, end }
 }
 
-function withCalendarVisibility(calendars, calendarId, visible) {
-    if (!Array.isArray(calendars) || typeof calendarId !== "string"
-            || typeof visible !== "boolean")
-        return calendars
-
-    const index = calendars.findIndex(calendar => calendar.id === calendarId)
-    if (index < 0 || calendars[index].visible === visible)
-        return calendars
-
-    return calendars.map((calendar, calendarIndex) => calendarIndex === index
-        ? Object.assign({}, calendar, { visible }) : calendar)
-}
-
 function filterEventsInRange(events, calendars, startMs, endMs) {
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs)
         return []
 
-    const calendarById = {}
+    const calendarById = Object.create(null)
     for (const calendar of calendars) {
         if (calendar && typeof calendar.id === "string" && calendarById[calendar.id] === undefined)
             calendarById[calendar.id] = calendar
@@ -261,16 +238,14 @@ if (typeof module !== "undefined") {
         daysInMonth,
         eventDetails,
         filterEventsInRange,
+        holidayLabel,
         layoutTimedEvents,
-        monthGridStart,
         monthStartIndex,
         rangesOverlap,
         reminderLabel,
         roundMinuteToStep,
         wallClockMinutes,
         wallClockRange,
-        withCalendarVisibility,
-        weekCount,
         weekStart
     }
 }

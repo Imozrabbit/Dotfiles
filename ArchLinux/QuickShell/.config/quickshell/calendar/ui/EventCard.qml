@@ -8,6 +8,7 @@ Rectangle {
     required property var eventData
     required property bool selected
     property bool compact: false
+    property bool conflicted: false
     property color eventColor: root.eventData.color || Theme.accent
     readonly property color selectionColor: Qt.lighter(root.eventColor, 1.18)
 
@@ -37,7 +38,7 @@ Rectangle {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.leftMargin: 9
-        anchors.rightMargin: 6
+        anchors.rightMargin: root.conflicted ? 20 : 6
         anchors.topMargin: root.compact ? 5 : 8
         y: 20
         spacing: 2
@@ -45,6 +46,7 @@ Rectangle {
         Text {
             Layout.fillWidth: true
             text: root.eventData.title
+            textFormat: Text.PlainText
             color: Theme.text
             font.pixelSize: root.compact ? 11 : 12
             font.weight: Font.DemiBold
@@ -66,9 +68,32 @@ Rectangle {
             visible: !root.compact && root.eventData.location.length > 0
             Layout.fillWidth: true
             text: root.eventData.location
+            textFormat: Text.PlainText
             color: Theme.textMuted
             font.pixelSize: 10
             elide: Text.ElideRight
+        }
+    }
+
+    Rectangle {
+        visible: root.conflicted
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: 3
+        anchors.rightMargin: 3
+        width: 14
+        height: 14
+        radius: 7
+        color: Theme.currentTime
+        z: 1
+
+        Text {
+            anchors.centerIn: parent
+            anchors.verticalCenterOffset: 1
+            text: "!"
+            color: Theme.background
+            font.pixelSize: 10
+            font.weight: Font.Bold
         }
     }
 

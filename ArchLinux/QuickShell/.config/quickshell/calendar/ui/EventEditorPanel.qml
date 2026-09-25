@@ -28,6 +28,8 @@ Rectangle {
     property var reminderDrafts: []
     property bool customReminderVisible: false
     property string customReminderText: ""
+    property bool savePending: false
+    property bool saveCommitted: false
     readonly property int pickerCenterYear: new Date().getFullYear()
     readonly property var yearValues: buildRange(pickerCenterYear - 100, pickerCenterYear + 100)
     readonly property var monthValues: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -73,10 +75,36 @@ Rectangle {
             custom: true
         }
     ]
-    readonly property var writableCalendars: calendarService.calendars.filter(calendar => calendar.writable === true)
+    readonly property var writableCalendars: {
+        const candidates = calendarService.calendars.filter(calendar => calendar.writable === true);
+        const sourceCalendar = root.mode === "edit" && root.eventData ? calendarService.calendarById(root.eventData.calendarId) : null;
+        if (!sourceCalendar)
+            return candidates;
+        return sourceCalendar.type === "local" ? candidates.filter(calendar => calendar.type === "local") : candidates.filter(calendar => calendar.id === sourceCalendar.id);
+    }
 
     signal saved(var eventData)
     signal cancelRequested
+
+    Connections {
+        target: root.calendarService
+        function onEventMutationFinished(result) {
+            if (!root.savePending)
+                return;
+            root.savePending = false;
+            if (result.cacheWarning) {
+                root.saveCommitted = true;
+                root.errorField = "storage";
+                root.errorMessage = result.message;
+                return;
+            }
+            if (!result.ok) {
+                root.setError(result.field, result.message, null);
+                return;
+            }
+            root.saved(result.event);
+        }
+    }
 
     color: Theme.surface
     radius: 13
@@ -123,42 +151,6 @@ Rectangle {
         }
     }
 
-    component ActionButton: Rectangle {
-        id: actionButton
-
-        required property string label
-        property bool primary: false
-        signal clicked
-
-        width: Math.max(80, buttonLabel.implicitWidth + 28)
-        height: 34
-        radius: Theme.radius
-        color: primary ? Theme.accent : buttonHover.hovered ? Theme.surfaceRaised : Theme.background
-        border.width: primary ? 0 : 1
-        border.color: Theme.border
-
-        Text {
-            id: buttonLabel
-
-            anchors.centerIn: parent
-            text: actionButton.label
-            color: actionButton.primary ? Theme.background : Theme.text
-            font.pixelSize: 13
-            font.weight: Font.DemiBold
-        }
-
-        HoverHandler {
-            id: buttonHover
-            cursorShape: Qt.PointingHandCursor
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: actionButton.clicked()
-        }
-    }
-
     function dateText(date) {
         return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
     }
@@ -186,9 +178,7 @@ Rectangle {
         const month = date.getMonth();
         const day = date.getDate();
         date.setHours(Number(match[1]), Number(match[2]), 0, 0);
-        if (date.getFullYear() !== year || date.getMonth() !== month
-                || date.getDate() !== day || date.getHours() !== Number(match[1])
-                || date.getMinutes() !== Number(match[2]))
+        if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day || date.getHours() !== Number(match[1]) || date.getMinutes() !== Number(match[2]))
             return null;
         return date;
     }
@@ -402,6 +392,8 @@ Rectangle {
     }
 
     function save() {
+        if (root.savePending || root.saveCommitted)
+            return;
         root.errorField = "";
         root.errorMessage = "";
         const startDate = root.parseDate(root.startDateText);
@@ -444,6 +436,7 @@ Rectangle {
             allDay: root.allDay,
             start,
             end,
+            revision: root.mode === "edit" ? root.eventData.revision : undefined,
             reminders: root.reminderDrafts.map(reminder => ({
                         minutesBefore: reminder.minutesBefore
                     }))
@@ -451,6 +444,10 @@ Rectangle {
         const result = root.mode === "edit" ? root.calendarService.updateEvent(root.eventData.uid, data) : root.calendarService.createEvent(data);
         if (!result.ok) {
             root.setError(result.field, result.message, null);
+            return;
+        }
+        if (result.pending) {
+            root.savePending = true;
             return;
         }
         root.saved(result.event);
@@ -562,6 +559,7 @@ Rectangle {
                     leftPadding: calendarCombo.leftPadding
                     rightPadding: calendarCombo.indicator.width + 10
                     text: calendarCombo.displayText
+                    textFormat: Text.PlainText
                     color: Theme.text
                     font: calendarCombo.font
                     verticalAlignment: Text.AlignVCenter
@@ -584,17 +582,23 @@ Rectangle {
                     width: calendarCombo.width - 8
                     height: 34
                     highlighted: calendarCombo.highlightedIndex === index
+                    hoverEnabled: false
                     contentItem: Text {
                         leftPadding: 8
                         text: calendarCombo.textAt(calendarOption.index)
+                        textFormat: Text.PlainText
                         color: Theme.text
                         font: calendarCombo.font
                         verticalAlignment: Text.AlignVCenter
                         elide: Text.ElideRight
                     }
                     background: Rectangle {
+                        property bool hovered: calendarOptionHover.hovered
                         radius: Math.max(0, Theme.radius - 2)
-                        color: calendarOption.highlighted || calendarOption.index === calendarCombo.currentIndex ? Theme.surfaceRaised : "transparent"
+                        color: hovered || calendarOption.highlighted || calendarOption.index === calendarCombo.currentIndex ? Theme.surfaceRaised : "transparent"
+                    }
+                    HoverHandler {
+                        id: calendarOptionHover
                     }
                 }
                 popup: Controls.Popup {
@@ -773,6 +777,11 @@ Rectangle {
                     onSelectionRequested: (index, value) => root.setTimePart("start", "minute", value)
                     onTextEdited: text => root.setTimePartText("start", "minute", text)
                 }
+            }
+
+            Item {
+                Layout.preferredWidth: 1
+                Layout.preferredHeight: 2
             }
 
             FieldLabel {
@@ -988,6 +997,7 @@ Rectangle {
                     width: reminderPreset.width - 8
                     height: 34
                     highlighted: reminderPreset.highlightedIndex === index
+                    hoverEnabled: false
                     contentItem: Text {
                         leftPadding: 8
                         text: reminderPreset.textAt(reminderOption.index)
@@ -997,8 +1007,12 @@ Rectangle {
                         elide: Text.ElideRight
                     }
                     background: Rectangle {
+                        property bool hovered: reminderOptionHover.hovered
                         radius: Math.max(0, Theme.radius - 2)
-                        color: reminderOption.highlighted || reminderOption.index === reminderPreset.currentIndex ? Theme.surfaceRaised : "transparent"
+                        color: hovered || reminderOption.highlighted || reminderOption.index === reminderPreset.currentIndex ? Theme.surfaceRaised : "transparent"
+                    }
+                    HoverHandler {
+                        id: reminderOptionHover
                     }
                 }
                 popup: Controls.Popup {
@@ -1092,6 +1106,7 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.leftMargin: 5
                 text: root.errorMessage
+                textFormat: Text.PlainText
                 color: Theme.currentTime
                 font.pixelSize: 11
                 wrapMode: Text.Wrap
@@ -1146,6 +1161,7 @@ Rectangle {
                 topPadding: 9
                 bottomPadding: 9
                 text: root.errorMessage
+                textFormat: Text.PlainText
                 color: Theme.currentTime
                 font.pixelSize: 12
                 wrapMode: Text.Wrap
@@ -1164,8 +1180,9 @@ Rectangle {
         ActionButton {
             anchors.left: parent.left
             anchors.leftMargin: 17
-            label: root.mode === "edit" ? "Save" : "Create"
+            label: root.savePending ? "Saving..." : (root.mode === "edit" ? "Save" : "Create")
             primary: true
+            enabled: !root.savePending && !root.saveCommitted
             onClicked: root.save()
         }
 
@@ -1173,6 +1190,7 @@ Rectangle {
             anchors.right: parent.right
             anchors.rightMargin: 17
             label: "Cancel"
+            enabled: !root.savePending
             onClicked: root.cancelRequested()
         }
     }

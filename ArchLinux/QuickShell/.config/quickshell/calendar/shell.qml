@@ -17,8 +17,7 @@ ShellRoot {
         target: "calendar"
 
         function toggle(): bool {
-            calendarWindow.visible = !calendarWindow.visible;
-            return calendarWindow.visible;
+            return calendarWindow.toggleWindow();
         }
     }
 }

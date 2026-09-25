@@ -13,11 +13,31 @@ Rectangle {
     readonly property color eventColor: details ? details.color : Theme.accent
     readonly property bool writable: eventData && eventData.readOnly !== true
     property bool confirmingDelete: false
+    property bool deletePending: false
+    property bool deleteCommitted: false
     property string actionError: ""
 
     signal closeRequested
     signal editRequested(var eventData)
     signal deleted(string uid)
+
+    Connections {
+        target: root.calendarService
+        function onEventMutationFinished(result) {
+            if (!root.deletePending)
+                return;
+            root.deletePending = false;
+            if (result.cacheWarning) {
+                root.deleteCommitted = true;
+                root.actionError = result.message;
+                return;
+            }
+            if (result.ok)
+                root.deleted(result.uid);
+            else
+                root.actionError = result.message;
+        }
+    }
 
     color: Theme.surface
     radius: 13
@@ -32,43 +52,6 @@ Rectangle {
     }
 
     Component.onCompleted: root.forceActiveFocus()
-
-    component ActionButton: Rectangle {
-        id: actionButton
-
-        required property string label
-        property bool primary: false
-        property bool destructive: false
-        signal clicked
-
-        implicitWidth: Math.max(80, buttonLabel.implicitWidth + 28)
-        implicitHeight: 34
-        radius: Theme.radius
-        color: primary ? Theme.accent : buttonHover.hovered ? Theme.surfaceRaised : Theme.background
-        border.width: primary ? 0 : 1
-        border.color: destructive ? Theme.currentTime : Theme.border
-
-        Text {
-            id: buttonLabel
-
-            anchors.centerIn: parent
-            text: actionButton.label
-            color: actionButton.primary ? Theme.background : actionButton.destructive ? Theme.currentTime : Theme.text
-            font.pixelSize: 13
-            font.weight: Font.DemiBold
-        }
-
-        HoverHandler {
-            id: buttonHover
-            cursorShape: Qt.PointingHandCursor
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: actionButton.clicked()
-        }
-    }
 
     function sameDay(left, right) {
         return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
@@ -126,6 +109,7 @@ Rectangle {
                 y: 2
             }
             text: root.details ? root.details.title : "Untitled"
+            textFormat: Text.PlainText
             color: Theme.text
             font.pixelSize: 20
             font.weight: Font.DemiBold
@@ -209,7 +193,8 @@ Rectangle {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                Layout.preferredHeight: 1
+                Layout.topMargin: 3 - detailsColumn.spacing
                 color: Theme.border
             }
 
@@ -236,6 +221,7 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true
                     text: root.details ? root.details.calendarName : "Unknown calendar"
+                    textFormat: Text.PlainText
                     color: Theme.text
                     font.pixelSize: 13
                     wrapMode: Text.Wrap
@@ -246,7 +232,8 @@ Rectangle {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                Layout.preferredHeight: 1
+                Layout.topMargin: 3 - detailsColumn.spacing
                 color: Theme.border
             }
 
@@ -261,6 +248,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: root.details ? root.details.location : "No location"
+                textFormat: Text.PlainText
                 color: Theme.text
                 font.pixelSize: 13
                 wrapMode: Text.Wrap
@@ -268,7 +256,8 @@ Rectangle {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                Layout.preferredHeight: 1
+                Layout.topMargin: 3 - detailsColumn.spacing
                 color: Theme.border
             }
 
@@ -283,6 +272,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: root.details ? root.details.description : "No description"
+                textFormat: Text.PlainText
                 color: Theme.text
                 font.pixelSize: 13
                 wrapMode: Text.Wrap
@@ -290,7 +280,8 @@ Rectangle {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                Layout.preferredHeight: 1
+                Layout.topMargin: 3 - detailsColumn.spacing
                 color: Theme.border
             }
 
@@ -311,6 +302,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.leftMargin: 2
                     text: "- " + modelData
+                    textFormat: Text.PlainText
                     color: Theme.text
                     font.pixelSize: 13
                     wrapMode: Text.Wrap
@@ -327,7 +319,8 @@ Rectangle {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                Layout.preferredHeight: 1
+                Layout.topMargin: 3 - detailsColumn.spacing
                 color: Theme.border
             }
 
@@ -344,6 +337,7 @@ Rectangle {
 
                     anchors.centerIn: parent
                     text: root.details ? root.details.status : "Read-only"
+                    textFormat: Text.PlainText
                     color: Theme.textMuted
                     font.pixelSize: 11
                     font.weight: Font.Medium
@@ -405,12 +399,16 @@ Rectangle {
                 spacing: 8
 
                 ActionButton {
-                    label: "Delete permanently"
+                    label: root.deleteCommitted ? "Deletion saved" : "Delete permanently"
                     destructive: true
+                    enabled: !root.deleteCommitted && !root.deletePending
                     onClicked: {
-                        const result = root.calendarService.deleteEvent(root.eventData.uid);
+                        const result = root.calendarService.deleteEvent(root.eventData.uid, root.eventData.revision);
                         if (result.ok)
-                            root.deleted(result.uid);
+                            if (result.pending)
+                                root.deletePending = true;
+                            else
+                                root.deleted(result.uid);
                         else
                             root.actionError = result.message;
                     }
@@ -433,6 +431,7 @@ Rectangle {
                 visible: root.actionError.length > 0
                 Layout.fillWidth: true
                 text: root.actionError
+                textFormat: Text.PlainText
                 color: Theme.currentTime
                 font.pixelSize: 12
                 wrapMode: Text.Wrap

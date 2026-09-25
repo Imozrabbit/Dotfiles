@@ -19,15 +19,18 @@ Item {
     signal eventActivated(var eventData)
     signal createRequested(var defaults)
 
-    readonly property int rangeYear: selectedDate.getFullYear()
-    readonly property date bufferStart: CalendarMath.weekStart(new Date(rangeYear, 0, 1))
-    readonly property date bufferEnd: CalendarMath.addDays(CalendarMath.weekStart(new Date(rangeYear, 11, 31)), 7)
-    readonly property int bufferWeeks: CalendarMath.weekCount(bufferStart, bufferEnd)
+    property date bufferStart: CalendarMath.weekStart(selectedDate)
+    readonly property date bufferEnd: CalendarMath.addDays(bufferStart, bufferWeeks * 7)
+    property int bufferWeeks: 53
     readonly property var rangeEvents: calendarService.eventsInRange(bufferStart, bufferEnd)
+    readonly property var rangeHolidays: calendarService.holidaysInRange(bufferStart, bufferEnd)
     readonly property var weeks: buildWeeks()
     readonly property real dayWidth: width / 7
     readonly property var monthColors: ["#60a5fa", "#818cf8", "#a78bfa", "#e879f9", "#f472b6", "#fb7185", "#fb923c", "#fbbf24", "#a3e635", "#4ade80", "#2dd4bf", "#22d3ee"]
     property real nominalWeekHeight: 0
+    property bool extendingBuffer: false
+    property real pendingPositionOffset: 0
+    readonly property int maxBufferWeeks: 104
 
     function clearSelection() {
         root.selectedEventUid = "";
@@ -50,6 +53,13 @@ Item {
         root.setZoom(3);
     }
 
+    function resetPosition(date) {
+        root.extendingBuffer = false;
+        root.pendingPositionOffset = 0;
+        root.recenterBuffer(date);
+        root.schedulePositionDate(date);
+    }
+
     function setZoom(nextWeeks) {
         if (nextWeeks === root.weeksPerPage)
             return;
@@ -63,6 +73,49 @@ Item {
         root.pendingPositionDate = date;
         pageFlickable.cancelFlick();
         positionTimer.restart();
+    }
+
+    function recenterBuffer(date) {
+        root.bufferStart = CalendarMath.addDays(CalendarMath.weekStart(date), -26 * 7);
+        root.bufferWeeks = 53;
+    }
+
+    function ensureDateInBuffer(date) {
+        const target = CalendarMath.weekStart(date).getTime();
+        if (target >= root.bufferStart.getTime() && target < root.bufferEnd.getTime())
+            return false;
+        root.recenterBuffer(date);
+        return true;
+    }
+
+    function maybeExtendBuffer() {
+        if (root.positioning || root.extendingBuffer || root.weeks.length === 0)
+            return;
+        const index = root.topVisibleWeekIndex();
+        if (index < 0)
+            return;
+
+        const edgeSize = 8;
+        const chunkSize = 13;
+        const item = pageFlickable.itemAtIndex(index);
+        const offset = item ? pageFlickable.contentY - item.y : 0;
+        const anchorDate = root.weeks[index].days[0].date;
+        if (index < edgeSize) {
+            root.extendingBuffer = true;
+            root.pendingPositionOffset = offset;
+            root.schedulePositionDate(anchorDate);
+            root.bufferStart = CalendarMath.addDays(root.bufferStart, -chunkSize * 7);
+            if (root.bufferWeeks < root.maxBufferWeeks)
+                root.bufferWeeks = Math.min(root.maxBufferWeeks, root.bufferWeeks + chunkSize);
+        } else if (index >= root.weeks.length - edgeSize) {
+            root.extendingBuffer = true;
+            root.pendingPositionOffset = offset;
+            root.schedulePositionDate(anchorDate);
+            if (root.bufferWeeks < root.maxBufferWeeks)
+                root.bufferWeeks = Math.min(root.maxBufferWeeks, root.bufferWeeks + chunkSize);
+            else
+                root.bufferStart = CalendarMath.addDays(root.bufferStart, chunkSize * 7);
+        }
     }
 
     function rebuildModel() {
@@ -92,12 +145,14 @@ Item {
                 maxEvents = Math.max(maxEvents, events.length);
                 days.push({
                     date,
-                    events
+                    events,
+                    holidays: bucket.holidays
                 });
             }
             result.push({
                 days,
                 maxEvents,
+                hasHolidays: days.some(day => day.holidays.length > 0),
                 monthStartIndex: CalendarMath.monthStartIndex(days[0].date)
             });
         }
@@ -112,15 +167,18 @@ Item {
         while (date.getTime() < root.bufferEnd.getTime()) {
             const key = date.getFullYear() + "-" + date.getMonth() + "-" + date.getDate();
             indexes[key] = index++;
-            buckets.push({ date, events: [] });
+            buckets.push({
+                date,
+                events: [],
+                holidays: []
+            });
             date = CalendarMath.addDays(date, 1);
         }
 
         const rangeStartMs = root.bufferStart.getTime();
         const rangeEndMs = root.bufferEnd.getTime();
         for (const event of root.rangeEvents) {
-            if (!event || !Number.isFinite(event.startMs) || !Number.isFinite(event.endMs)
-                    || event.endMs <= event.startMs)
+            if (!event || !Number.isFinite(event.startMs) || !Number.isFinite(event.endMs) || event.endMs <= event.startMs)
                 continue;
 
             const startMs = Math.max(event.startMs, rangeStartMs);
@@ -130,8 +188,7 @@ Item {
 
             let eventDate = CalendarMath.dayStart(new Date(startMs));
             const endDate = CalendarMath.dayStart(new Date(endMs));
-            const lastEventDate = endMs === endDate.getTime()
-                ? CalendarMath.addDays(endDate, -1) : endDate;
+            const lastEventDate = endMs === endDate.getTime() ? CalendarMath.addDays(endDate, -1) : endDate;
             while (eventDate.getTime() <= lastEventDate.getTime()) {
                 const key = eventDate.getFullYear() + "-" + eventDate.getMonth() + "-" + eventDate.getDate();
                 const dayIndex = indexes[key];
@@ -140,23 +197,45 @@ Item {
                     const dayEndMs = CalendarMath.dayStart(CalendarMath.addDays(eventDate, 1)).getTime();
                     const interval = CalendarMath.clippedInterval(event.startMs, event.endMs, dayStartMs, dayEndMs);
                     if (interval) {
-                        const displayEvent = interval.start === event.startMs && interval.end === event.endMs
-                            ? event : Object.assign({}, event, {
-                                sourceEvent: event,
-                                displayStartMs: interval.start,
-                                displayEndMs: interval.end
-                            });
+                        const displayEvent = interval.start === event.startMs && interval.end === event.endMs ? event : Object.assign({}, event, {
+                            sourceEvent: event,
+                            displayStartMs: interval.start,
+                            displayEndMs: interval.end
+                        });
                         buckets[dayIndex].events.push(displayEvent);
                     }
                 }
                 eventDate = CalendarMath.addDays(eventDate, 1);
             }
         }
+
+        const holidays = Array.isArray(root.rangeHolidays) ? root.rangeHolidays : [];
+        for (const holiday of holidays) {
+            if (!holiday || !Number.isFinite(holiday.startMs) || !Number.isFinite(holiday.endMs) || holiday.endMs <= holiday.startMs)
+                continue;
+
+            const startMs = Math.max(holiday.startMs, rangeStartMs);
+            const endMs = Math.min(holiday.endMs, rangeEndMs);
+            if (endMs <= startMs)
+                continue;
+
+            let holidayDate = CalendarMath.dayStart(new Date(startMs));
+            const endDate = CalendarMath.dayStart(new Date(endMs));
+            const lastHolidayDate = endMs === endDate.getTime() ? CalendarMath.addDays(endDate, -1) : endDate;
+            while (holidayDate.getTime() <= lastHolidayDate.getTime()) {
+                const key = holidayDate.getFullYear() + "-" + holidayDate.getMonth() + "-" + holidayDate.getDate();
+                const dayIndex = indexes[key];
+                if (dayIndex !== undefined)
+                    buckets[dayIndex].holidays.push(holiday);
+                holidayDate = CalendarMath.addDays(holidayDate, 1);
+            }
+        }
         return buckets;
     }
 
     function weekHeight(index) {
-        return Math.max(root.nominalWeekHeight, 34 + root.weekHeaderInset(index) + root.weeks[index].maxEvents * 24);
+        const week = root.weeks[index];
+        return Math.max(root.nominalWeekHeight, 34 + (week.monthStartIndex >= 0 ? 22 : 0) + week.maxEvents * 24 + (week.hasHolidays ? 20 : 0));
     }
 
     function weekHeaderInset(index) {
@@ -191,9 +270,13 @@ Item {
                 // Newly created variable-height rows can change ListView's estimates.
                 pageFlickable.forceLayout();
                 pageFlickable.positionViewAtIndex(index, ListView.Beginning);
+                if (root.pendingPositionOffset !== 0)
+                    pageFlickable.contentY += root.pendingPositionOffset;
                 break;
             }
         }
+        root.pendingPositionOffset = 0;
+        root.extendingBuffer = false;
         root.positioning = false;
         root.updateVisibleDate();
     }
@@ -265,7 +348,10 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
 
-        onContentYChanged: root.updateVisibleDate()
+        onContentYChanged: {
+            root.updateVisibleDate();
+            root.maybeExtendBuffer();
+        }
         onHeightChanged: root.updateWeekHeight()
 
         WheelHandler {
@@ -312,7 +398,7 @@ Item {
 
             x: 0
             width: pageFlickable.width
-            height: Math.max(root.nominalWeekHeight, 34 + headerInset + modelData.maxEvents * 24)
+            height: Math.max(root.nominalWeekHeight, 34 + headerInset + modelData.maxEvents * 24 + (modelData.hasHolidays ? 20 : 0))
 
             Rectangle {
                 readonly property real viewportY: weekRow.y + weekRow.height - pageFlickable.contentY
@@ -408,6 +494,7 @@ Item {
                             property color eventColor: modelData.color
                             readonly property var sourceEvent: modelData.sourceEvent ?? modelData
                             readonly property bool selected: root.selectedEventUid === sourceEvent.uid
+                            readonly property bool conflicted: root.calendarService.conflictService.isConflicted(sourceEvent.uid)
                             readonly property color selectionColor: Qt.lighter(eventColor, 1.18)
 
                             x: 6
@@ -422,14 +509,37 @@ Item {
                             Text {
                                 anchors.fill: parent
                                 anchors.leftMargin: 5
-                                anchors.rightMargin: 4
+                                anchors.rightMargin: monthEvent.conflicted ? 18 : 4
                                 text: root.eventLabel(parent.modelData)
+                                textFormat: Text.PlainText
                                 color: Theme.text
                                 font.family: Theme.font
                                 font.pixelSize: 9
                                 font.weight: Font.Medium
                                 elide: Text.ElideRight
                                 verticalAlignment: Text.AlignVCenter
+                            }
+
+                            Rectangle {
+                                visible: monthEvent.conflicted
+                                anchors.top: parent.top
+                                anchors.right: parent.right
+                                anchors.topMargin: 3
+                                anchors.rightMargin: 3
+                                width: 13
+                                height: 13
+                                radius: 7
+                                color: Theme.currentTime
+                                z: 1
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    anchors.verticalCenterOffset: 1
+                                    text: "!"
+                                    color: Theme.background
+                                    font.pixelSize: 9
+                                    font.weight: Font.Bold
+                                }
                             }
 
                             MouseArea {
@@ -448,6 +558,34 @@ Item {
 
                     Rectangle {
                         anchors.fill: parent
+                        anchors.margins: 2
+                        visible: dayColumn.modelData.holidays.length > 0
+                        z: 1
+                        color: "transparent"
+                        radius: 3
+                        border.width: 2
+                        border.color: "#b5aa96"
+                    }
+
+                    Text {
+                        x: 6
+                        width: Math.max(0, dayColumn.width - 12)
+                        height: 16
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 6
+                        visible: dayColumn.modelData.holidays.length > 0
+                        text: CalendarMath.holidayLabel(dayColumn.modelData.holidays)
+                        textFormat: Text.PlainText
+                        //color: Theme.accent
+                        color: "#b5aa96"
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
                         z: 2
                         visible: dayColumn.today
                         color: "transparent"
@@ -462,10 +600,14 @@ Item {
     }
 
     Component.onCompleted: {
+        root.recenterBuffer(root.selectedDate);
         root.schedulePositionDate(root.selectedDate);
         root.updateWeekHeight();
         root.rebuildModel();
     }
-    onSelectedDateChanged: root.schedulePositionDate(root.selectedDate)
+    onSelectedDateChanged: {
+        root.schedulePositionDate(root.selectedDate);
+        root.ensureDateInBuffer(root.selectedDate);
+    }
     onWeeksChanged: root.rebuildModel()
 }

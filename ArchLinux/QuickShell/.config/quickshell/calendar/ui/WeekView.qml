@@ -15,13 +15,13 @@ Item {
     signal eventActivated(var eventData)
     signal createRequested(var defaults)
 
-    property int zoomPercent: 100
+    property int zoomPercent: 70
     property string selectedEventUid: ""
     readonly property real hourHeight: Zoom.hourHeight(zoomPercent)
     readonly property int gutterWidth: 58
     readonly property real dayWidth: (width - gutterWidth) / 7
     readonly property var days: buildDays()
-    readonly property int allDayRows: days.reduce((maximum, day) => Math.max(maximum, day.allDay.length), 1)
+    readonly property int allDayRows: days.reduce((maximum, day) => Math.max(maximum, day.allDay.length + (day.holidays.length > 0 ? 1 : 0)), 1)
     readonly property date currentWeekStart: CalendarMath.weekStart(root.now)
     readonly property bool showingCurrentWeek: currentWeekStart.getTime() === root.weekStart.getTime()
     readonly property int currentDayIndex: root.now.getDay() === 0 ? 6 : root.now.getDay() - 1
@@ -54,19 +54,25 @@ Item {
     }
 
     function resetZoom() {
-        root.setZoom(100);
+        root.setZoom(70);
+    }
+
+    function resetPosition() {
+        gridFlickable.contentY = 7.5 * root.hourHeight;
     }
 
     function buildDays() {
         const result = [];
         const rangeEnd = CalendarMath.addDays(root.weekStart, 7);
         const events = root.calendarService.eventsInRange(root.weekStart, rangeEnd);
+        const holidays = root.calendarService.holidaysInRange(root.weekStart, rangeEnd);
 
         for (let index = 0; index < 7; ++index) {
             const date = CalendarMath.addDays(root.weekStart, index);
             const dayStartMs = CalendarMath.dayStart(date).getTime();
             const dayEndMs = CalendarMath.dayStart(CalendarMath.addDays(date, 1)).getTime();
             const allDay = [];
+            const dayHolidays = [];
             const timed = [];
 
             for (const event of events) {
@@ -90,8 +96,14 @@ Item {
                 }
             }
 
+            for (const holiday of holidays) {
+                if (CalendarMath.rangesOverlap(holiday.startMs, holiday.endMs, dayStartMs, dayEndMs))
+                    dayHolidays.push(holiday);
+            }
+
             result.push({
                 date,
+                holidays: dayHolidays,
                 allDay,
                 timed: CalendarMath.layoutTimedEvents(timed)
             });
@@ -125,6 +137,7 @@ Item {
                     height: 54
 
                     readonly property bool today: modelData.date.getFullYear() === root.now.getFullYear() && modelData.date.getMonth() === root.now.getMonth() && modelData.date.getDate() === root.now.getDate()
+                    readonly property bool holiday: modelData.holidays.length > 0
 
                     Rectangle {
                         anchors.centerIn: parent
@@ -141,7 +154,7 @@ Item {
                         Text {
                             Layout.alignment: Qt.AlignHCenter
                             text: Qt.formatDate(days.modelData.date, "ddd").toUpperCase()
-                            color: days.today ? Theme.background : Theme.textMuted
+                            color: days.holiday ? "#b5aa96" : days.today ? Theme.background : Theme.textMuted
                             font.pixelSize: 9
                             font.letterSpacing: 1
                         }
@@ -149,7 +162,7 @@ Item {
                         Text {
                             Layout.alignment: Qt.AlignHCenter
                             text: Qt.formatDate(days.modelData.date, "dd")
-                            color: days.today ? Theme.background : Theme.text
+                            color: days.holiday ? "#b5aa96" : days.today ? Theme.background : Theme.text
                             font.pixelSize: 16
                             font.weight: Font.DemiBold
                         }
@@ -211,6 +224,30 @@ Item {
                     width: root.dayWidth
                     height: parent.height
 
+                    Rectangle {
+                        x: 6
+                        y: 3
+                        width: allDayColumn.width - 12
+                        height: 20
+                        visible: allDayColumn.modelData.holidays.length > 0
+                        color: "#1f8ba7d6"
+                        radius: 4
+
+                        Text {
+                            anchors.fill: parent
+                            anchors.leftMargin: 4
+                            anchors.rightMargin: 4
+                            text: CalendarMath.holidayLabel(allDayColumn.modelData.holidays)
+                            textFormat: Text.PlainText
+                            color: "#b5aa96"
+                            font.pixelSize: 11
+                            font.weight: Font.Medium
+                            elide: Text.ElideRight
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+
                     Repeater {
                         model: allDayColumn.modelData.allDay
 
@@ -219,12 +256,13 @@ Item {
                             required property var modelData
 
                             x: 4
-                            y: 8 + index * 30
+                            y: 8 + (allDayColumn.modelData.holidays.length > 0 ? 30 : 0) + index * 30
                             width: allDayColumn.width - 8
                             height: 26
                             compact: true
                             eventData: modelData
                             selected: root.selectedEventUid === (modelData.sourceEvent ?? modelData).uid
+                            conflicted: root.calendarService.conflictService.isConflicted((modelData.sourceEvent ?? modelData).uid)
                             onSelectionRequested: event => root.selectEvent(event)
                             onActivated: event => root.eventActivated(event)
                         }
@@ -355,6 +393,7 @@ Item {
                                 height: durationPixels > 4 ? durationPixels - 4 : durationPixels
                                 eventData: modelData
                                 selected: root.selectedEventUid === (modelData.sourceEvent ?? modelData).uid
+                                conflicted: root.calendarService.conflictService.isConflicted((modelData.sourceEvent ?? modelData).uid)
                                 onSelectionRequested: event => root.selectEvent(event)
                                 onActivated: event => root.eventActivated(event)
                             }
