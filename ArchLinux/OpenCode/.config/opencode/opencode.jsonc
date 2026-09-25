@@ -10,8 +10,9 @@
             "disable": true
         },
         "build": {
-            "model": "openai/gpt-5.6-luna",
-            "reasoningEffort": "medium",
+            "model": "openai/gpt-6-sol",
+            "variant": "medium",
+            "temperature": 0.1,
             "permission": {
                 "edit": "ask",
                 "task": {
@@ -23,8 +24,9 @@
             }
         },
         "plan": {
-            "model": "openai/gpt-6-astra",
-            "reasoningEffort": "low",
+            "model": "openai/gpt-6-sol",
+            "variant": "medium",
+            "temperature": 0.1,
             "permission": {
                 "edit": "deny",
                 "task": {
@@ -32,10 +34,89 @@
                     "cavecrew-reviewer": "allow"
                 }
             }
+        },
+        "cavecrew-builder": {
+            "model": "openai/gpt-6-luna",
+            "variant": "high",
+            "temperature": 0.1
+        },
+        "cavecrew-investigator": {
+            "model": "openai/gpt-6-luna-fast",
+            "variant": "high",
+            "temperature": 0.1
+        },
+        "cavecrew-reviewer": {
+            "model": "openai/gpt-6-sol",
+            "variant": "medium",
+            "temperature": 0.1,
+            "permission": {
+                "task": {
+                    "*": "ask",
+                    "security-auditor": "allow"
+                }
+            }
+        },
+        "conversation": {
+            "model": "openai/gpt-6-luna-fast",
+            "variant": "high",
+            "temperature": 0.1,
+            "permission": {
+                "*": "deny"
+            }
+        },
+        "doc-writer": {
+            "model": "openai/gpt-6-luna",
+            "variant": "high",
+            "temperature": 0.1,
+            "permission": {
+                "*": "deny",
+                "read": "allow",
+                "list": "allow",
+                "glob": "allow",
+                "grep": "allow",
+                "lsp": "allow",
+                "edit": "ask",
+                "websearch": "allow",
+                "webfetch": "allow",
+                "question": "allow",
+                "external_directory": "deny"
+            }
+        },
+        "learn": {
+            "model": "openai/gpt-6-luna",
+            "variant": "high",
+            "temperature": 0.1,
+            "permission": {
+                "*": "deny",
+                "read": "allow",
+                "list": "allow",
+                "glob": "allow",
+                "grep": "allow",
+                "lsp": "allow",
+                "task": "ask",
+                "skill": "ask",
+                "bash": "ask",
+                "websearch": "allow",
+                "webfetch": "allow",
+                "question": "allow"
+            }
+        },
+        "security-auditor": {
+            "model": "openai/gpt-6-astra",
+            "variant": "low",
+            "temperature": 0.1,
+            "permission": {
+                "*": "deny",
+                "read": "allow",
+                "list": "allow",
+                "glob": "allow",
+                "grep": "allow",
+                "lsp": "allow",
+                "websearch": "allow",
+                "webfetch": "allow"
+            }
         }
     },
-    // OpenCode Quota: tuiCommandDisplay chooses whether native TUI command output appears in the session transcript or a local popup dialog.
-    // OpenCode Quota: loads the server plugin for slash commands and quota checks.
     "plugin": [
         "superpowers@git+https://github.com/obra/superpowers.git",
         "./plugins/caveman/plugin.js",

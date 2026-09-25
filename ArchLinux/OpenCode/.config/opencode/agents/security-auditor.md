@@ -1,18 +1,11 @@
 ---
-description: Validates and analyzes suspected security vulnerabilities
+description: >
+  Deep security analysis for concrete security findings discovered during
+  review. Use when cavecrew-reviewer finds a credible auth flaw, injection,
+  unsafe command execution, path traversal, secret exposure, privilege
+  violation, or unsafe untrusted input. Do not invoke for speculative
+  hardening concerns.
 mode: subagent
-model: openai/gpt-6-astra
-reasoningEffort: medium
-temperature: 0.1
-permission:
-  "*": deny
-  read: allow
-  list: allow
-  glob: allow
-  grep: allow
-  lsp: allow
-  websearch: allow
-  webfetch: allow
 ---
 
 You are a security expert. Analyze the suspected vulnerability supplied by the requesting agent.
