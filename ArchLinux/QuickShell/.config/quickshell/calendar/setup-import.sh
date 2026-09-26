@@ -55,6 +55,7 @@ watcher_new=$staging/quickshell-calendar-import.path
     if [ "$personal" -eq 1 ]; then
         printf 'ExecStart="%s/calendar-sync-helper" rebuild "%s/calendars/personal" "%s/calendars/personal.sync.json" personal\n' "$installed" "$data_home" "$data_home"
     fi
+    printf '\n[Install]\nWantedBy=default.target\n'
 } > "$service_new"
 {
     printf '[Unit]\nDescription=Watch synchronized calendar files\n\n[Path]\n'
@@ -103,11 +104,12 @@ fi
 
 if [ "$units_changed" -eq 1 ] || [ ! -s "$state_dir/import-done" ] ||
    ! systemctl --user is-enabled --quiet quickshell-calendar-import.path >/dev/null 2>&1 ||
-   ! systemctl --user is-active --quiet quickshell-calendar-import.path >/dev/null 2>&1; then
-    printf '%s\n' 'Enabling calendar import watcher and generating initial JSON...'
+   ! systemctl --user is-active --quiet quickshell-calendar-import.path >/dev/null 2>&1 ||
+   ! systemctl --user is-enabled --quiet quickshell-calendar-import.service >/dev/null 2>&1; then
+    printf '%s\n' 'Enabling calendar import service and watcher...'
     if ! systemctl --user daemon-reload > "$state_dir/import.log" 2>&1 ||
        ! systemctl --user enable --now quickshell-calendar-import.path >> "$state_dir/import.log" 2>&1 ||
-       ! systemctl --user start quickshell-calendar-import.service >> "$state_dir/import.log" 2>&1; then
+       ! systemctl --user enable --now quickshell-calendar-import.service >> "$state_dir/import.log" 2>&1; then
         printf '%s\n' 'Calendar import units could not start; rerun installer after checking user service output.' >&2
         tail -n 8 "$state_dir/import.log" >&2
         exit 1

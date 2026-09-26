@@ -53,9 +53,10 @@ backup choice. Existing calendar data is never overwritten: on first setup,
 non-empty sync directories that the installer did not create require manual
 review. Re-running the installer recognizes completed steps and can resume
 after a failed service setup. It installs `pimsync.service` and
-`quickshell-calendar-import.{path,service}` as systemd user units. The path
-unit updates derived JSON when ICS directories change; the installer also
-starts one initial conversion for files already present. Check services with
+`quickshell-calendar-import.{path,service}` as systemd user units. New
+`pimsync.service` units retry failures after 30 seconds. The import service
+converts existing ICS files at login and during installation; the path unit
+refreshes JSON after ICS directory changes. Check services with
 `systemctl --user status pimsync.service quickshell-calendar-import.path`.
 
 ## Run and verify

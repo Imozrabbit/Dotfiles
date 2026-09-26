@@ -56,6 +56,8 @@ test "$(cat "$secret")" = private-password
 if grep -q private-password "$workdir/output" "$config"; then exit 1; fi
 grep -q '^--user enable --now pimsync.service$' "$SERVICE_LOG"
 grep -Fq "Environment=\"XDG_CONFIG_HOME=$XDG_CONFIG_HOME\"" "$HOME/.config/systemd/user/pimsync.service"
+grep -Fxq 'Restart=on-failure' "$HOME/.config/systemd/user/pimsync.service"
+grep -Fxq 'RestartSec=30s' "$HOME/.config/systemd/user/pimsync.service"
 systemd-analyze --user verify "$HOME/.config/systemd/user/pimsync.service" > "$workdir/systemd-check.log" 2>&1 || {
     tail -n 10 "$workdir/systemd-check.log" >&2
     exit 1

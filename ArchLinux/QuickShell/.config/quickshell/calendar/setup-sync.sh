@@ -241,7 +241,7 @@ else
     printf '%s\n' "Creating $unit..."
     unit_tmp=$(mktemp "$(dirname "$unit")/.pimsync.service.pending.XXXXXXXX")
     {
-        printf '[Unit]\nDescription=Synchronise calendars\n\n[Service]\nEnvironment="XDG_CONFIG_HOME=%s"\nExecStart=%s daemon\nRestart=no\n\n[Install]\nWantedBy=default.target\n' "$config_home" "$pimsync_binary"
+        printf '[Unit]\nDescription=Synchronise calendars\n\n[Service]\nEnvironment="XDG_CONFIG_HOME=%s"\nExecStart=%s daemon\nRestart=on-failure\nRestartSec=30s\n\n[Install]\nWantedBy=default.target\n' "$config_home" "$pimsync_binary"
     } > "$unit_tmp"
     mv -- "$unit_tmp" "$unit"
 fi
