@@ -68,8 +68,16 @@ qmllint shell.qml common/*.js services/*.qml ui/*.qml
 quickshell -c "$HOME/.config/quickshell/calendar"
 ```
 
-Use your calendar toggle shortcut, or call IPC target `calendar.toggle`. Tests
-live under `parse/test/` and `dev/tests/`; they do not run with the desktop
+Use your calendar toggle shortcut, or call IPC target `calendar.toggle`. For hyprland setup:
+
+```sh
+# Autostart
+hl.exec_cmd("qs -c calendar -d")
+# Toggle + bind
+hl.bind(mainMod .. "+ C", hl.dsp.exec_cmd("qs -c calendar ipc call calendar toggle")) -- Toggle Calendar
+```
+
+Tests live under `parse/test/` and `dev/tests/`; they do not run with the desktop
 shell. `make -C parse clean` removes generated binaries and objects, so rebuild
 before launching the calendar afterward.
 
