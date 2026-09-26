@@ -32,6 +32,32 @@ remain inside the private data directory. Detaching a profile removes its
 registry entry; event files stay on disk. Replacing an imported profile
 requires explicitly editing that same profile.
 
+## Install on Arch Linux
+
+Download the installer separately, inspect it, then run it:
+
+```sh
+curl -fsSLo calendar-install.sh 'https://raw.githubusercontent.com/Imozrabbit/Dotfiles/master/ArchLinux/QuickShell/.config/quickshell/calendar/install.sh'
+sh calendar-install.sh
+```
+
+The installer downloads the public GitHub archive and extracts only this
+calendar directory to `~/.config/quickshell/calendar`. It builds both native
+helpers locally; the installed directory contains no `.git`. Missing packages
+can be installed with your approval. Select sync sources interactively (all
+three selected by default). Supply your own university feed URL and Radicale
+credentials if selected. Credentials stay outside the installed module.
+
+An existing calendar module requires replacement approval and a separate
+backup choice. Existing calendar data is never overwritten: on first setup,
+non-empty sync directories that the installer did not create require manual
+review. Re-running the installer recognizes completed steps and can resume
+after a failed service setup. It installs `pimsync.service` and
+`quickshell-calendar-import.{path,service}` as systemd user units. The path
+unit updates derived JSON when ICS directories change; the installer also
+starts one initial conversion for files already present. Check services with
+`systemctl --user status pimsync.service quickshell-calendar-import.path`.
+
 ## Run and verify
 
 Build the native converter and sync helper, then run C++, shell, and Node tests:
@@ -39,7 +65,7 @@ Build the native converter and sync helper, then run C++, shell, and Node tests:
 ```sh
 make -C parse test
 qmllint shell.qml common/*.js services/*.qml ui/*.qml
-quickshell -c /home/Zrabbit/Documents/Dotfiles/ArchLinux/QuickShell/.config/quickshell/calendar
+quickshell -c "$HOME/.config/quickshell/calendar"
 ```
 
 Use your calendar toggle shortcut, or call IPC target `calendar.toggle`. Tests
@@ -48,9 +74,11 @@ shell. `make -C parse clean` removes generated binaries and objects, so rebuild
 before launching the calendar afterward.
 
 Build requires a C++17 compiler, Make, `pkg-config`, libical, and Qt6Core.
-Tests additionally use Node.js, `jq`, and common shell utilities. Runtime
-synced calendars require configured `pimsync.service`, Hyprland, and Quickshell.
-`install.sh` remains a placeholder for separate installation work.
+Tests additionally use Node.js, `jq`, and common shell utilities. Installer
+regression tests run with `sh dev/tests/test-installer.sh`,
+`sh dev/tests/test-installer-sync.sh`, and `sh dev/tests/test-installer-import.sh`.
+Runtime synced calendars require configured `pimsync.service`, Hyprland, and
+Quickshell.
 
 ## Limits and audit
 
