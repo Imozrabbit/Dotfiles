@@ -27,20 +27,25 @@ hl.bind("F4", pass_to_apt_in_poe, {
 local function hard_logout_poe()
 	local window = hl.get_active_window()
 	if window == nil then
-		return
+		return { ok = false }
 	end
 	local is_poe_context = window.class == POE_CLASS or window.class == APT_CLASS
 	if is_poe_context then
 		hl.dispatch(hl.dsp.exec_cmd("sudo -n /usr/local/bin/poe-hard-logout"))
+		return
 	end
 	-- In non gaming situation, this mouse key work as drag function
 	if window.content_type ~= "game" then
 		hl.dispatch(hl.dsp.window.drag())
+		return
 	end
+	-- In other games: don't consume this mouse key
+	return { ok = false }
 end
 hl.bind("mouse:276", hard_logout_poe, {
 	mouse = true,
 	dont_inhibit = true,
+	auto_consuming = true,
 	description = "TCP disconnect PoE session = Hardcore logout macro",
 })
 
