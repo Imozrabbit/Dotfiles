@@ -69,6 +69,3 @@ export SUPERPOWERS_DISABLE_TELEMETRY=1
 
 #------------------- QT -------------------#
 export QT_QPA_PLATFORMTHEME=qt5ct:qt6ct
-
-#----------------- Serena -----------------#
-export SERENA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/serena"
