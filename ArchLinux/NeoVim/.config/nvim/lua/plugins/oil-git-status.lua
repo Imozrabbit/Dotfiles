@@ -1,6 +1,5 @@
 return {
-	"refractalize/oil-git-status.nvim",
-	pin = true,
+	dir = vim.fn.expand("~/.local/share/nvim/local/oil-git-status.nvim"),
 	dependencies = {
 		"stevearc/oil.nvim",
 	},
