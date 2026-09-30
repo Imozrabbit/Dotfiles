@@ -35,6 +35,13 @@ Rectangle {
     visible: root.active
     color: "transparent"
 
+    onVisibleChanged: {
+        if (!visible) {
+            mprisTooltipDelay.stop();
+            root.mprisTooltipVisible = false;
+        }
+    }
+
     onActiveChanged: {
         if (!active) {
             mprisTooltipDelay.stop();

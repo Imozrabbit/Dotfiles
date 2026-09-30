@@ -6,6 +6,11 @@ output. Bar windows show the same fixed module order, but visibility can differ
 by output. Full-screen menus open on the output that owns their button; service
 polling stops when no enabled bar uses that feature.
 
+Left and right sections anchor to their respective screen edges. Media text
+centers in the gap between them and hides when it cannot fit. On very narrow
+screens the sections may overlap, with right-side controls above the left.
+Module sizes and the single-row bar height do not change.
+
 ## Modules
 
 - **Workspaces:** Hyprland workspace and special-workspace state and switching.
@@ -77,6 +82,7 @@ Complete example (replace output names with those from `hyprctl monitors`):
   },
   "workspaceDisplay": {
     "minimumCount": 7,
+    "itemSpacing": 21,
     "normalLabels": { "4": "󰝆", "5": "󰐫", "6": "", "7": "" },
     "specialLabels": { "rmpc": "", "steam": "" }
   },
@@ -113,6 +119,10 @@ automatically, without adding empty intermediate slots. `normalLabels` maps
 workspace IDs to glyphs/text. Special workspaces appear when Hyprland creates
 them; `specialLabels` maps their names to glyphs/text. Unmapped entries use
 their number or name. Labels do not make absent workspaces visible.
+
+`workspaceDisplay.itemSpacing` sets gaps between items in the workspace box,
+including separators and expanded launcher icons. Default: 21 px; accepted
+range: 0–100 px. Restart the bar after changing the local file.
 
 ## Install
 

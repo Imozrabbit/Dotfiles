@@ -14,10 +14,11 @@ RowLayout {
     required property bool checking
     required property bool showLauncher
     required property bool showUpdates
+    required property real itemSpacing
 
     signal updateRequested
 
-    property int drawerGap: 10
+    readonly property real drawerGap: root.itemSpacing
 
     readonly property bool expanded: drawerHover.hovered
     HoverHandler {
@@ -89,7 +90,7 @@ RowLayout {
 
             anchors.rightMargin: root.drawerGap
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 8
+            spacing: root.itemSpacing
 
             Repeater {
                 model: root.launchers

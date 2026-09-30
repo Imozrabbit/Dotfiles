@@ -63,7 +63,7 @@ Scope {
     }
 
     function refresh() {
-        if (root.batteryPath !== "") {
+        if (root.batteryPath !== "" && root.pendingAction !== "charge-limit") {
             capacityFile.reload();
             statusFile.reload();
             presentFile.reload();
@@ -71,7 +71,7 @@ Scope {
             energyFullFile.reload();
             energyFullDesignFile.reload();
             powerNowFile.reload();
-            root.refreshThresholds();
+            //root.refreshThresholds();
             cycleCountFile.reload();
         }
         if (root.acPath !== "")
@@ -379,6 +379,7 @@ Scope {
                 if (confirmed) {
                     root.chargeStartThreshold = confirmedStart;
                     root.chargeEndThreshold = confirmedEnd;
+                    root.thresholdRefreshPending = false;
                 }
                 root.actionError = exitCode === 0 && confirmedStart === root.pendingChargeStartThreshold && confirmedEnd === root.pendingChargeEndThreshold ? "" : "Could not change charge limits";
                 root.pendingChargeStartThreshold = -1;

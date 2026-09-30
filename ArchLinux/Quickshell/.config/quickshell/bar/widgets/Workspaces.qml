@@ -33,7 +33,7 @@ Rectangle {
 
     RowLayout {
         id: workspaceLayout
-        spacing: 21
+        spacing: root.workspaceDisplay.itemSpacing
         anchors.centerIn: parent
 
         SystemTrayDrawer {
@@ -126,6 +126,7 @@ Rectangle {
             onUpdateRequested: root.updateRequested()
             showLauncher: root.showLauncher
             showUpdates: root.showUpdates
+            itemSpacing: root.workspaceDisplay.itemSpacing
             theme: root.theme
         }
     }

@@ -102,7 +102,13 @@ PanelWindow { // qmllint disable uncreatable-type
         }
     }
 
-    RowLayout {
+    Item {
+        id: barContents
+
+        readonly property real leftEnd: workspaceBox.visible ? workspaceBox.x + workspaceBox.width : 0
+        readonly property real rightStart: rightSection.visible ? rightSection.x : width
+        readonly property real middleSpace: Math.max(0, rightStart - leftEnd)
+
         anchors.fill: parent
         anchors.margins: 1
         visible: root.windowExpanded
@@ -136,7 +142,11 @@ PanelWindow { // qmllint disable uncreatable-type
         // Left Modules
         // -----------------------------------------------------------------------
         Widgets.Workspaces {
-            Layout.leftMargin: root.sideMargin
+            id: workspaceBox
+
+            anchors.left: parent.left
+            anchors.leftMargin: root.sideMargin
+            anchors.verticalCenter: parent.verticalCenter
             outputScreen: root.modelData
             visible: root.modules.tray || root.modules.workspaces || root.modules.launcher || root.modules.updates
 
@@ -163,11 +173,12 @@ PanelWindow { // qmllint disable uncreatable-type
         // -----------------------------------------------------------------------
         // Central Modules
         // -----------------------------------------------------------------------
-        Item {
-            Layout.fillWidth: true
-        }
-
         Widgets.Mpris {
+            id: mediaBox
+
+            x: barContents.leftEnd + (barContents.middleSpace - width) / 2
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.modules.media && (root.mprisService?.active ?? false) && implicitWidth + 10 <= barContents.middleSpace
             active: root.modules.media && (root.mprisService?.active ?? false)
             paused: root.mprisService?.paused ?? false
             canTogglePlaying: root.mprisService?.canTogglePlaying ?? false
@@ -186,13 +197,20 @@ PanelWindow { // qmllint disable uncreatable-type
             // qmllint enable Quick.layout-positioning
         }
 
-        Item {
-            Layout.fillWidth: true
-        }
-
         // -----------------------------------------------------------------------
         // Right Modules
         // -----------------------------------------------------------------------
+        RowLayout {
+            id: rightSection
+
+            anchors.right: parent.right
+            anchors.rightMargin: root.sideMargin
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.modules.network || root.modules.cpu || root.modules.gpu || root.modules.memory
+                     || root.modules.volume || root.modules.bluetooth || root.modules.inputMethod || root.modules.brightness
+                     || root.modules.battery || root.modules.clock || root.modules.calendar || root.modules.notifications
+            z: 1
+
         Network.NetworkUsage {
             visible: root.modules.network
             downloadBps: root.networkStats?.downloadBps ?? 0
@@ -369,7 +387,6 @@ PanelWindow { // qmllint disable uncreatable-type
 
         Widgets.TimeDate {
             id: timeDate
-            Layout.rightMargin: root.sideMargin
             outputScreen: root.modelData
             currentDate: root.shared.clock?.date ?? new Date()
             showBattery: root.modules.battery
@@ -415,6 +432,7 @@ PanelWindow { // qmllint disable uncreatable-type
                 y: root.bottomMargin
             }
             theme: root.theme
+        }
         }
     }
 }

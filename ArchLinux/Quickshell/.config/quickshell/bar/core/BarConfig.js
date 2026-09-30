@@ -20,6 +20,7 @@ function applyFields(target, override, moduleNames) {
 function workspaceSettings(defaults, override) {
     const result = {
         minimumCount: defaults.minimumCount,
+        itemSpacing: defaults.itemSpacing,
         normalLabels: Object.assign({}, defaults.normalLabels),
         specialLabels: Object.assign({}, defaults.specialLabels)
     };
@@ -27,6 +28,8 @@ function workspaceSettings(defaults, override) {
         return result;
     if (Number.isSafeInteger(override.minimumCount) && override.minimumCount >= 0 && override.minimumCount <= 50)
         result.minimumCount = override.minimumCount;
+    if (typeof override.itemSpacing === "number" && isFinite(override.itemSpacing) && override.itemSpacing >= 0 && override.itemSpacing <= 100)
+        result.itemSpacing = override.itemSpacing;
     if (isObject(override.normalLabels)) {
         for (const id of Object.keys(override.normalLabels)) {
             const label = override.normalLabels[id];

@@ -14,7 +14,7 @@ const defaults = {
     mode: "always",
     hoverToggleEnabled: true,
     modules: { network: true, wifiMenu: true, vpn: true, bluetooth: true, calendar: true, weather: true, cpu: true },
-    workspaceDisplay: { minimumCount: 3, normalLabels: {}, specialLabels: {} }
+    workspaceDisplay: { minimumCount: 3, itemSpacing: 21, normalLabels: {}, specialLabels: {} }
 };
 
 const missing = config.resolveConfig(defaults, "{}");
@@ -52,6 +52,11 @@ assert.equal(config.screenConfig(dependent, "DP-1").modules.vpn, false);
 assert.equal(config.screenConfig(dependent, "DP-1").modules.weather, false);
 
 const discovered = config.resolveConfig(defaults, "{}");
+assert.equal(discovered.workspaceDisplay.itemSpacing, 21);
+assert.equal(config.resolveConfig(defaults, '{"workspaceDisplay":{"itemSpacing":8}}').workspaceDisplay.itemSpacing, 8);
+assert.equal(config.resolveConfig(defaults, '{"workspaceDisplay":{"itemSpacing":0}}').workspaceDisplay.itemSpacing, 0);
+assert.equal(config.resolveConfig(defaults, '{"workspaceDisplay":{"itemSpacing":-1}}').workspaceDisplay.itemSpacing, 21);
+assert.equal(config.resolveConfig(defaults, '{"workspaceDisplay":{"itemSpacing":"8"}}').workspaceDisplay.itemSpacing, 21);
 assert.deepEqual(Array.from(config.normalWorkspaceEntries(discovered.workspaceDisplay, [{ id: 8 }, { id: 99 }, { id: 8 }, { id: -1 }]), entry => entry.id), [1, 2, 3, 8, 99]);
 assert.equal(config.normalWorkspaceEntries(discovered.workspaceDisplay, [{ id: 8 }])[3].label, "8");
 assert.deepEqual(Array.from(config.normalWorkspaceEntries(discovered.workspaceDisplay, []), entry => entry.id), [1, 2, 3]);

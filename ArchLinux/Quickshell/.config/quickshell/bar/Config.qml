@@ -35,6 +35,7 @@ Scope {
             },
             workspaceDisplay: {
                 minimumCount: 3,
+                itemSpacing: 21,
                 normalLabels: {},
                 specialLabels: {}
             }
