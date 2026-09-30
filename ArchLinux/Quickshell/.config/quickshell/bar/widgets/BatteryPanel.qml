@@ -7,7 +7,7 @@ import Quickshell.Wayland
 
 import qs.core as Core
 
-PanelWindow {
+PanelWindow { // qmllint disable uncreatable-type
     id: root
 
     required property string icon
@@ -32,6 +32,8 @@ PanelWindow {
     property int pendingStartThreshold: 45
     property int pendingEndThreshold: 50
     property bool limitsEdited: false
+    property bool limitsNeedApply: false
+    property bool limitSubmissionPending: false
     readonly property bool limitsChanged: root.pendingStartThreshold !== root.chargeStartThreshold || root.pendingEndThreshold !== root.chargeEndThreshold
 
     function resetPendingThresholds() {
@@ -50,14 +52,29 @@ PanelWindow {
         root.pendingStartThreshold = start;
         root.pendingEndThreshold = end;
         root.limitsEdited = false;
+        root.limitsNeedApply = false;
     }
 
-    function syncPendingThresholds() {
-        if (!root.visible)
+    function submitLimits() {
+        root.limitsNeedApply = false;
+        root.limitSubmissionPending = true;
+        root.chargeThresholdsRequested(root.pendingStartThreshold, root.pendingEndThreshold);
+        root.finishLimitSubmission();
+    }
+
+    function finishLimitSubmission() {
+        if (!root.limitSubmissionPending || root.actionBusy)
             return;
-        const applied = root.chargeStartThreshold === root.pendingStartThreshold && root.chargeEndThreshold === root.pendingEndThreshold;
-        if (!root.limitsEdited || applied)
-            root.resetPendingThresholds();
+        root.limitSubmissionPending = false;
+        root.limitsNeedApply = root.actionError !== "";
+    }
+
+    onActionBusyChanged: root.finishLimitSubmission()
+
+    function syncPendingThresholds() {
+        if (!root.visible || root.limitsEdited)
+            return;
+        root.resetPendingThresholds();
     }
 
     function batterySizeText() {
@@ -132,8 +149,11 @@ PanelWindow {
     WlrLayershell.namespace: "battery-menu"
 
     onVisibleChanged: {
-        if (visible)
+        if (visible) {
             root.resetPendingThresholds();
+            panelScroll.contentY = 0;
+            panelScroll.contentX = 0;
+        }
     }
     onChargeStartThresholdChanged: Qt.callLater(root.syncPendingThresholds)
     onChargeEndThresholdChanged: Qt.callLater(root.syncPendingThresholds)
@@ -157,8 +177,8 @@ PanelWindow {
     Rectangle {
         id: panelCard
 
-        width: 450
-        height: panelContent.implicitHeight + 32
+        width: Math.min(450, Math.max(0, root.width - anchors.rightMargin - 10))
+        height: Math.min(panelContent.implicitHeight + 32, Math.max(0, root.height - anchors.bottomMargin - 10))
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.rightMargin: root.barRevealed ? 17 : 10
@@ -167,10 +187,22 @@ PanelWindow {
         border.color: root.theme.batteryPanelBorderColor
         border.width: 1
         radius: root.theme.radiusMedium
+        clip: true
+
+        Flickable {
+            id: panelScroll
+
+            anchors.fill: parent
+            contentWidth: Math.max(width, panelContent.implicitWidth + 32)
+            contentHeight: panelContent.implicitHeight + 32
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+        }
 
         ColumnLayout {
             id: panelContent
 
+            parent: panelScroll.contentItem
             anchors.fill: parent
             anchors.margins: 16
             spacing: 11
@@ -277,6 +309,7 @@ PanelWindow {
 
                         Text {
                             text: parent.modelData.label
+                            textFormat: Text.PlainText
                             color: root.theme.batteryPanelMutedColor
                             font {
                                 family: root.theme.fontFamily
@@ -290,6 +323,7 @@ PanelWindow {
 
                         Text {
                             text: parent.modelData.value
+                            textFormat: Text.PlainText
                             color: root.theme.batteryPanelTextColor
                             font {
                                 family: root.theme.fontFamily
@@ -431,6 +465,7 @@ PanelWindow {
                         onClicked: {
                             root.pendingStartThreshold -= 5;
                             root.limitsEdited = true;
+                            root.limitsNeedApply = true;
                         }
                     }
 
@@ -460,6 +495,7 @@ PanelWindow {
                         onClicked: {
                             root.pendingStartThreshold += 5;
                             root.limitsEdited = true;
+                            root.limitsNeedApply = true;
                         }
                     }
 
@@ -484,6 +520,7 @@ PanelWindow {
                         onClicked: {
                             root.pendingEndThreshold -= 5;
                             root.limitsEdited = true;
+                            root.limitsNeedApply = true;
                         }
                     }
 
@@ -513,6 +550,7 @@ PanelWindow {
                         onClicked: {
                             root.pendingEndThreshold += 5;
                             root.limitsEdited = true;
+                            root.limitsNeedApply = true;
                         }
                     }
 
@@ -524,8 +562,8 @@ PanelWindow {
                         id: applyButton
 
                         Layout.preferredHeight: 30
-                        enabled: root.chargeStartThreshold >= 0 && root.chargeEndThreshold >= 0 && root.limitsChanged && root.pendingStartThreshold >= 45 && root.pendingStartThreshold <= 95 && root.pendingEndThreshold >= 50 && root.pendingEndThreshold <= 100 && root.pendingEndThreshold > root.pendingStartThreshold && !root.actionBusy
-                        onClicked: root.chargeThresholdsRequested(root.pendingStartThreshold, root.pendingEndThreshold)
+                        enabled: root.limitsNeedApply && root.chargeStartThreshold >= 0 && root.chargeEndThreshold >= 0 && root.limitsChanged && root.pendingStartThreshold >= 45 && root.pendingStartThreshold <= 95 && root.pendingEndThreshold >= 50 && root.pendingEndThreshold <= 100 && root.pendingEndThreshold > root.pendingStartThreshold && !root.actionBusy
+                        onClicked: root.submitLimits()
 
                         contentItem: Text {
                             text: root.actionBusy ? "Applying…" : "Apply"
@@ -557,6 +595,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 visible: root.actionError !== ""
                 text: root.actionError
+                textFormat: Text.PlainText
                 color: root.theme.batteryPanelErrorColor
                 horizontalAlignment: Text.AlignRight
                 font {

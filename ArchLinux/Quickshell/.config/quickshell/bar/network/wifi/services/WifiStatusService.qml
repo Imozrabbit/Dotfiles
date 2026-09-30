@@ -2,8 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-import "../WifiUtils.js" as WifiUtils
-
 // Owns live NetworkManager status collection and last-known status persistence.
 Scope {
     id: root
@@ -16,9 +14,20 @@ Scope {
     property string currentIp: ""
     property bool statusLoaded: false
     property string lastStatusCacheJson: ""
+    property bool refreshQueued: false
+    property int refreshGeneration: 0
+
+    signal refreshed(int generation)
 
     function refresh() {
+        if (statusProcess.running) {
+            root.refreshQueued = true;
+            return root.refreshGeneration + 1;
+        }
+
+        root.refreshGeneration++;
         statusProcess.running = true;
+        return root.refreshGeneration;
     }
 
     // Cache preload may finish after nmcli. Live status always wins, and malformed
@@ -46,8 +55,7 @@ Scope {
             root.activeConnectionUuid = data.uuid;
     }
 
-    // Persist only resolved state changes. Writing remains detached so status
-    // refresh completion never waits for filesystem I/O.
+    // Persist resolved changes atomically and avoid duplicate writes.
     function writeStatusCache() {
         const data = {
             wifiEnabled: root.wifiEnabled,
@@ -62,14 +70,15 @@ Scope {
             return;
         root.lastStatusCacheJson = json;
 
-        const dir = Quickshell.env("HOME") + "/.cache/quickshell";
-        Quickshell.execDetached(["bash", "-c", "mkdir -p " + WifiUtils.shellQuote(dir) + " && printf '%s' " + WifiUtils.shellQuote(json) + " > " + WifiUtils.shellQuote(root.statusCachePath)]);
+        statusCache.setText(json);
     }
 
     FileView {
         id: statusCache
         path: root.statusCachePath
         preload: true
+        blockWrites: true
+        atomicWrites: true
         onLoaded: root.applyStatusCache(text())
     }
 
@@ -87,11 +96,12 @@ Scope {
             fi
 
             # Get active WiFi connection UUID and state
-            ACTIVE=$(nmcli -g UUID,TYPE,STATE connection show --active 2>/dev/null | awk -F: '$2=="802-11-wireless" && $3=="activated"{print $1; exit}')
+            ACTIVE_CONNECTIONS=$(nmcli -g UUID,TYPE,STATE connection show --active 2>/dev/null)
+            ACTIVE=$(printf '%s\\n' "$ACTIVE_CONNECTIONS" | awk -F: '$2=="802-11-wireless" && $3=="activated"{print $1; exit}')
 
             if [ -z "$ACTIVE" ]; then
                 # Check for activating connections
-                ACTIVATING=$(nmcli -g UUID,TYPE,STATE connection show --active 2>/dev/null | awk -F: '$2=="802-11-wireless" && $3=="activating"{print $1; exit}')
+                ACTIVATING=$(printf '%s\\n' "$ACTIVE_CONNECTIONS" | awk -F: '$2=="802-11-wireless" && $3=="activating"{print $1; exit}')
                 if [ -n "$ACTIVATING" ]; then
                     echo "UUID:$ACTIVATING"
                     echo "STATE:activating"
@@ -109,11 +119,12 @@ Scope {
             echo "SSID:$SSID"
 
             # Get signal strength
-            SIGNAL=$(nmcli -g IN-USE,SIGNAL dev wifi list 2>/dev/null | awk -F: '$1=="*"{print $2; exit}')
+            SIGNAL=$(nmcli -g IN-USE,SIGNAL dev wifi list --rescan no 2>/dev/null | awk -F: '$1=="*"{print $2; exit}')
             echo "SIGNAL:$SIGNAL"
 
             # Get IP address
-            IP=$(ip -o route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')
+            DEVICE=$(nmcli -g GENERAL.DEVICES connection show uuid "$ACTIVE" 2>/dev/null | head -n1)
+            IP=$(ip -o -4 addr show dev "$DEVICE" 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="inet"){print $(i+1); exit}}')
             echo "IP:$IP"
         `]
         stdout: StdioCollector {
@@ -142,8 +153,17 @@ Scope {
                         ip = value;
                 }
 
+                if (wifi !== "enabled" && wifi !== "disabled") {
+                    root.refreshed(root.refreshGeneration);
+                    if (root.refreshQueued) {
+                        root.refreshQueued = false;
+                        Qt.callLater(root.refresh);
+                    }
+                    return;
+                }
+
                 root.statusLoaded = true;
-                root.wifiEnabled = (wifi === "enabled");
+                root.wifiEnabled = wifi === "enabled";
 
                 if (!root.wifiEnabled) {
                     root.currentSsid = "WiFi Off";
@@ -151,28 +171,33 @@ Scope {
                     root.currentSignal = 0;
                     root.activeConnectionUuid = "";
                     root.writeStatusCache();
-                    return;
-                }
-
-                root.activeConnectionUuid = uuid;
-
-                if (state === "activated") {
-                    root.currentSsid = ssid || "Connected";
-                    const parsedSignal = parseInt(signal, 10);
-                    root.currentSignal = isFinite(parsedSignal) ? parsedSignal : 0;
-                    root.currentIp = ip;
-                } else if (state === "activating") {
-                    root.currentSsid = "Connecting…";
-                    root.currentIp = "";
-                    root.currentSignal = 0;
                 } else {
-                    root.currentSsid = "Disconnected";
-                    root.currentIp = "";
-                    root.currentSignal = 0;
+                    root.activeConnectionUuid = uuid;
+
+                    if (state === "activated") {
+                        root.currentSsid = ssid || "Connected";
+                        const parsedSignal = parseInt(signal, 10);
+                        root.currentSignal = isFinite(parsedSignal) ? parsedSignal : 0;
+                        root.currentIp = ip;
+                    } else if (state === "activating") {
+                        root.currentSsid = "Connecting…";
+                        root.currentIp = "";
+                        root.currentSignal = 0;
+                    } else {
+                        root.currentSsid = "Disconnected";
+                        root.currentIp = "";
+                        root.currentSignal = 0;
+                    }
+
+                    if (state !== "activating")
+                        root.writeStatusCache();
                 }
 
-                if (state !== "activating")
-                    root.writeStatusCache();
+                root.refreshed(root.refreshGeneration);
+                if (root.refreshQueued) {
+                    root.refreshQueued = false;
+                    Qt.callLater(root.refresh);
+                }
             }
         }
     }

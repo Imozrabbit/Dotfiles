@@ -15,6 +15,9 @@ RowLayout {
     required property int gpuClockMhz
     required property int gpuTemperatureC
     required property string gpuName
+    required property bool showCpu
+    required property bool showGpu
+    required property bool showMemory
     required property int memUsage
     required property real memTotalKib
     required property real memUsedKib
@@ -45,6 +48,7 @@ RowLayout {
 
     Rectangle {
         id: cpuContainer
+        visible: root.showCpu
         implicitWidth: cpuUsage_text.implicitWidth + 24
         implicitHeight: cpuUsage_text.implicitHeight + 4
         radius: root.theme.radiusMedium
@@ -71,7 +75,7 @@ RowLayout {
         Text {
             id: cpuUsage_text
             anchors.centerIn: parent
-            text: " " + root.cpuUsage + "%"
+            text: " " + (root.cpuUsage >= 0 ? root.cpuUsage + "%" : "N/A")
             color: root.cpuUsage >= 90 ? root.theme.overloadColor : root.theme.cpuUsageColor
             font {
                 family: root.theme.fontFamily
@@ -102,7 +106,7 @@ RowLayout {
         }
 
         SystemStatTooltip {
-            visible: root.cpuTooltipVisible
+            visible: root.showCpu && root.cpuTooltipVisible
             anchorItem: cpuContainer
             heading: root.cpuModel
             rows: [
@@ -121,6 +125,7 @@ RowLayout {
 
     Rectangle {
         id: gpuContainer
+        visible: root.showGpu
 
         implicitWidth: gpuUsageText.implicitWidth + 24
         implicitHeight: gpuUsageText.implicitHeight + 4
@@ -169,7 +174,7 @@ RowLayout {
         }
 
         SystemStatTooltip {
-            visible: root.gpuTooltipVisible
+            visible: root.showGpu && root.gpuTooltipVisible
             anchorItem: gpuContainer
             heading: root.gpuName
             rows: [
@@ -188,6 +193,7 @@ RowLayout {
 
     Rectangle {
         id: memContainer
+        visible: root.showMemory
         implicitWidth: memUsage_text.implicitWidth + 25
         implicitHeight: memUsage_text.implicitHeight + 4
         color: root.theme.memUsageBg
@@ -206,7 +212,7 @@ RowLayout {
         Text {
             id: memUsage_text
             anchors.centerIn: parent
-            text: " " + root.memUsage + "%"
+            text: " " + (root.memUsage >= 0 ? root.memUsage + "%" : "N/A")
             color: root.memUsage >= 90 ? root.theme.overloadColor : root.theme.memUsageColor
             font {
                 family: root.theme.fontFamily
@@ -237,7 +243,7 @@ RowLayout {
         }
 
         SystemStatTooltip {
-            visible: root.memTooltipVisible
+            visible: root.showMemory && root.memTooltipVisible
             anchorItem: memContainer
             heading: "Memory"
             rows: [

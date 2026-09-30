@@ -1,23 +1,31 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 
 import qs.core as Core
-import qs.services as Services
 
 Rectangle {
     id: root
 
     required property Core.Theme theme
+    required property var outputScreen
     required property bool dnd
     required property bool hasNotifications
-    required property Services.Weather weatherService
+    required property date currentDate
+    required property var weatherService
     required property bool batteryAvailable
     required property int batteryCapacity
     required property string batteryStatus
     required property bool acOnline
     required property bool barRevealed
+    required property bool showBattery
+    required property bool showClock
+    required property bool showCalendar
+    required property bool showWeather
+    required property bool showNotifications
     required property real batteryEnergyNowUwh
     required property real batteryEnergyFullUwh
     required property real batteryEnergyFullDesignUwh
@@ -34,8 +42,11 @@ Rectangle {
     signal batteryPowerProfileRequested(string profile)
     signal batteryChargeThresholdsRequested(int startValue, int endValue)
 
+    readonly property bool batteryDetailsVisible: root.showBattery && battery.watchingThresholds
+
     implicitWidth: contentLayout.implicitWidth
     implicitHeight: contentLayout.implicitHeight
+    visible: root.showBattery || root.showClock || root.showCalendar || root.showNotifications
     radius: root.theme.radiusMedium
     color: root.theme.timeDateBg
 
@@ -46,12 +57,14 @@ Rectangle {
         spacing: -10
 
         Item {
+            visible: root.showBattery
             implicitWidth: battery.implicitWidth + 11
             implicitHeight: Math.max(battery.implicitHeight, batterySeparator.implicitHeight)
 
             Battery {
                 id: battery
 
+                outputScreen: root.outputScreen
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 available: root.batteryAvailable
@@ -78,6 +91,7 @@ Rectangle {
             Rectangle {
                 id: batterySeparator
 
+                visible: root.showBattery && (root.showClock || root.showCalendar || root.showNotifications)
                 anchors.left: battery.right
                 anchors.verticalCenter: parent.verticalCenter
                 implicitWidth: 1
@@ -88,28 +102,34 @@ Rectangle {
         }
 
         Item {
+            visible: root.showClock || root.showCalendar
             implicitWidth: clock_button.implicitWidth + 20
             implicitHeight: clock_button.implicitHeight + 4
 
             Button {
                 id: clock_button
                 anchors.fill: parent
-                enabled: true
+                enabled: root.showCalendar
 
                 hoverEnabled: true
                 HoverHandler {
                     id: clock_hover
-                    cursorShape: Qt.PointingHandCursor
+                    cursorShape: root.showCalendar ? Qt.PointingHandCursor : Qt.ArrowCursor
                 }
 
-                onClicked: calendar_popup.visible = !calendar_popup.visible
+                onClicked: {
+                    // qmllint disable missing-property
+                    if (calendarLoader.item)
+                        calendarLoader.item.visible = !calendarLoader.item.visible;
+                    // qmllint enable missing-property
+                }
 
                 implicitWidth: search_button_text.implicitWidth
                 implicitHeight: search_button_text.implicitHeight
 
                 contentItem: Text {
                     id: search_button_text
-                    text: Qt.formatDateTime(clock.date, "hh:mm:ss")
+                    text: root.showClock ? Qt.formatDateTime(root.currentDate, "hh:mm:ss") : "󰃭"
                     color: clock_hover.hovered ? root.theme.timeDateHoverColor : root.theme.timeDateColor
                     font {
                         family: root.theme.fontFamily
@@ -121,14 +141,10 @@ Rectangle {
                 }
                 background: null
             }
-
-            SystemClock {
-                id: clock
-                precision: SystemClock.Seconds
-            }
         }
 
         Item {
+            visible: root.showNotifications
             implicitWidth: notificationText.implicitWidth + 20
             implicitHeight: notificationText.implicitHeight + 4
 
@@ -157,12 +173,17 @@ Rectangle {
         }
     }
 
-    CalendarPopup {
-        id: calendar_popup
+    LazyLoader {
+        id: calendarLoader
+        active: root.showCalendar
 
-        barRevealed: root.barRevealed
-        currentDate: clock.date
-        theme: root.theme
-        weatherService: root.weatherService
+        CalendarPopup {
+            screen: root.outputScreen
+            barRevealed: root.barRevealed
+            currentDate: root.currentDate
+            theme: root.theme
+            weatherService: root.weatherService
+            showWeather: root.showWeather
+        }
     }
 }

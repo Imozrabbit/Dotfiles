@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
@@ -39,7 +40,7 @@ ColumnLayout {
 
             MenuButton {
                 style: root.style
-                height: 34
+                implicitHeight: 34
                 text: "Rescan"
                 icon: "󰑓"
                 disabled: root.controller.scanRunning || root.controller.isBusy
@@ -73,16 +74,5 @@ ColumnLayout {
             isBusy: root.controller.isBusy
             onSelected: (ssid, security, isEnterprise) => root.controller.selectNetwork(ssid, security, isEnterprise)
         }
-    }
-
-    MenuButton {
-        style: root.style
-        Layout.fillWidth: true
-        height: 38
-        text: "Open Advanced Settings"
-        icon: "󰒓"
-        kind: "ghost"
-        disabled: root.controller.isBusy
-        onClicked: root.controller.openAdvancedEditor()
     }
 }

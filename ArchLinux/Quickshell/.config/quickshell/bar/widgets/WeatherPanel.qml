@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -121,6 +123,8 @@ Item {
     }
 
     component ForecastCard: Item {
+        id: forecastCard
+
         required property Core.Theme cardTheme
         default property alias content: cardContent.data
 
@@ -129,7 +133,7 @@ Item {
             y: 1
             width: parent.width - 2
             height: parent.height - 3
-            radius: parent.cardTheme.radiusMedium
+            radius: forecastCard.cardTheme.radiusMedium
             color: "#18000000"
         }
 
@@ -138,9 +142,9 @@ Item {
 
             width: parent.width - 2
             height: parent.height - 3
-            radius: parent.cardTheme.radiusMedium
-            color: Qt.lighter(parent.cardTheme.calendarBackgroundColor, 1.08)
-            border.color: parent.cardTheme.weatherCardBorderColor
+            radius: forecastCard.cardTheme.radiusMedium
+            color: Qt.lighter(forecastCard.cardTheme.calendarBackgroundColor, 1.08)
+            border.color: forecastCard.cardTheme.weatherCardBorderColor
             border.width: 1
         }
 
@@ -187,6 +191,8 @@ Item {
                 }
 
                 delegate: ItemDelegate {
+                    id: locationDelegate
+
                     required property int index
                     required property var modelData
 
@@ -194,8 +200,9 @@ Item {
                     highlighted: locationSelector.highlightedIndex === index
 
                     contentItem: Text {
-                        text: root.locationLabel(parent.modelData)
-                        color: parent.highlighted ? root.theme.calendarTodayTextColor : root.theme.calendarDayColor
+                        text: root.locationLabel(locationDelegate.modelData)
+                        textFormat: Text.PlainText
+                        color: locationDelegate.highlighted ? root.theme.calendarTodayTextColor : root.theme.calendarDayColor
                         elide: Text.ElideRight
                         verticalAlignment: Text.AlignVCenter
                         font.family: root.theme.fontFamily
@@ -203,7 +210,7 @@ Item {
                     }
 
                     background: Rectangle {
-                        color: parent.highlighted ? root.theme.calendarTodayColor : "transparent"
+                        color: locationDelegate.highlighted ? root.theme.calendarTodayColor : "transparent"
                         radius: 3
                     }
                 }
@@ -294,6 +301,7 @@ Item {
             Layout.fillWidth: true
             visible: root.weatherService.searchError !== ""
             text: root.weatherService.searchError
+            textFormat: Text.PlainText
             color: root.theme.calendarAdjacentDayColor
             font.family: root.theme.fontFamily
             font.pixelSize: root.theme.calendarDayFontSize
@@ -312,6 +320,8 @@ Item {
             model: root.weatherService.searchResults
 
             delegate: Button {
+                id: searchResultDelegate
+
                 required property var modelData
 
                 width: resultList.width
@@ -323,7 +333,8 @@ Item {
                 background: null
 
                 contentItem: Text {
-                    text: root.locationLabel(parent.modelData)
+                    text: root.locationLabel(searchResultDelegate.modelData)
+                    textFormat: Text.PlainText
                     color: root.theme.calendarDayColor
                     elide: Text.ElideRight
                     verticalAlignment: Text.AlignVCenter
@@ -372,9 +383,7 @@ Item {
 
                     ColumnLayout {
                         spacing: 1
-                        transform: Translate {
-                            x: 10
-                        }
+                        Layout.leftMargin: 10
 
                         Text {
                             text: forecastContent.currentInfo.label
@@ -408,6 +417,7 @@ Item {
                 Layout.fillWidth: true
                 visible: root.weatherService.forecastError !== ""
                 text: root.weatherService.forecastError
+                textFormat: Text.PlainText
                 color: root.theme.weatherSecondaryColor
                 font.family: root.theme.fontFamily
                 font.pixelSize: root.theme.calendarDayFontSize - 1

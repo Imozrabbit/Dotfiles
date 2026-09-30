@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell
 import Quickshell.Services.SystemTray
 
 import qs.core as Core
@@ -10,6 +9,7 @@ Item {
     id: root
 
     required property Core.Theme theme
+    required property var outputScreen
 
     property bool trayOpened: false
 
@@ -28,7 +28,7 @@ Item {
         id: toggleText
 
         anchors.centerIn: parent
-        text: "󰀻"
+        text: SystemTray.items.values.length > 0 ? "󰕰" : "󱇙"
         color: !root.trayOpened ? root.theme.workspaceEmptyColor : (toggleHover.hovered ? root.theme.workspaceHoveredColor : root.theme.workspaceOccupiedColor)
         font {
             family: root.theme.fontFamily
@@ -58,6 +58,7 @@ Item {
     TrayBubble {
         opened: root.trayOpened
         onDismissed: root.trayOpened = false
+        outputScreen: root.outputScreen
         theme: root.theme
     }
 }

@@ -7,7 +7,7 @@ import "."
 import "./ui" as UI
 
 // Owns WiFi overlay lifecycle, dismissal, focus, and component composition.
-PanelWindow {
+PanelWindow { // qmllint disable uncreatable-type
     id: root
 
     visible: false
@@ -32,7 +32,11 @@ PanelWindow {
     WlrLayershell.exclusiveZone: -1
     WlrLayershell.namespace: "wifi-menu"
 
-    onVisibleChanged: controller.setMenuVisible(visible)
+    onVisibleChanged: {
+        controller.setMenuVisible(visible);
+        if (visible)
+            menuCard.scrollToTop();
+    }
 
     function dismiss() {
         if (root.standalone)
@@ -76,6 +80,8 @@ PanelWindow {
         anchors.bottom: parent.bottom
         anchors.rightMargin: root.barRevealed ? 17 : 10
         anchors.bottomMargin: root.barRevealed ? 40 : 10
+        availableWidth: root.width - anchors.rightMargin - 10
+        availableHeight: root.height - anchors.bottomMargin - 10
         controller: controller
         style: style
     }

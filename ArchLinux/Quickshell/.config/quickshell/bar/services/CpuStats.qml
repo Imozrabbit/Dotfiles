@@ -8,6 +8,7 @@ Scope {
     property string cpuModel: "N/A"
     property int cpuClockMhz: -1
     property int cpuTemperatureC: -1
+    property string temperaturePath: ""
     property real lastCpuIdle: 0
     property real lastCpuTotal: 0
 
@@ -39,46 +40,36 @@ Scope {
         root.cpuClockMhz = samples > 0 ? Math.round(totalMhz / samples) : -1;
     }
 
-    Process {
-        id: cpuProc
-        command: ["head", "-n", "1", "/proc/stat"]
-        // SplitParser calls onRead for each line of output
-        stdout: SplitParser {
-            onRead: data => {
-                // Use aggregate CPU fields through steal
-                // Guest fields are excluded because they are already included in user and nice
-                // p[0]
-                // p[1]: user
-                // p[2]: nice
-                // p[3]: system
-                // p[4]: idle
-                // p[5]: iowait
-                // p[6]: irq
-                // p[7]: softirq
-                // p[8]: steal
+    function resetCpuSample() {
+        root.cpuUsage = -1;
+        root.lastCpuIdle = 0;
+        root.lastCpuTotal = 0;
+    }
 
-                // Split the data into an array of multiple elements, and verify it is indeed the cpu data
-                var p = data.trim().split(/\s+/);
-                if (p.length < 9 || p[0] !== "cpu")
-                    return;
-
-                var idle = parseInt(p[4]) + parseInt(p[5]);                     // adds idle and iowait => idle
-                var total = p.slice(1, 9).reduce((a, b) => a + parseInt(b), 0); // Adds every element from 1 to 8 together => total
-                if (!isFinite(idle) || !isFinite(total))
-                    return;
-
-                var totalDelta = total - root.lastCpuTotal; // Calculate the total difference
-                var idleDelta = idle - root.lastCpuIdle;    // Calcualte the idle difference
-
-                // Make sure there is no division by 0 and lastCpuTotal exists
-                if (root.lastCpuTotal > 0 && totalDelta > 0 && idleDelta >= 0 && idleDelta <= totalDelta) {
-                    const nextUsage = Math.round(100 * (1 - idleDelta / totalDelta));
-                    root.cpuUsage = Math.max(0, Math.min(100, nextUsage));
-                }
-                root.lastCpuTotal = total;
-                root.lastCpuIdle = idle;
-            }
+    function updateCpuSample(data) {
+        const fields = data.split("\n", 1)[0].trim().split(/\s+/);
+        const values = fields.slice(1, 9).map(Number);
+        if (fields[0] !== "cpu" || values.length !== 8 || !values.every(value => Number.isSafeInteger(value) && value >= 0)) {
+            root.resetCpuSample();
+            return;
         }
+
+        const idle = values[3] + values[4];
+        const total = values.reduce((sum, value) => sum + value, 0);
+        const totalDelta = total - root.lastCpuTotal;
+        const idleDelta = idle - root.lastCpuIdle;
+        if (root.lastCpuTotal > 0 && totalDelta > 0 && idleDelta >= 0 && idleDelta <= totalDelta)
+            root.cpuUsage = Math.max(0, Math.min(100, Math.round(100 * (1 - idleDelta / totalDelta))));
+        root.lastCpuTotal = total;
+        root.lastCpuIdle = idle;
+    }
+
+    FileView {
+        id: cpuStatFile
+        path: "/proc/stat"
+        printErrors: false
+        onLoaded: root.updateCpuSample(text())
+        onLoadFailed: root.resetCpuSample()
     }
 
     FileView {
@@ -95,9 +86,7 @@ Scope {
     FileView {
         id: temperatureFile
 
-        // Host-specific. Find the k10temp hwmon directory with:
-        // grep -l '^k10temp$' /sys/class/hwmon/hwmon*/name
-        path: "/sys/class/hwmon/hwmon6/temp1_input"
+        path: root.temperaturePath
         onLoaded: {
             const text = temperatureFile.text().trim();
             const value = text === "" ? NaN : Number(text);
@@ -106,16 +95,48 @@ Scope {
         onLoadFailed: root.cpuTemperatureC = -1
     }
 
+    Process {
+        id: temperatureSensorProcess
+
+        command: ["sh", "-c", `
+            for name in /sys/class/hwmon/hwmon*/name; do
+                [ -r "$name" ] || continue
+                read -r driver < "$name"
+                case "$driver" in
+                    k10temp|coretemp)
+                        printf '%s/temp1_input\\n' "$(dirname "$name")"
+                        exit 0
+                        ;;
+                esac
+            done
+            exit 1
+        `]
+        stdout: StdioCollector {
+            id: temperatureSensorOutput
+        }
+        // qmllint disable signal-handler-parameters
+        onExited: function (exitCode) {
+            const path = temperatureSensorOutput.text.trim();
+            const validPath = /^\/sys\/class\/hwmon\/hwmon\d+\/temp1_input$/.test(path);
+            root.temperaturePath = exitCode === 0 && validPath ? path : "";
+            if (root.temperaturePath !== "")
+                temperatureFile.reload();
+        }
+        // qmllint enable signal-handler-parameters
+    }
+
     Timer {
         interval: 2000
         running: true
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            if (!cpuProc.running)
-                cpuProc.running = true;
+            cpuStatFile.reload();
             cpuInfoFile.reload();
-            temperatureFile.reload();
+            if (root.temperaturePath !== "")
+                temperatureFile.reload();
         }
     }
+
+    Component.onCompleted: temperatureSensorProcess.running = true
 }

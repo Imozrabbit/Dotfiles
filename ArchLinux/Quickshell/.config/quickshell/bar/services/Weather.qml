@@ -70,7 +70,7 @@ Scope {
         if (![current.code, current.temperature, current.apparentTemperature, current.windSpeed, current.precipitation, current.high, current.low, current.isDay].every(value => root.isNumber(value)))
             return false;
 
-        return forecast.hourly.length === 6 && forecast.hourly.every(hour => typeof hour.time === "string" && [hour.code, hour.temperature, hour.precipitationChance, hour.isDay].every(value => root.isNumber(value))) && forecast.daily.length === 3 && forecast.daily.every(day => typeof day.date === "string" && [day.code, day.high, day.low, day.precipitationChance].every(value => root.isNumber(value)));
+        return forecast.hourly.length === 6 && forecast.hourly.every(hour => hour && typeof hour.time === "string" && [hour.code, hour.temperature, hour.precipitationChance, hour.isDay].every(value => root.isNumber(value))) && forecast.daily.length === 3 && forecast.daily.every(day => day && typeof day.date === "string" && [day.code, day.high, day.low, day.precipitationChance].every(value => root.isNumber(value)));
     }
 
     function applyForecast(forecast) {
@@ -91,30 +91,28 @@ Scope {
     }
 
     function loadState(text) {
+        let data;
         try {
-            const data = JSON.parse(text);
-            if (!data || !Array.isArray(data.locations))
-                throw new Error("Invalid weather state");
-
-            const locations = [];
-            for (const entry of data.locations) {
-                const location = root.normalizeLocation(entry);
-                if (location && !locations.some(existing => existing.key === location.key))
-                    locations.push(location);
-            }
-
-            root.locations = locations;
-            root.activeLocationKey = locations.some(location => location.key === data.activeLocation) ? data.activeLocation : "";
-            if (root.validForecast(data.forecast) && data.forecast.locationKey === root.activeLocationKey)
-                root.applyForecast(data.forecast);
-            else
-                root.clearForecast();
+            data = JSON.parse(text);
         } catch (error) {
-            root.locations = [];
-            root.activeLocationKey = "";
-            root.clearForecast();
-            root.saveState();
+            return;
         }
+        if (!data || !Array.isArray(data.locations))
+            return;
+
+        const locations = [];
+        for (const entry of data.locations) {
+            const location = root.normalizeLocation(entry);
+            if (location && !locations.some(existing => existing.key === location.key))
+                locations.push(location);
+        }
+
+        root.locations = locations;
+        root.activeLocationKey = locations.some(location => location.key === data.activeLocation) ? data.activeLocation : "";
+        if (root.validForecast(data.forecast) && data.forecast.locationKey === root.activeLocationKey)
+            root.applyForecast(data.forecast);
+        else
+            root.clearForecast();
     }
 
     function parseForecast(data, locationKey) {
@@ -173,7 +171,8 @@ Scope {
     }
 
     function refreshIfStale() {
-        if (root.activeLocationKey === "" || root.loading || root.hasForecast && Date.now() - root.fetchedAt < 900000)
+        const age = Date.now() - root.fetchedAt;
+        if (root.activeLocationKey === "" || root.loading || root.hasForecast && age >= 0 && age < 900000)
             return;
         root.refreshForecast();
     }
@@ -187,6 +186,7 @@ Scope {
             root.forecastRequest.abort();
 
         root.forecastError = "";
+        forecastTimeout.restart();
         const request = new XMLHttpRequest();
         const locationKey = location.key;
         root.forecastRequest = request;
@@ -195,6 +195,7 @@ Scope {
                 return;
 
             root.forecastRequest = null;
+            forecastTimeout.stop();
             if (request.status !== 200) {
                 root.forecastError = "Weather refresh failed";
                 return;
@@ -230,6 +231,7 @@ Scope {
 
         root.searchError = "";
         root.searchResults = [];
+        searchTimeout.restart();
 
         const request = new XMLHttpRequest();
         root.searchRequest = request;
@@ -238,6 +240,7 @@ Scope {
                 return;
 
             root.searchRequest = null;
+            searchTimeout.stop();
             if (request.status !== 200) {
                 root.searchError = "Location search failed";
                 return;
@@ -272,7 +275,10 @@ Scope {
         if (changed)
             root.clearForecast();
         root.saveState();
-        root.refreshIfStale();
+        if (changed)
+            root.refreshForecast();
+        else
+            root.refreshIfStale();
     }
 
     function selectLocation(key) {
@@ -312,6 +318,34 @@ Scope {
         blockWrites: true
         atomicWrites: true
         onLoaded: root.loadState(text())
-        onLoadFailed: root.saveState()
+        onLoadFailed: {}
+    }
+
+    Timer {
+        id: forecastTimeout
+
+        interval: 10000
+        repeat: false
+        onTriggered: {
+            if (!root.forecastRequest)
+                return;
+            root.forecastRequest.abort();
+            root.forecastRequest = null;
+            root.forecastError = "Weather refresh timed out";
+        }
+    }
+
+    Timer {
+        id: searchTimeout
+
+        interval: 10000
+        repeat: false
+        onTriggered: {
+            if (!root.searchRequest)
+                return;
+            root.searchRequest.abort();
+            root.searchRequest = null;
+            root.searchError = "Location search timed out";
+        }
     }
 }

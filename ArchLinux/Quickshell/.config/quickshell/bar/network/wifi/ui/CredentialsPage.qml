@@ -56,7 +56,7 @@ ColumnLayout {
         MenuButton {
             style: root.style
             Layout.fillWidth: true
-            height: 40
+            implicitHeight: 40
             text: "Back"
             icon: "󰁍"
             disabled: root.controller.isBusy
@@ -66,7 +66,7 @@ ColumnLayout {
         MenuButton {
             style: root.style
             Layout.fillWidth: true
-            height: 40
+            implicitHeight: 40
             text: root.controller.isBusy ? "Connecting…" : "Connect"
             textColor: "#1e2326"
             icon: "󱄙"
@@ -74,17 +74,6 @@ ColumnLayout {
             disabled: root.controller.isBusy
             onClicked: root.controller.submitCredentials()
         }
-    }
-
-    MenuButton {
-        style: root.style
-        Layout.fillWidth: true
-        height: 38
-        text: "Open Advanced Settings"
-        icon: "󰒓"
-        kind: "ghost"
-        disabled: root.controller.isBusy
-        onClicked: root.controller.openAdvancedEditor()
     }
 
     /* Credential requests arrive after controller page state changes. Defer focus
@@ -95,9 +84,9 @@ ColumnLayout {
         function onCredentialsRequested(focusUsername) {
             Qt.callLater(() => {
                 if (focusUsername)
-                    userField.forceActiveFocus();
+                    userField.focusInput();
                 else
-                    passField.forceActiveFocus();
+                    passField.focusInput();
             });
         }
     }

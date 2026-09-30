@@ -14,13 +14,20 @@ Item {
     id: root
 
     required property Core.Theme theme
+    required property var outputScreen
     property bool opened: false
 
     signal dismissed
 
-    PanelWindow {
+    onOpenedChanged: {
+        if (!root.opened)
+            trayMenu.visible = false;
+    }
+
+    PanelWindow { // qmllint disable uncreatable-type
         id: trayWindow
 
+        screen: root.outputScreen
         visible: root.opened && SystemTray.items.values.length > 0
         color: "transparent"
         focusable: false
@@ -147,10 +154,28 @@ Item {
                     model: SystemTray.items
 
                     delegate: IconImage {
-                        required property var modelData
+                        id: trayIcon
+
+                        required property SystemTrayItem modelData
 
                         implicitSize: 20
                         source: modelData.icon
+
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            cursorShape: Qt.PointingHandCursor
+
+                            onClicked: mouse => {
+                                if (mouse.button === Qt.LeftButton && !trayIcon.modelData.onlyMenu) {
+                                    trayIcon.modelData.activate();
+                                } else if (trayIcon.modelData.hasMenu) {
+                                    // qmllint disable unresolved-type
+                                    trayMenu.openFor(trayIcon, trayIcon.modelData.menu);
+                                    // qmllint enable unresolved-type
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -165,6 +190,12 @@ Item {
             to: 0
             duration: 140
             easing.type: Easing.OutCubic
+        }
+
+        TrayMenu {
+            id: trayMenu
+
+            theme: root.theme
         }
     }
 }

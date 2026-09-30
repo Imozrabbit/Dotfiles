@@ -4,14 +4,22 @@ import QtQuick.Layouts
 import Quickshell.Hyprland
 
 import qs.core as Core
+import "../core/BarConfig.js" as BarConfig
 
 Rectangle {
     id: root
 
     required property Core.Theme theme
+    required property var outputScreen
+    readonly property var hyprlandMonitor: Hyprland.monitors.values.find(monitor => monitor.name === root.outputScreen.name)
 
     required property int updateCount
     required property bool checking
+    required property bool showTray
+    required property bool showWorkspaces
+    required property bool showLauncher
+    required property bool showUpdates
+    required property var workspaceDisplay
 
     signal updateRequested
 
@@ -20,25 +28,8 @@ Rectangle {
     color: theme.workspaceBg
     radius: root.theme.radiusMedium
 
-    property var workspaces: ["1", "2", "3", "󰝆", "󰐫", "", ""]
-    property var special_workspaces: [
-        {
-            name: "rmpc",
-            icon: ""
-        },
-        {
-            name: "steam",
-            icon: ""
-        }
-    ]
-
-    Connections {
-        target: Hyprland
-        function onRawEvent(event) {
-            if (event.name === "activespecial")
-                Hyprland.refreshMonitors();
-        }
-    }
+    readonly property var normalEntries: BarConfig.normalWorkspaceEntries(root.workspaceDisplay, Hyprland.workspaces.values)
+    readonly property var specialEntries: BarConfig.specialWorkspaceEntries(root.workspaceDisplay, Hyprland.workspaces.values)
 
     RowLayout {
         id: workspaceLayout
@@ -46,10 +37,13 @@ Rectangle {
         anchors.centerIn: parent
 
         SystemTrayDrawer {
+            visible: root.showTray
+            outputScreen: root.outputScreen
             theme: root.theme
         }
 
         Rectangle {
+            visible: root.showTray && root.showWorkspaces
             Layout.preferredWidth: 1
             Layout.preferredHeight: root.theme.workspaceFontSize
             Layout.alignment: Qt.AlignVCenter
@@ -57,23 +51,22 @@ Rectangle {
             opacity: 0.7
         }
 
-        // This is for creating normal workspaces
         Repeater {
-            model: root.workspaces
+            model: root.showWorkspaces ? root.normalEntries : []
             Text {
                 id: workspaceText
 
-                required property int index
-                required property string modelData
+                required property var modelData
 
-                property var ws: Hyprland.workspaces.values.find(w => w.id === index + 1)
-                property bool isActive: Hyprland.focusedWorkspace?.id === (index + 1)
+                property var ws: Hyprland.workspaces.values.find(w => w.id === modelData.id)
+                property bool isActive: root.hyprlandMonitor?.activeWorkspace?.id === modelData.id
                 property bool isOccupied: (ws?.toplevels.values.length ?? 0) > 0
-                property int ws_num: index + 1
 
-                text: modelData
+                text: modelData.label
+                textFormat: Text.PlainText
                 color: workspaceMouse.containsMouse ? root.theme.workspaceHoveredColor : (isActive ? root.theme.workspaceActiveColor : (isOccupied ? root.theme.workspaceOccupiedColor : root.theme.workspaceEmptyColor))
                 font {
+                    family: root.theme.fontFamily
                     pixelSize: root.theme.workspaceFontSize
                     bold: true
                 }
@@ -82,14 +75,13 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: Hyprland.dispatch("hl.dsp.focus({ workspace = " + (workspaceText.index + 1) + " })")
+                    onClicked: Hyprland.dispatch("hl.dsp.focus({ workspace = " + workspaceText.modelData.id + " })")
                 }
             }
         }
 
-        // This is for creating special workspaces
         Repeater {
-            model: root.special_workspaces.filter(entry => Hyprland.workspaces.values.some(workspace => workspace.name === "special:" + entry.name))
+            model: root.showWorkspaces ? root.specialEntries : []
 
             Text {
                 id: specialWorkspaceText
@@ -98,9 +90,10 @@ Rectangle {
 
                 property var ws: Hyprland.workspaces.values.find(workspace => workspace.name === "special:" + modelData.name)
                 property bool occupied: ws ? ws.toplevels.values.length > 0 : false
-                property bool opened: Hyprland.monitors.values.some(monitor => monitor.lastIpcObject?.specialWorkspace?.name === "special:" + modelData.name)
+                property bool opened: root.hyprlandMonitor?.lastIpcObject?.specialWorkspace?.name === "special:" + modelData.name
 
-                text: modelData.icon
+                text: modelData.label
+                textFormat: Text.PlainText
                 color: specialWorkspaceMouse.containsMouse ? root.theme.workspaceHoveredColor : (opened && occupied ? root.theme.specialWorkspaceColor : root.theme.workspaceEmptyColor)
                 font {
                     family: root.theme.fontFamily
@@ -112,12 +105,13 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: Hyprland.dispatch('hl.dsp.workspace.toggle_special("' + specialWorkspaceText.modelData.name + '")')
+                    onClicked: Hyprland.dispatch("hl.dsp.workspace.toggle_special(" + JSON.stringify(specialWorkspaceText.modelData.name) + ")")
                 }
             }
         }
 
         Rectangle {
+            visible: (root.showTray || root.showWorkspaces) && (root.showLauncher || root.showUpdates)
             Layout.preferredWidth: 1
             Layout.preferredHeight: root.theme.workspaceFontSize
             Layout.alignment: Qt.AlignVCenter
@@ -126,9 +120,12 @@ Rectangle {
         }
 
         LauncherDrawer {
+            visible: root.showLauncher || root.showUpdates
             updateCount: root.updateCount
             checking: root.checking
             onUpdateRequested: root.updateRequested()
+            showLauncher: root.showLauncher
+            showUpdates: root.showUpdates
             theme: root.theme
         }
     }

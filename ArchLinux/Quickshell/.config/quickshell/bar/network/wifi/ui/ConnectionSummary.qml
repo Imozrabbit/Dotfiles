@@ -31,12 +31,12 @@ ColumnLayout {
             transform: Translate {
                 x: -5
             }
-            width: 46
-            height: 24
+            implicitWidth: 46
+            implicitHeight: 24
             radius: 12
-            color: root.controller.wifiEnabled ? Qt.rgba(root.style.success.r, root.style.success.g, root.style.success.b, 0.95) : root.style.backgroundAlt
+            color: root.controller.wifiDisplayEnabled ? Qt.rgba(root.style.success.r, root.style.success.g, root.style.success.b, 0.95) : root.style.backgroundAlt
             border.width: 1
-            border.color: root.controller.wifiEnabled ? Qt.rgba(root.style.success.r, root.style.success.g, root.style.success.b, 0.55) : root.style.border
+            border.color: root.controller.wifiDisplayEnabled ? Qt.rgba(root.style.success.r, root.style.success.g, root.style.success.b, 0.55) : root.style.border
             opacity: root.controller.isBusy ? 0.6 : 1.0
 
             Rectangle {
@@ -45,7 +45,7 @@ ColumnLayout {
                 radius: 9
                 color: root.style.card
                 anchors.verticalCenter: parent.verticalCenter
-                x: root.controller.wifiEnabled ? parent.width - width - 3 : 3
+                x: root.controller.wifiDisplayEnabled ? parent.width - width - 3 : 3
 
                 Behavior on x {
                     NumberAnimation {
@@ -66,18 +66,18 @@ ColumnLayout {
 
     Rectangle {
         Layout.fillWidth: true
-        height: 76
+        implicitHeight: 76
         radius: 8
         color: root.style.backgroundAlt
 
         RowLayout {
             anchors.fill: parent
-            anchors.margins: 14
+            anchors.margins: 12
             spacing: 12
 
             Rectangle {
-                width: 44
-                height: 44
+                implicitWidth: 44
+                implicitHeight: 44
                 radius: 14
                 color: "transparent"
 
@@ -116,8 +116,38 @@ ColumnLayout {
 
             Rectangle {
                 visible: root.controller.wifiEnabled && root.controller.activeConnectionUuid !== ""
-                width: 36
-                height: 36
+                Layout.rightMargin: -10
+                implicitWidth: 36
+                implicitHeight: 36
+                radius: 12
+                color: authMouse.containsMouse ? Qt.rgba(root.style.foreground.r, root.style.foreground.g, root.style.foreground.b, 0.12) : "transparent"
+                border.width: authMouse.containsMouse ? 1 : 0
+                border.color: Qt.rgba(root.style.foreground.r, root.style.foreground.g, root.style.foreground.b, 0.35)
+                opacity: root.controller.isBusy ? 0.6 : 1.0
+
+                Label {
+                    anchors.centerIn: parent
+                    text: "󰍂"
+                    font.family: root.style.iconFont
+                    color: root.style.foreground
+                    font.pixelSize: 16
+                }
+
+                MouseArea {
+                    id: authMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: root.controller.isBusy ? Qt.ArrowCursor : Qt.PointingHandCursor
+                    enabled: !root.controller.isBusy
+                    onClicked: {}
+                }
+            }
+
+            Rectangle {
+                visible: root.controller.wifiEnabled && root.controller.activeConnectionUuid !== ""
+                implicitWidth: 36
+                implicitHeight: 36
                 radius: 12
                 color: disconnectMouse.containsMouse ? Qt.rgba(root.style.error.r, root.style.error.g, root.style.error.b, 0.12) : "transparent"
                 border.width: disconnectMouse.containsMouse ? 1 : 0

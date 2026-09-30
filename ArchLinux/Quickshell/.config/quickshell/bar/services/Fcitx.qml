@@ -34,8 +34,7 @@ Scope {
         stdout: SplitParser {
             onRead: data => {
                 const method = data.trim();
-                if (root.isKnownMethod(method))
-                    root.currentMethod = method;
+                root.currentMethod = root.isKnownMethod(method) ? method : "";
             }
         }
     }

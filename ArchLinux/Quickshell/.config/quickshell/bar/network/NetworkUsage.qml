@@ -4,7 +4,6 @@ import QtQuick.Layouts
 
 import qs.core as Core
 import qs.network.vpn as Vpn
-import qs.network.wifi as Wifi
 
 Rectangle {
     id: root
@@ -14,6 +13,10 @@ Rectangle {
     required property bool online
     required property bool barRevealed
     required property string connectionType
+    required property var vpnStatus
+    required property bool wifiMenuVisible
+    required property bool wifiMenuEnabled
+    required property bool vpnEnabled
 
     required property string interfaceName
     required property string networkName
@@ -25,14 +28,15 @@ Rectangle {
 
     required property int signalPercent
     signal detailsRequested
+    signal wifiMenuRequested
     property bool tooltipVisible: false
     // Hover loads extra details for the tooltip; clicking toggles the Wi-Fi menu.
     HoverHandler {
         id: networkHover
 
-        cursorShape: Qt.PointingHandCursor
+        cursorShape: root.wifiMenuEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
         onHoveredChanged: {
-            if (hovered && !wifiMenu.visible) {
+            if (hovered && !root.wifiMenuVisible) {
                 root.detailsRequested();
                 tooltipDelay.restart();
             } else {
@@ -46,13 +50,14 @@ Rectangle {
         id: tooltipDelay
         interval: 300
         repeat: false
-        onTriggered: root.tooltipVisible = networkHover.hovered && !wifiMenu.visible
+        onTriggered: root.tooltipVisible = networkHover.hovered && !root.wifiMenuVisible
     }
 
     TapHandler {
+        enabled: root.wifiMenuEnabled
         onTapped: {
             root.tooltipVisible = false;
-            wifiMenu.visible = !wifiMenu.visible;
+            root.wifiMenuRequested();
         }
     }
 
@@ -139,18 +144,22 @@ Rectangle {
             }
         }
 
-        Vpn.VpnIndicator {
+        Loader {
             id: vpnIndicator
+            active: root.vpnEnabled && Boolean(root.vpnStatus)
             Layout.leftMargin: 1
             Layout.rightMargin: 1
-            theme: root.theme
-            networkName: root.networkName
+            sourceComponent: Vpn.VpnIndicator {
+                theme: root.theme
+                status: root.vpnStatus
+            }
         }
     }
 
     // Network overlays are owned here so module interaction remains local.
     NetworkTooltip {
         visible: root.tooltipVisible
+        vpnEnabled: root.vpnEnabled
         anchorItem: root
         online: root.online
         connectionType: root.connectionType
@@ -160,19 +169,10 @@ Rectangle {
         gatewayAddress: root.gatewayAddress
         ipAddressCidr: root.ipAddressCidr
         frequencyMhz: root.frequencyMhz
-        protectionMode: vpnIndicator.protectionMode
-        vpnName: vpnIndicator.vpnName
-        dnsName: vpnIndicator.dnsName
-        dnsServers: vpnIndicator.dnsServers
+        protectionMode: root.vpnStatus?.protectionMode ?? "unknown"
+        vpnName: root.vpnStatus?.vpnName ?? ""
+        dnsName: root.vpnStatus?.dnsName ?? ""
+        dnsServers: root.vpnStatus?.dnsServers ?? ""
         theme: root.theme
-    }
-
-    Wifi.WifiMenu {
-        id: wifiMenu
-
-        barRevealed: root.barRevealed
-        standalone: false
-        theme: root.theme
-        onCloseRequested: visible = false
     }
 }

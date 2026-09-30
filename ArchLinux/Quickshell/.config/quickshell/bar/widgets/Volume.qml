@@ -102,8 +102,10 @@ Rectangle {
         anchor.rect.y: 1
         anchor.rect.width: root.width
         anchor.rect.height: root.height
+        // qmllint disable missing-type
         anchor.edges: Edges.Top
         anchor.gravity: Edges.Top
+        // qmllint enable missing-type
 
         Rectangle {
             anchors.fill: parent

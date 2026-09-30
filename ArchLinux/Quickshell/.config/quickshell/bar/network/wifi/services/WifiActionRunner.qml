@@ -4,35 +4,32 @@ import Quickshell.Io
 
 import "../WifiUtils.js" as WifiUtils
 
-// Owns NetworkManager mutations, output classification, refresh delay, and cleanup.
+// Owns NetworkManager mutations, output classification, and refresh delay.
 Scope {
     id: root
 
     property bool busy: false
+    property string actionKind: ""
 
     signal started
     signal succeeded
     signal passwordRequired
     signal failed(string details)
     signal refreshRequested
+    signal radioToggleSucceeded
+    signal radioToggleFailed(string details)
 
-    function runWithExit(commandText) {
+    function runWithExit(commandText, kind) {
         if (root.busy)
             return;
         root.busy = true;
+        root.actionKind = kind || "";
         root.started();
         runner.command = ["bash", "-c", commandText + " 2>&1; rc=$?; echo __EXIT:$rc"];
         runner.running = true;
     }
 
-    // New profiles are transactional: preserve original command status, delete
-    // profile by ID only on failure, then return that status to output classifier.
-    function runNewConnection(commandText, ssid) {
-        const cleanup = "rc=$?; if [ $rc -ne 0 ]; then nmcli connection delete id " + WifiUtils.shellQuote(ssid) + " >/dev/null 2>&1; fi; (exit $rc)";
-        root.runWithExit("{ " + commandText + "; } 2>&1; " + cleanup);
-    }
-
-    function connectSaved(uuid, ssid) {
+    function connectSaved(uuid) {
         if (!uuid || uuid === "") {
             root.failed("Invalid connection");
             return;
@@ -46,24 +43,22 @@ Scope {
     }
 
     function connectNew(ssid, password, username, isEnterprise) {
-        let commandText = "";
         if (isEnterprise) {
-            // dev wifi connect cannot set 802-1x fields. Rebuild PEAP/MSCHAPv2
-            // explicitly so retries replace stale or half-created profiles.
-            commandText = "nmcli connection delete id " + WifiUtils.shellQuote(ssid) + " 2>/dev/null; " + "nmcli connection add type wifi con-name " + WifiUtils.shellQuote(ssid) + " ifname '*' ssid " + WifiUtils.shellQuote(ssid) + " wifi-sec.key-mgmt wpa-eap" + " 802-1x.eap peap" + " 802-1x.phase2-auth mschapv2" + " 802-1x.identity " + WifiUtils.shellQuote(username) + " 802-1x.password " + WifiUtils.shellQuote(password) + " && nmcli -w 25 connection up id " + WifiUtils.shellQuote(ssid);
-        } else {
-            commandText = "nmcli -w 20 dev wifi connect " + WifiUtils.shellQuote(ssid);
-            if (password && password.trim().length > 0)
-                commandText += " password " + WifiUtils.shellQuote(password);
+            root.failed("Enterprise WiFi setup requires NetworkManager settings");
+            return;
         }
 
-        root.runNewConnection(commandText, ssid);
+        let commandText = "nmcli -w 20 dev wifi connect " + WifiUtils.shellQuote(ssid);
+        if (password && password.trim().length > 0)
+            commandText += " password " + WifiUtils.shellQuote(password);
+
+        root.runWithExit(commandText);
     }
 
     function toggleWifi(wifiEnabled) {
         if (root.busy)
             return;
-        root.runWithExit("nmcli radio wifi " + (wifiEnabled ? "off" : "on"));
+        root.runWithExit("nmcli radio wifi " + (wifiEnabled ? "off" : "on"), "radio");
     }
 
     function disconnectNetwork(activeConnectionUuid) {
@@ -97,9 +92,17 @@ Scope {
             onStreamFinished: {
                 root.busy = false;
                 const output = String(text || "");
-                const ok = output.includes("__EXIT:0");
+                runner.command = [];
+                const marker = output.match(/(?:^|\n)__EXIT:(\d+)\s*$/);
+                const ok = marker !== null && Number(marker[1]) === 0;
+                const kind = root.actionKind;
+                root.actionKind = "";
 
                 if (ok) {
+                    if (kind === "radio") {
+                        root.radioToggleSucceeded();
+                        return;
+                    }
                     root.succeeded();
                     statusRefreshDelay.restart();
                     return;
@@ -112,15 +115,26 @@ Scope {
 
                 const lines = output.trim().split(/\r?\n/);
                 const tail = lines.slice(Math.max(0, lines.length - 10)).join("\n");
+                if (kind === "radio") {
+                    root.radioToggleFailed(tail.length ? tail : "WiFi toggle failed");
+                    return;
+                }
                 root.failed(tail.length ? tail : "Connection failed. Check credentials and try again.");
                 root.refreshRequested();
             }
         }
-        onExited: function(exitCode) {
+        // qmllint disable signal-handler-parameters
+        onExited: function (exitCode) {
             if (exitCode !== 0 && root.busy) {
                 root.busy = false;
-                root.failed("");
+                const kind = root.actionKind;
+                root.actionKind = "";
+                if (kind === "radio")
+                    root.radioToggleFailed("");
+                else
+                    root.failed("");
             }
         }
+        // qmllint enable signal-handler-parameters
     }
 }

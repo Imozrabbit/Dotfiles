@@ -1,0 +1,420 @@
+import Quickshell
+import Quickshell.Wayland
+import QtQuick
+import QtQuick.Layouts
+
+import qs.core as Core
+import qs.network as Network
+import qs.widgets as Widgets
+
+PanelWindow { // qmllint disable uncreatable-type
+    id: root
+
+    required property ShellScreen modelData
+    required property var shared
+    required property Core.Theme theme
+    readonly property var configuration: root.shared.barConfig.forScreen(root.modelData.name)
+    readonly property string mode: root.configuration.mode
+    readonly property bool hoverToggleEnabled: root.configuration.hoverToggleEnabled
+    readonly property var modules: root.configuration.modules
+    readonly property var cpuStats: root.shared.cpuStats
+    readonly property var gpuStats: root.shared.gpuStats
+    readonly property var updateChecker: root.shared.updateChecker
+    readonly property var memoryStats: root.shared.memoryStats
+    readonly property var audioService: root.shared.audioService
+    readonly property var brightnessService: root.shared.brightnessService
+    readonly property var fcitx: root.shared.fcitx
+    readonly property var swayncService: root.shared.swayncService
+    readonly property var batteryService: root.shared.batteryService
+    readonly property var mprisService: root.shared.mprisService
+    readonly property var bluetoothService: root.shared.bluetoothService
+    readonly property var weatherService: root.shared.weatherService
+    readonly property var networkStats: root.shared.networkStats
+    readonly property var vpnStatus: root.shared.vpnStatus
+    readonly property var wifiMenu: root.shared.wifiMenu
+    readonly property bool batteryDetailsVisible: root.modules.battery && timeDate.batteryDetailsVisible
+
+    property int sideMargin: 14
+    property int bottomMargin: -1
+    property bool pinned: false
+    property bool hoverRevealed: false
+    property bool windowExpanded: true
+    readonly property bool barShown: root.mode === "always" || root.pinned || root.hoverRevealed
+
+    screen: root.modelData
+    anchors.bottom: true
+    anchors.left: true
+    anchors.right: true
+    implicitHeight: root.windowExpanded ? 35 : 2
+    color: "transparent"
+    WlrLayershell.exclusiveZone: root.mode === "always" || root.pinned ? 35 : -1
+
+    Component.onCompleted: {
+        if (root.mode === "hover")
+            root.windowExpanded = false;
+    }
+
+    onBarShownChanged: {
+        if (root.barShown) {
+            collapseTimer.stop();
+            root.windowExpanded = true;
+        } else {
+            collapseTimer.restart();
+        }
+    }
+
+    function toggle() {
+        if (root.mode !== "hover" || !root.hoverToggleEnabled)
+            return;
+        hideTimer.stop();
+        root.hoverRevealed = false;
+        root.pinned = !root.pinned;
+    }
+
+    HoverHandler {
+        onHoveredChanged: {
+            if (hovered) {
+                hideTimer.stop();
+                if (root.mode === "hover" && !root.pinned)
+                    root.hoverRevealed = true;
+            } else if (root.mode === "hover" && !root.pinned) {
+                hideTimer.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: hideTimer
+
+        interval: 80
+        repeat: false
+        onTriggered: root.hoverRevealed = false
+    }
+
+    Timer {
+        id: collapseTimer
+
+        interval: 100
+        repeat: false
+        onTriggered: {
+            if (!root.barShown)
+                root.windowExpanded = false;
+        }
+    }
+
+    RowLayout {
+        anchors.fill: parent
+        anchors.margins: 1
+        visible: root.windowExpanded
+        opacity: root.barShown ? 1 : 0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 80
+                easing.type: Easing.OutCubic
+                onFinished: {
+                    if (!root.barShown)
+                        root.windowExpanded = false;
+                }
+            }
+        }
+
+        // qmllint disable Quick.layout-positioning
+        transform: Translate {
+            y: root.barShown ? 0 : 6
+
+            Behavior on y {
+                NumberAnimation {
+                    duration: 80
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
+        // qmllint enable Quick.layout-positioning
+
+        // -----------------------------------------------------------------------
+        // Left Modules
+        // -----------------------------------------------------------------------
+        Widgets.Workspaces {
+            Layout.leftMargin: root.sideMargin
+            outputScreen: root.modelData
+            visible: root.modules.tray || root.modules.workspaces || root.modules.launcher || root.modules.updates
+
+            updateCount: root.updateChecker?.updateCount ?? 0
+            checking: root.updateChecker?.checking ?? false
+            onUpdateRequested: {
+                if (root.updateChecker)
+                    root.updateChecker.refresh();
+            }
+            showTray: root.modules.tray
+            showWorkspaces: root.modules.workspaces
+            showLauncher: root.modules.launcher
+            showUpdates: root.modules.updates
+            workspaceDisplay: root.shared.barConfig.settings.workspaceDisplay
+
+            // qmllint disable Quick.layout-positioning
+            transform: Translate {
+                y: root.bottomMargin
+            }
+            // qmllint enable Quick.layout-positioning
+            theme: root.theme
+        }
+
+        // -----------------------------------------------------------------------
+        // Central Modules
+        // -----------------------------------------------------------------------
+        Item {
+            Layout.fillWidth: true
+        }
+
+        Widgets.Mpris {
+            active: root.modules.media && (root.mprisService?.active ?? false)
+            paused: root.mprisService?.paused ?? false
+            canTogglePlaying: root.mprisService?.canTogglePlaying ?? false
+            app: root.mprisService?.app ?? ""
+            title: root.mprisService?.title ?? ""
+            artist: root.mprisService?.artist ?? ""
+            onTogglePlayingRequested: {
+                if (root.mprisService)
+                    root.mprisService.togglePlaying();
+            }
+            theme: root.theme
+            // qmllint disable Quick.layout-positioning
+            transform: Translate {
+                y: root.bottomMargin
+            }
+            // qmllint enable Quick.layout-positioning
+        }
+
+        Item {
+            Layout.fillWidth: true
+        }
+
+        // -----------------------------------------------------------------------
+        // Right Modules
+        // -----------------------------------------------------------------------
+        Network.NetworkUsage {
+            visible: root.modules.network
+            downloadBps: root.networkStats?.downloadBps ?? 0
+            uploadBps: root.networkStats?.uploadBps ?? 0
+            online: root.networkStats?.online ?? false
+            connectionType: root.networkStats?.connectionType ?? "unknown"
+            vpnStatus: root.vpnStatus
+            wifiMenuVisible: root.wifiMenu ? root.wifiMenu.visible && root.wifiMenu.screen === root.modelData : false
+            wifiMenuEnabled: root.modules.wifiMenu
+            vpnEnabled: root.modules.vpn
+            onWifiMenuRequested: root.shared.openWifi(root.modelData, root.barShown)
+            signalPercent: root.networkStats?.signalPercent ?? -1
+            barRevealed: root.barShown
+            onDetailsRequested: {
+                if (root.networkStats)
+                    root.networkStats.refreshDetails();
+            }
+
+            // Tooltip information
+            interfaceName: root.networkStats?.interfaceName ?? ""
+            networkName: root.networkStats?.networkName ?? ""
+            gatewayAddress: root.networkStats?.gatewayAddress ?? ""
+            ipAddressCidr: root.networkStats?.ipAddressCidr ?? ""
+            frequencyMhz: root.networkStats?.frequencyMhz ?? 0
+
+            // qmllint disable Quick.layout-positioning
+            transform: Translate {
+                y: root.bottomMargin
+            }
+            // qmllint enable Quick.layout-positioning
+            theme: root.theme
+        }
+
+        Widgets.SystemUsage {
+            visible: root.modules.cpu || root.modules.gpu || root.modules.memory
+            showCpu: root.modules.cpu
+            showGpu: root.modules.gpu
+            showMemory: root.modules.memory
+            cpuUsage: root.cpuStats?.cpuUsage ?? -1
+            cpuModel: root.cpuStats?.cpuModel ?? "N/A"
+            cpuClockMhz: root.cpuStats?.cpuClockMhz ?? -1
+            cpuTemperatureC: root.cpuStats?.cpuTemperatureC ?? -1
+            gpuUsage: root.gpuStats?.gpuUsage ?? -1
+            gpuClockMhz: root.gpuStats?.clockMhz ?? -1
+            gpuTemperatureC: root.gpuStats?.temperatureC ?? -1
+            gpuName: root.gpuStats?.gpuName ?? "GPU unavailable"
+            memUsage: root.memoryStats?.memUsage ?? -1
+            memTotalKib: root.memoryStats?.memTotalKib ?? -1
+            memUsedKib: root.memoryStats?.memUsedKib ?? -1
+            memAvailableKib: root.memoryStats?.memAvailableKib ?? -1
+            swapTotalKib: root.memoryStats?.swapTotalKib ?? -1
+            swapUsedKib: root.memoryStats?.swapUsedKib ?? -1
+
+            // qmllint disable Quick.layout-positioning
+            transform: Translate {
+                y: root.bottomMargin
+            }
+            // qmllint enable Quick.layout-positioning
+            theme: root.theme
+        }
+
+        Rectangle {
+            id: functionBox
+            visible: root.modules.volume || root.modules.bluetooth || root.modules.inputMethod || root.modules.brightness
+            implicitWidth: audioInputLayout.implicitWidth
+            implicitHeight: audioInputLayout.implicitHeight
+            radius: root.theme.radiusMedium
+            color: root.theme.volumeBg
+            transform: Translate {
+                y: root.bottomMargin
+            }
+            RowLayout {
+                id: audioInputLayout
+                spacing: 0
+                Widgets.Volume {
+                    visible: root.modules.volume
+                    available: root.audioService?.available ?? false
+                    volume: root.audioService?.volume ?? 0
+                    muted: root.audioService?.muted ?? false
+                    onVolumeRequested: value => {
+                        if (root.audioService)
+                            root.audioService.setVolume(value);
+                    }
+                    onMuteRequested: {
+                        if (root.audioService)
+                            root.audioService.toggleMute();
+                    }
+                    theme: root.theme
+                }
+                Rectangle {
+                    visible: root.modules.volume && (root.modules.bluetooth || root.modules.inputMethod || root.modules.brightness)
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: root.theme.volumeFontSize
+                    Layout.alignment: Qt.AlignVCenter
+                    color: root.theme.volumeSliderTrackColor
+                    opacity: 0.55
+                }
+                Widgets.Bluetooth {
+                    visible: root.modules.bluetooth
+                    outputScreen: root.modelData
+                    available: root.bluetoothService?.available ?? false
+                    powered: root.bluetoothService?.powered ?? false
+                    connected: root.bluetoothService?.connected ?? false
+                    detailsKnown: root.bluetoothService?.detailsKnown ?? false
+                    connectedDevices: root.bluetoothService?.connectedDevices ?? []
+                    disconnectedDevices: root.bluetoothService?.disconnectedDevices ?? []
+                    actionBusy: root.bluetoothService?.actionBusy ?? false
+                    actionAddress: root.bluetoothService?.actionAddress ?? ""
+                    actionError: root.bluetoothService?.actionError ?? ""
+                    barRevealed: root.barShown
+                    onDetailsRequested: {
+                        if (root.bluetoothService)
+                            root.bluetoothService.refreshDetails();
+                    }
+                    onPoweredRequested: enabled => {
+                        if (root.bluetoothService)
+                            root.bluetoothService.setPowered(enabled);
+                    }
+                    onConnectRequested: address => {
+                        if (root.bluetoothService)
+                            root.bluetoothService.connectDevice(address);
+                    }
+                    onDisconnectRequested: address => {
+                        if (root.bluetoothService)
+                            root.bluetoothService.disconnectDevice(address);
+                    }
+                    onManagerRequested: {
+                        if (root.bluetoothService)
+                            root.bluetoothService.openManager();
+                    }
+                    theme: root.theme
+                }
+                Rectangle {
+                    visible: root.modules.bluetooth && (root.modules.inputMethod || root.modules.brightness)
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: root.theme.volumeFontSize
+                    Layout.alignment: Qt.AlignVCenter
+                    color: root.theme.volumeSliderTrackColor
+                    opacity: 0.55
+                }
+                Widgets.InputMethod {
+                    visible: root.modules.inputMethod
+                    currentMethod: root.fcitx?.currentMethod ?? "N/A"
+                    onCycleRequested: {
+                        if (root.fcitx)
+                            root.fcitx.cycle();
+                    }
+                    theme: root.theme
+                }
+                Rectangle {
+                    visible: root.modules.inputMethod && root.modules.brightness
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: root.theme.volumeFontSize
+                    Layout.alignment: Qt.AlignVCenter
+                    color: root.theme.volumeSliderTrackColor
+                    opacity: 0.55
+                }
+                Widgets.Brightness {
+                    visible: root.modules.brightness
+                    available: root.brightnessService?.available ?? false
+                    brightness: root.brightnessService?.brightness ?? 0.01
+                    onBrightnessRequested: value => {
+                        if (root.brightnessService)
+                            root.brightnessService.setBrightness(value);
+                    }
+                    onKeyboardBacklightRequested: {
+                        if (root.brightnessService)
+                            root.brightnessService.cycleKeyboardBacklight();
+                    }
+                    theme: root.theme
+                }
+            }
+        }
+
+        Widgets.TimeDate {
+            id: timeDate
+            Layout.rightMargin: root.sideMargin
+            outputScreen: root.modelData
+            currentDate: root.shared.clock?.date ?? new Date()
+            showBattery: root.modules.battery
+            showClock: root.modules.clock
+            showCalendar: root.modules.calendar
+            showWeather: root.modules.weather
+            showNotifications: root.modules.notifications
+            dnd: root.swayncService?.dnd ?? false
+            hasNotifications: root.swayncService?.hasNotifications ?? false
+            weatherService: root.weatherService
+            batteryAvailable: root.batteryService?.available ?? false
+            batteryCapacity: root.batteryService?.capacity ?? -1
+            batteryStatus: root.batteryService?.status ?? "Unknown"
+            acOnline: root.batteryService?.acOnline ?? false
+            batteryEnergyNowUwh: root.batteryService?.energyNowUwh ?? -1
+            batteryEnergyFullUwh: root.batteryService?.energyFullUwh ?? -1
+            batteryEnergyFullDesignUwh: root.batteryService?.energyFullDesignUwh ?? -1
+            batteryPowerNowUw: root.batteryService?.powerNowUw ?? -1
+            batteryChargeStartThreshold: root.batteryService?.chargeStartThreshold ?? -1
+            batteryChargeEndThreshold: root.batteryService?.chargeEndThreshold ?? -1
+            batteryCycleCount: root.batteryService?.cycleCount ?? -1
+            batteryPowerProfile: root.batteryService?.activePowerProfile ?? ""
+            batteryActionBusy: root.batteryService?.actionBusy ?? false
+            batteryActionError: root.batteryService?.actionError ?? ""
+            barRevealed: root.barShown
+            onBatteryPanelOpened: {
+                if (root.batteryService)
+                    root.batteryService.refreshPowerProfile();
+            }
+            onBatteryPowerProfileRequested: profile => {
+                if (root.batteryService)
+                    root.batteryService.setPowerProfile(profile);
+            }
+            onBatteryChargeThresholdsRequested: (startValue, endValue) => {
+                if (root.batteryService)
+                    root.batteryService.setChargeThresholds(startValue, endValue);
+            }
+            onNotificationsRequested: {
+                if (root.swayncService)
+                    root.swayncService.openPanel();
+            }
+            transform: Translate {
+                y: root.bottomMargin
+            }
+            theme: root.theme
+        }
+    }
+}

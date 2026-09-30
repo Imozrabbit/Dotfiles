@@ -10,6 +10,7 @@ PopupWindow {
 
     required property Item anchorItem
     required property bool online
+    required property bool vpnEnabled
     required property string connectionType
     required property int signalPercent
     required property string interfaceName
@@ -80,19 +81,21 @@ PopupWindow {
             label: "Gateway",
             value: root.valueOrUnavailable(root.gatewayAddress)
         });
-        rows.push({
-            label: "Protection",
-            value: root.protectionText()
-        });
-        rows.push({
-            label: "VPN",
-            value: root.protectionMode === "unknown" ? "N/A" : root.vpnName === "" ? "Disconnected" : root.vpnName
-        });
-        rows.push({
-            label: "DNS",
-            value: root.protectionMode === "unknown" ? "N/A" : root.valueOrUnavailable(root.dnsName)
-        });
-        if (root.protectionMode !== "unknown" && root.dnsName !== "NextDNS" && root.dnsServers !== "") {
+        if (root.vpnEnabled) {
+            rows.push({
+                label: "Protection",
+                value: root.protectionText()
+            });
+            rows.push({
+                label: "VPN",
+                value: root.protectionMode === "unknown" ? "N/A" : root.vpnName === "" ? "Disconnected" : root.vpnName
+            });
+            rows.push({
+                label: "DNS",
+                value: root.protectionMode === "unknown" ? "N/A" : root.valueOrUnavailable(root.dnsName)
+            });
+        }
+        if (root.vpnEnabled && root.protectionMode !== "unknown" && root.dnsName !== "NextDNS" && root.dnsServers !== "") {
             rows.push({
                 label: "Resolver",
                 value: root.dnsServers
@@ -112,8 +115,10 @@ PopupWindow {
     anchor.rect.y: -8
     anchor.rect.width: root.anchorItem.width
     anchor.rect.height: root.anchorItem.height
+    // qmllint disable missing-type
     anchor.edges: Edges.Top
     anchor.gravity: Edges.Top
+    // qmllint enable missing-type
 
     Rectangle {
         anchors.fill: parent

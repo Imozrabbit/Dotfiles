@@ -6,6 +6,7 @@ Item {
     id: root
 
     required property Core.Theme theme
+    required property var outputScreen
     required property bool available
     required property bool powered
     required property bool connected
@@ -131,6 +132,7 @@ Item {
     BluetoothPanel {
         id: bluetoothPanel
 
+        screen: root.outputScreen
         icon: root.bluetoothIcon()
         available: root.available
         powered: root.powered

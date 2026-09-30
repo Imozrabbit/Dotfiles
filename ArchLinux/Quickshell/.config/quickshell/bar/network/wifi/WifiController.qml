@@ -7,7 +7,7 @@ import "./services" as Services
 Scope {
     id: root
 
-    readonly property int statusRefreshInterval: 5000
+    readonly property int statusRefreshInterval: 1000
     readonly property int processTimeout: 20000
     readonly property int scanDebounceDelay: 500
 
@@ -21,6 +21,11 @@ Scope {
     property alias currentSsid: statusService.currentSsid
     property alias currentSignalVal: statusService.currentSignal
     property alias currentIp: statusService.currentIp
+    property bool wifiTogglePending: false
+    property bool wifiToggleAwaitingCommand: false
+    property bool wifiToggleTarget: false
+    property int wifiToggleRefreshGeneration: 0
+    readonly property bool wifiDisplayEnabled: root.wifiTogglePending ? root.wifiToggleTarget : root.wifiEnabled
 
     property string statusLine: ""
     property bool statusIsError: false
@@ -56,8 +61,7 @@ Scope {
         savedNetworks.refresh();
     }
 
-    // Visibility is supplied explicitly by the overlay so startup refresh and
-    // menu-open refresh remain separate, while close resets only original fields.
+    // Startup and menu opening refresh status and saved profiles; closing clears transient input.
     function setMenuVisible(visible) {
         root.menuVisible = visible;
         if (visible) {
@@ -116,7 +120,6 @@ Scope {
             scanDebounce.restart();
         } else {
             root.isExpanded = false;
-            scanner.scanRunning = false;
             scanDebounce.stop();
         }
     }
@@ -128,10 +131,13 @@ Scope {
         scanDebounce.restart();
     }
 
-    function connectSaved(uuid, ssid) {
+    function connectSaved(uuid, ssid, isEnterprise) {
         root.pendingSavedUuid = uuid;
         root.pendingSavedSsid = ssid;
-        actionRunner.connectSaved(uuid, ssid);
+        root.targetIsEnterprise = isEnterprise === true;
+        root.enteredUser = "";
+        root.enteredPass = "";
+        actionRunner.connectSaved(uuid);
     }
 
     function setSavedPskAndConnect(uuid, password) {
@@ -142,7 +148,7 @@ Scope {
     // always rebuilt by the action service so fresh 802.1x credentials are used.
     function connectNew(ssid, password, username, isEnterprise) {
         if (!isEnterprise && savedNetworks.bySsid[ssid] !== undefined) {
-            root.connectSaved(savedNetworks.bySsid[ssid].uuid, ssid);
+            root.connectSaved(savedNetworks.bySsid[ssid].uuid, ssid, savedNetworks.bySsid[ssid].isEnterprise);
             return;
         }
 
@@ -152,8 +158,12 @@ Scope {
     }
 
     function toggleWifi() {
-        if (root.isBusy)
+        if (root.isBusy || root.wifiTogglePending)
             return;
+        root.wifiToggleTarget = !root.wifiEnabled;
+        root.wifiTogglePending = true;
+        root.wifiToggleAwaitingCommand = true;
+        wifiToggleTimeout.restart();
         actionRunner.toggleWifi(root.wifiEnabled);
     }
 
@@ -247,17 +257,25 @@ Scope {
             processWatchdog.stop();
             root.setStatus("Connected", false);
             root.errorVisible = false;
+            root.enteredPass = "";
             root.currentPage = 0;
         }
         onPasswordRequired: {
             processWatchdog.stop();
             root.errorVisible = false;
+            root.enteredPass = "";
             root.setStatus("Password required", true);
             root.targetSsid = root.pendingSavedSsid;
+            if (root.targetIsEnterprise) {
+                root.setStatus("Use Advanced Settings for enterprise WiFi", true);
+                root.currentPage = 0;
+                return;
+            }
             root.currentPage = 1;
             root.credentialsRequested(root.targetIsEnterprise);
         }
         onFailed: details => {
+            root.enteredPass = "";
             if (details === "Invalid connection" || details === "No active connection") {
                 root.setStatus(details, true);
                 return;
@@ -273,6 +291,36 @@ Scope {
         onRefreshRequested: {
             root.refreshStatus();
             root.refreshSaved();
+        }
+        onRadioToggleSucceeded: {
+            root.wifiToggleAwaitingCommand = false;
+            root.wifiToggleRefreshGeneration = statusService.refresh();
+            root.setStatus(root.wifiToggleTarget ? "Enabling WiFi…" : "Disabling WiFi…", false);
+        }
+        onRadioToggleFailed: details => {
+            root.wifiTogglePending = false;
+            root.wifiToggleAwaitingCommand = false;
+            wifiToggleTimeout.stop();
+            processWatchdog.stop();
+            root.setStatus(details.length > 0 ? details : "WiFi toggle failed", true);
+            root.refreshStatus();
+        }
+    }
+
+    Connections {
+        target: statusService
+
+        function onRefreshed(generation) {
+            if (!root.wifiTogglePending || root.wifiToggleAwaitingCommand || generation < root.wifiToggleRefreshGeneration)
+                return;
+            if (root.wifiEnabled !== root.wifiToggleTarget)
+                return;
+
+            root.wifiTogglePending = false;
+            root.wifiToggleAwaitingCommand = false;
+            wifiToggleTimeout.stop();
+            processWatchdog.stop();
+            root.setStatus(root.wifiEnabled ? "WiFi enabled" : "WiFi disabled", false);
         }
     }
 
@@ -290,8 +338,23 @@ Scope {
         interval: root.processTimeout
         repeat: false
         onTriggered: {
-            if (root.isBusy || root.scanRunning)
+            if (root.isBusy || root.scanRunning || root.wifiTogglePending)
                 root.setStatus("Operation timed out - please wait", true);
+        }
+    }
+
+    Timer {
+        id: wifiToggleTimeout
+
+        interval: 5000
+        repeat: false
+        onTriggered: {
+            if (!root.wifiTogglePending)
+                return;
+            root.wifiTogglePending = false;
+            root.wifiToggleAwaitingCommand = false;
+            root.setStatus("WiFi state confirmation timed out", true);
+            root.refreshStatus();
         }
     }
 

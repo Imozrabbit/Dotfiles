@@ -8,7 +8,7 @@ import Quickshell.Wayland
 
 import qs.core as Core
 
-PanelWindow {
+PanelWindow { // qmllint disable uncreatable-type
     id: root
 
     required property string icon
@@ -72,6 +72,7 @@ PanelWindow {
                 Text {
                     Layout.fillWidth: true
                     text: deviceRow.device.name
+                    textFormat: Text.PlainText
                     color: root.theme.bluetoothPanelTextColor
                     elide: Text.ElideRight
                     font {
@@ -162,6 +163,10 @@ PanelWindow {
     }
 
     visible: false
+    onVisibleChanged: {
+        if (visible)
+            panelScroll.contentY = 0;
+    }
     color: "transparent"
     focusable: true
 
@@ -196,8 +201,8 @@ PanelWindow {
     Rectangle {
         id: panelCard
 
-        width: 430
-        height: panelContent.implicitHeight + 32
+        width: Math.min(430, Math.max(0, root.width - anchors.rightMargin - 10))
+        height: Math.min(panelContent.implicitHeight + 32, Math.max(0, root.height - anchors.bottomMargin - 10))
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.rightMargin: root.barRevealed ? 17 : 10
@@ -206,10 +211,22 @@ PanelWindow {
         border.color: root.theme.bluetoothPanelBorderColor
         border.width: 1
         radius: root.theme.radiusMedium
+        clip: true
+
+        Flickable {
+            id: panelScroll
+
+            anchors.fill: parent
+            contentWidth: width
+            contentHeight: panelContent.implicitHeight + 32
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+        }
 
         ColumnLayout {
             id: panelContent
 
+            parent: panelScroll.contentItem
             anchors.fill: parent
             anchors.margins: 16
             spacing: 10
@@ -360,6 +377,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 visible: root.actionError !== ""
                 text: root.actionError
+                textFormat: Text.PlainText
                 color: root.theme.bluetoothPanelErrorColor
                 horizontalAlignment: Text.AlignRight
                 font {

@@ -75,12 +75,12 @@ Scope {
             const flags = parseInt(fields[3], 16);
             const metric = Number(fields[6]);
 
-            if (fields[1] !== "00000000" || !isFinite(gateway) || gateway === 0 || !isFinite(flags) || (flags & 0x3) !== 0x3 || !isFinite(metric) || metric >= bestMetric)
+            if (fields[1] !== "00000000" || fields[7] !== "00000000" || !isFinite(gateway) || !isFinite(flags) || (flags & 0x1) !== 0x1 || !isFinite(metric) || metric >= bestMetric)
                 continue;
 
             bestInterface = fields[0];
             bestMetric = metric;
-            bestGateway = root.ipv4FromLittleEndian(gateway);
+            bestGateway = gateway === 0 ? "" : root.ipv4FromLittleEndian(gateway);
         }
         return {
             interfaceName: bestInterface,

@@ -6,7 +6,6 @@ Rectangle {
     id: root
 
     required property bool active
-    required property bool playing
     required property bool paused
     required property bool canTogglePlaying
     required property string app

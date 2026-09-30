@@ -12,6 +12,8 @@ RowLayout {
 
     required property int updateCount
     required property bool checking
+    required property bool showLauncher
+    required property bool showUpdates
 
     signal updateRequested
 
@@ -63,7 +65,7 @@ RowLayout {
     spacing: 0
 
     Item {
-        implicitWidth: root.expanded ? launcherRow.implicitWidth + root.drawerGap : 0
+        implicitWidth: root.showLauncher && root.expanded ? launcherRow.implicitWidth + root.drawerGap : 0
         implicitHeight: toggleText.implicitHeight
 
         clip: true
@@ -142,7 +144,7 @@ RowLayout {
             id: toggleText
 
             anchors.centerIn: parent
-            text: root.checking ? " .." : " " + root.updateCount
+            text: !root.showUpdates ? "" : root.checking ? " .." : " " + root.updateCount
             color: toggleHover.hovered ? root.theme.launcherHoverColor : (root.updateCount > 0 ? root.theme.launcherColor : root.theme.launcherEmptyColor)
             font {
                 family: root.theme.fontFamily
@@ -157,7 +159,10 @@ RowLayout {
         }
 
         TapHandler {
-            onTapped: root.updateRequested()
+            onTapped: {
+                if (root.showUpdates)
+                    root.updateRequested();
+            }
         }
     }
 
@@ -176,8 +181,10 @@ RowLayout {
         anchor.rect.y: -8
         anchor.rect.width: root.tooltipAnchor ? root.tooltipAnchor.width : toggleText.width
         anchor.rect.height: root.tooltipAnchor ? root.tooltipAnchor.height : toggleText.height
+        // qmllint disable missing-type
         anchor.edges: Edges.Top
         anchor.gravity: Edges.Top
+        // qmllint enable missing-type
 
         Rectangle {
             anchors.fill: parent
@@ -191,6 +198,7 @@ RowLayout {
 
                 anchors.centerIn: parent
                 text: root.tooltipText
+                textFormat: Text.PlainText
                 color: root.theme.tooltipColor
                 horizontalAlignment: Text.AlignHCenter
                 font {

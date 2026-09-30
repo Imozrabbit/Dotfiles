@@ -13,6 +13,7 @@ Scope {
     property string actionAddress: ""
     property string actionError: ""
     property string pendingActionError: ""
+    property bool detailsRefreshQueued: false
 
     readonly property var connectedDevices: root.devices.filter(device => device.connected)
     readonly property var disconnectedDevices: root.devices.filter(device => !device.connected)
@@ -34,8 +35,11 @@ Scope {
     }
 
     function refreshDetails() {
-        if (!detailsProcess.running)
-            detailsProcess.running = true;
+        if (detailsProcess.running) {
+            root.detailsRefreshQueued = true;
+            return;
+        }
+        detailsProcess.running = true;
     }
 
     function applyDetails(output) {
@@ -125,7 +129,9 @@ Scope {
         stdout: StdioCollector {
             id: statusOutput
         }
+        // qmllint disable signal-handler-parameters
         onExited: root.applyStatus(statusOutput.text)
+        // qmllint enable signal-handler-parameters
     }
 
     Process {
@@ -135,7 +141,15 @@ Scope {
         stdout: StdioCollector {
             id: detailsOutput
         }
+        // qmllint disable signal-handler-parameters
         onExited: root.applyDetails(detailsOutput.text)
+        // qmllint enable signal-handler-parameters
+        onRunningChanged: {
+            if (!running && root.detailsRefreshQueued) {
+                root.detailsRefreshQueued = false;
+                Qt.callLater(root.refreshDetails);
+            }
+        }
     }
 
     Process {
@@ -144,6 +158,7 @@ Scope {
         stdout: StdioCollector {
             id: actionOutput
         }
+        // qmllint disable signal-handler-parameters
         onExited: function (exitCode) {
             root.actionError = exitCode === 0 ? "" : root.pendingActionError;
             root.actionAddress = "";
@@ -151,6 +166,7 @@ Scope {
             Qt.callLater(root.refresh);
             Qt.callLater(root.refreshDetails);
         }
+        // qmllint enable signal-handler-parameters
     }
 
     Timer {

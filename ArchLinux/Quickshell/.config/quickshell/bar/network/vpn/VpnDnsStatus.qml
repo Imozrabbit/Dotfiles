@@ -10,6 +10,7 @@ Scope {
 
     property string networkName: ""
     property bool queriesEnabled: true
+    property int networkGeneration: 0
 
     property string awayVpnName: ""
     property bool vpnKnown: false
@@ -75,7 +76,9 @@ Scope {
             if (separator < 0)
                 continue;
             for (let address of line.slice(separator + 1).trim().split(/\s+/)) {
-                if (address !== "" && !entries.includes(address))
+                const server = address.split("#")[0];
+                const valid = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(server) || /^[0-9a-f:]+$/i.test(server) && server.indexOf(":") !== -1;
+                if (address !== "" && valid && !entries.includes(address))
                     entries.push(address);
             }
         }
@@ -93,13 +96,18 @@ Scope {
     function refresh() {
         if (!root.queriesEnabled || root.atHome)
             return;
-        if (!updateVpnProcess.running)
+        if (!updateVpnProcess.running) {
+            updateVpnProcess.requestGeneration = root.networkGeneration;
             updateVpnProcess.running = true;
-        if (!updateDnsProcess.running)
+        }
+        if (!updateDnsProcess.running) {
+            updateDnsProcess.requestGeneration = root.networkGeneration;
             updateDnsProcess.running = true;
+        }
     }
 
     onNetworkNameChanged: {
+        root.networkGeneration++;
         root.clearAwayState();
         if (!root.atHome)
             Qt.callLater(root.refresh);
@@ -107,13 +115,18 @@ Scope {
 
     Process {
         id: updateVpnProcess
+        property int requestGeneration: -1
         command: ["nmcli", "--wait", "2", "--terse", "--escape", "no", "--fields", "NAME,TYPE", "connection", "show", "--active"]
         stdout: StdioCollector {
             id: vpnOutput
         }
+        // qmllint disable signal-handler-parameters
         onExited: function (exitCode) {
-            if (root.atHome)
+            if (root.atHome || updateVpnProcess.requestGeneration !== root.networkGeneration) {
+                if (!root.atHome)
+                    Qt.callLater(root.refresh);
                 return;
+            }
             if (exitCode === 0)
                 root.applyVpnStatus(vpnOutput.text);
             else {
@@ -121,22 +134,44 @@ Scope {
                 root.vpnKnown = false;
             }
         }
+        // qmllint enable signal-handler-parameters
+    }
+
+    Timer {
+        id: vpnTimeout
+
+        interval: 3000
+        running: updateVpnProcess.running
+        repeat: false
+        onTriggered: {
+            if (!updateVpnProcess.running)
+                return;
+            updateVpnProcess.running = false;
+            root.awayVpnName = "";
+            root.vpnKnown = false;
+        }
     }
 
     Process {
         id: updateDnsProcess
+        property int requestGeneration: -1
         command: ["resolvectl", "dns"]
         stdout: StdioCollector {
             id: dnsOutput
         }
+        // qmllint disable signal-handler-parameters
         onExited: function (exitCode) {
-            if (root.atHome)
+            if (root.atHome || updateDnsProcess.requestGeneration !== root.networkGeneration) {
+                if (!root.atHome)
+                    Qt.callLater(root.refresh);
                 return;
+            }
             if (exitCode === 0)
                 root.applyDnsStatus(dnsOutput.text);
             else
                 root.clearDns();
         }
+        // qmllint enable signal-handler-parameters
     }
 
     Timer {
@@ -145,5 +180,19 @@ Scope {
         repeat: true
         triggeredOnStart: true
         onTriggered: root.refresh()
+    }
+
+    Timer {
+        id: dnsTimeout
+
+        interval: 3000
+        running: updateDnsProcess.running
+        repeat: false
+        onTriggered: {
+            if (!updateDnsProcess.running)
+                return;
+            updateDnsProcess.running = false;
+            root.clearDns();
+        }
     }
 }

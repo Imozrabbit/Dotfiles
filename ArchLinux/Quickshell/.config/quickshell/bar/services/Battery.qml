@@ -25,17 +25,16 @@ Scope {
     property int pendingChargeEndThreshold: -1
     property int chargeLimitGeneration: 0
     property bool chargeReadbackPending: false
-    readonly property bool actionBusy: actionProcess.running || root.chargeReadbackPending
+    property bool detailsVisible: false
+    readonly property bool actionBusy: actionProcess.running || root.pendingAction !== "" || root.chargeReadbackPending
 
     property bool batteryPresent: false
     property bool capacityValid: false
     property bool statusValid: false
     property bool presentValid: false
 
-    // Host-specific names. Find battery and mains devices under:
-    // /sys/class/power_supply
-    readonly property string batteryPath: "/sys/class/power_supply/BAT0"
-    readonly property string acPath: "/sys/class/power_supply/AC"
+    property string batteryPath: ""
+    property string acPath: ""
 
     function readUnsignedInteger(file) {
         const text = file.text().trim();
@@ -48,6 +47,8 @@ Scope {
     }
 
     function refreshThresholds() {
+        if (root.batteryPath === "")
+            return;
         if (actionProcess.running || thresholdQueryProcess.running) {
             root.thresholdRefreshPending = true;
             return;
@@ -62,16 +63,24 @@ Scope {
     }
 
     function refresh() {
-        capacityFile.reload();
-        statusFile.reload();
-        presentFile.reload();
-        acFile.reload();
-        energyNowFile.reload();
-        energyFullFile.reload();
-        energyFullDesignFile.reload();
-        powerNowFile.reload();
-        root.refreshThresholds();
-        cycleCountFile.reload();
+        if (root.batteryPath !== "") {
+            capacityFile.reload();
+            statusFile.reload();
+            presentFile.reload();
+            energyNowFile.reload();
+            energyFullFile.reload();
+            energyFullDesignFile.reload();
+            powerNowFile.reload();
+            root.refreshThresholds();
+            cycleCountFile.reload();
+        }
+        if (root.acPath !== "")
+            acFile.reload();
+    }
+
+    onDetailsVisibleChanged: {
+        if (root.detailsVisible)
+            root.refreshThresholds();
     }
 
     function refreshPowerProfile() {
@@ -97,7 +106,7 @@ Scope {
         const start = Number(startValue);
         const end = Number(endValue);
         const invalid = !isFinite(start) || !isFinite(end) || start !== Math.round(start) || end !== Math.round(end) || start % 5 !== 0 || end % 5 !== 0 || start < 45 || start > 95 || end < 50 || end > 100 || end <= start;
-        if (root.actionBusy || root.chargeStartThreshold < 0 || root.chargeEndThreshold < 0 || invalid) {
+        if (root.batteryPath === "" || root.actionBusy || root.chargeStartThreshold < 0 || root.chargeEndThreshold < 0 || invalid) {
             root.actionError = "Invalid charge limit";
             return;
         }
@@ -159,10 +168,50 @@ Scope {
         actionProcess.running = true;
     }
 
+    Process {
+        id: powerSupplyDiscovery
+
+        command: ["sh", "-c", `
+            battery=""
+            mains=""
+            for device in /sys/class/power_supply/*; do
+                [ -r "$device/type" ] || continue
+                read -r type < "$device/type"
+                case "$type" in
+                    Battery)
+                        [ -r "$device/present" ] || continue
+                        read -r present < "$device/present"
+                        [ "$present" = 1 ] && [ -z "$battery" ] && battery="$device"
+                        ;;
+                    Mains)
+                        [ -r "$device/online" ] && [ -z "$mains" ] && mains="$device"
+                        ;;
+                esac
+            done
+            printf '%s|%s\\n' "$battery" "$mains"
+        `]
+        stdout: StdioCollector {
+            id: powerSupplyOutput
+        }
+        // qmllint disable signal-handler-parameters
+        onExited: function (exitCode) {
+            if (exitCode !== 0)
+                return;
+            const fields = powerSupplyOutput.text.trim().split("|");
+            if (fields.length !== 2)
+                return;
+            const validPath = /^\/sys\/class\/power_supply\/[A-Za-z0-9_.-]+$/;
+            root.batteryPath = validPath.test(fields[0]) ? fields[0] : "";
+            root.acPath = validPath.test(fields[1]) ? fields[1] : "";
+            root.refresh();
+        }
+        // qmllint enable signal-handler-parameters
+    }
+
     FileView {
         id: capacityFile
 
-        path: root.batteryPath + "/capacity"
+        path: root.batteryPath === "" ? "" : root.batteryPath + "/capacity"
         onLoaded: {
             const value = root.readUnsignedInteger(capacityFile);
             root.capacityValid = value >= 0 && value <= 100;
@@ -179,7 +228,7 @@ Scope {
     FileView {
         id: statusFile
 
-        path: root.batteryPath + "/status"
+        path: root.batteryPath === "" ? "" : root.batteryPath + "/status"
         onLoaded: {
             const value = statusFile.text().trim();
             root.statusValid = value === "Unknown" || value === "Charging" || value === "Discharging" || value === "Not charging" || value === "Full";
@@ -196,7 +245,7 @@ Scope {
     FileView {
         id: presentFile
 
-        path: root.batteryPath + "/present"
+        path: root.batteryPath === "" ? "" : root.batteryPath + "/present"
         onLoaded: {
             const value = root.readUnsignedInteger(presentFile);
             root.presentValid = value === 0 || value === 1;
@@ -213,7 +262,7 @@ Scope {
     FileView {
         id: acFile
 
-        path: root.acPath + "/online"
+        path: root.acPath === "" ? "" : root.acPath + "/online"
         onLoaded: {
             const value = root.readUnsignedInteger(acFile);
             root.acOnline = value === 1;
@@ -224,7 +273,7 @@ Scope {
     FileView {
         id: energyNowFile
 
-        path: root.batteryPath + "/energy_now"
+        path: root.batteryPath === "" ? "" : root.batteryPath + "/energy_now"
         onLoaded: root.energyNowUwh = root.readUnsignedInteger(energyNowFile)
         onLoadFailed: root.energyNowUwh = -1
     }
@@ -232,7 +281,7 @@ Scope {
     FileView {
         id: energyFullFile
 
-        path: root.batteryPath + "/energy_full"
+        path: root.batteryPath === "" ? "" : root.batteryPath + "/energy_full"
         onLoaded: root.energyFullUwh = root.readUnsignedInteger(energyFullFile)
         onLoadFailed: root.energyFullUwh = -1
     }
@@ -240,7 +289,7 @@ Scope {
     FileView {
         id: energyFullDesignFile
 
-        path: root.batteryPath + "/energy_full_design"
+        path: root.batteryPath === "" ? "" : root.batteryPath + "/energy_full_design"
         onLoaded: root.energyFullDesignUwh = root.readUnsignedInteger(energyFullDesignFile)
         onLoadFailed: root.energyFullDesignUwh = -1
     }
@@ -248,7 +297,7 @@ Scope {
     FileView {
         id: powerNowFile
 
-        path: root.batteryPath + "/power_now"
+        path: root.batteryPath === "" ? "" : root.batteryPath + "/power_now"
         onLoaded: root.powerNowUw = root.readUnsignedInteger(powerNowFile)
         onLoadFailed: root.powerNowUw = -1
     }
@@ -256,7 +305,7 @@ Scope {
     FileView {
         id: cycleCountFile
 
-        path: root.batteryPath + "/cycle_count"
+        path: root.batteryPath === "" ? "" : root.batteryPath + "/cycle_count"
         onLoaded: {
             const value = root.readUnsignedInteger(cycleCountFile);
             root.cycleCount = value >= 0 ? value : -1;
@@ -272,6 +321,7 @@ Scope {
         stdout: StdioCollector {
             id: thresholdQueryOutput
         }
+        // qmllint disable signal-handler-parameters
         onExited: function (exitCode) {
             if (requestGeneration === root.chargeLimitGeneration) {
                 const fields = thresholdQueryOutput.text.trim().split(/\s+/);
@@ -285,6 +335,7 @@ Scope {
             if (root.thresholdRefreshPending)
                 Qt.callLater(root.refreshThresholds);
         }
+        // qmllint enable signal-handler-parameters
     }
 
     Process {
@@ -294,6 +345,7 @@ Scope {
         stdout: StdioCollector {
             id: profileQueryOutput
         }
+        // qmllint disable signal-handler-parameters
         onExited: function (exitCode) {
             const refreshAgain = root.profileRefreshPending;
             root.profileRefreshPending = false;
@@ -307,6 +359,7 @@ Scope {
             if (refreshAgain)
                 Qt.callLater(root.refreshPowerProfile);
         }
+        // qmllint enable signal-handler-parameters
     }
 
     Process {
@@ -315,9 +368,9 @@ Scope {
         stdout: StdioCollector {
             id: actionOutput
         }
+        // qmllint disable signal-handler-parameters
         onExited: function (exitCode) {
             const action = root.pendingAction;
-            root.pendingAction = "";
             if (action === "charge-limit") {
                 const match = actionOutput.text.match(/__LIMITS:(\d+):(\d+)/);
                 const confirmedStart = match ? Number(match[1]) : -1;
@@ -336,6 +389,7 @@ Scope {
                     root.chargeReadbackPending = true;
                     Qt.callLater(root.refreshThresholds);
                 }
+                root.pendingAction = "";
                 return;
             }
 
@@ -345,7 +399,9 @@ Scope {
                 root.actionError = "";
                 root.refreshPowerProfile();
             }
+            root.pendingAction = "";
         }
+        // qmllint enable signal-handler-parameters
     }
 
     Timer {
@@ -356,5 +412,8 @@ Scope {
         onTriggered: root.refresh()
     }
 
-    Component.onCompleted: root.refreshPowerProfile()
+    Component.onCompleted: {
+        powerSupplyDiscovery.running = true;
+        root.refreshPowerProfile();
+    }
 }

@@ -13,6 +13,10 @@ Rectangle {
 
     signal accepted
 
+    function focusInput() {
+        input.forceActiveFocus();
+    }
+
     Layout.preferredHeight: 42
     radius: 999
     color: style.backgroundAlt

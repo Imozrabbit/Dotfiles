@@ -10,7 +10,10 @@ Scope {
 
     property alias model: networkModel
     property bool scanRunning: false
-    property var ssidMap: ({})
+    property bool scanQueued: false
+    property var ssidMap: Object.create(null)
+    property bool outputFinished: false
+    property int exitCode: -1
 
     signal scanStarted
     signal scanCompleted
@@ -18,13 +21,37 @@ Scope {
 
     function clear() {
         networkModel.clear();
-        root.ssidMap = ({});
+        root.ssidMap = Object.create(null);
     }
 
     function scan() {
+        if (scanner.running) {
+            root.scanQueued = true;
+            return;
+        }
         root.scanRunning = true;
+        root.outputFinished = false;
+        root.exitCode = -1;
         root.scanStarted();
         scanner.running = true;
+    }
+
+    function finishScan() {
+        if (!root.outputFinished || root.exitCode < 0)
+            return;
+        root.scanRunning = false;
+        if (root.exitCode === 0) {
+            root.parseScanOutput(scanOutput.text || "");
+            if (root.scanQueued) {
+                root.scanQueued = false;
+                Qt.callLater(root.scan);
+            } else {
+                root.scanCompleted();
+            }
+        } else {
+            root.scanQueued = false;
+            root.scanFailed();
+        }
     }
 
     function upsertNetwork(ssid, bssid, security, signal) {
@@ -56,8 +83,25 @@ Scope {
         root.ssidMap[ssid] = networkModel.count - 1;
     }
 
-    // nmcli escapes colons inside all four colon-delimited fields. Temporarily
-    // replacing escaped delimiters preserves BSSIDs and names before conversion.
+    function parseEscapedFields(line) {
+        const fields = [];
+        let field = "";
+        for (let index = 0; index < line.length; index++) {
+            const character = line[index];
+            if (character === "\\" && index + 1 < line.length) {
+                field += line[++index];
+            } else if (character === ":") {
+                fields.push(field);
+                field = "";
+            } else {
+                field += character;
+            }
+        }
+        fields.push(field);
+        return fields;
+    }
+
+    // Parse nmcli's escaped colon-delimited output without sentinel strings.
     function parseScanOutput(raw) {
         const lines = String(raw || "").split(/\r?\n/);
         for (let line of lines) {
@@ -65,13 +109,12 @@ Scope {
             if (!line)
                 continue;
 
-            const safeLine = line.replace(/\\:/g, "___COLON___");
-            const parts = safeLine.split(":");
+            const parts = root.parseEscapedFields(line);
             if (parts.length < 4)
                 continue;
-            const bssid = parts[0].replace(/___COLON___/g, ":");
-            const ssid = parts[1].replace(/___COLON___/g, ":");
-            const security = parts[2].replace(/___COLON___/g, ":");
+            const bssid = parts[0];
+            const ssid = parts[1];
+            const security = parts[2];
             const signalText = parts[3];
 
             let signal = parseInt(signalText, 10);
@@ -94,17 +137,17 @@ Scope {
         id: scanner
         command: ["bash", "-c", "nmcli -g BSSID,SSID,SECURITY,SIGNAL dev wifi list --rescan yes 2>/dev/null"]
         stdout: StdioCollector {
+            id: scanOutput
             onStreamFinished: {
-                root.scanRunning = false;
-                root.parseScanOutput(text || "");
-                root.scanCompleted();
+                root.outputFinished = true;
+                root.finishScan();
             }
         }
-        onExited: function(exitCode) {
-            if (exitCode !== 0 && root.scanRunning) {
-                root.scanRunning = false;
-                root.scanFailed();
-            }
+        // qmllint disable signal-handler-parameters
+        onExited: function (exitCode) {
+            root.exitCode = exitCode;
+            root.finishScan();
         }
+        // qmllint enable signal-handler-parameters
     }
 }

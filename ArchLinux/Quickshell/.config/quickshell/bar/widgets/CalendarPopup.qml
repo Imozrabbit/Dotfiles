@@ -6,15 +6,15 @@ import Quickshell
 import Quickshell.Wayland
 
 import qs.core as Core
-import qs.services as Services
 
-PanelWindow {
+PanelWindow { // qmllint disable uncreatable-type
     id: root
 
     required property bool barRevealed
     required property date currentDate
     required property Core.Theme theme
-    required property Services.Weather weatherService
+    required property var weatherService
+    required property bool showWeather
 
     property date displayedDate: currentDate
     function moveMonth(offset) {
@@ -25,7 +25,9 @@ PanelWindow {
     onVisibleChanged: {
         if (visible) {
             displayedDate = currentDate;
-            root.weatherService.refreshIfStale();
+            if (root.showWeather && root.weatherService)
+                root.weatherService.refreshIfStale();
+            calendarScroll.contentY = 0;
         }
     }
 
@@ -63,8 +65,10 @@ PanelWindow {
     Rectangle {
         id: calendarCard
 
-        width: 680
-        height: 320
+        readonly property bool stacked: root.showWeather && width < 680
+
+        width: Math.min(root.showWeather ? 680 : 320, Math.max(0, root.width - anchors.rightMargin - 10))
+        height: Math.min(stacked ? calendarContents.y + calendarContents.height + 12 : 320, Math.max(0, root.height - anchors.bottomMargin - 10))
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.rightMargin: root.barRevealed ? 17 : 10
@@ -73,39 +77,55 @@ PanelWindow {
         border.color: root.theme.calendarBorderColor
         border.width: 1
         radius: 8
+        clip: true
 
-        WeatherPanel {
+        Flickable {
+            id: calendarScroll
+
+            anchors.fill: parent
+            contentWidth: width
+            contentHeight: calendarCard.stacked ? calendarContents.y + calendarContents.height + 12 : 320
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+        }
+
+        Loader {
             id: weatherPanel
 
-            width: 360
-            anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            anchors.margins: 12
-            theme: root.theme
-            weatherService: root.weatherService
+            parent: calendarScroll.contentItem
+            active: root.showWeather && Boolean(root.weatherService)
+            x: 12
+            y: 12
+            width: calendarCard.stacked ? Math.max(0, parent.width - 24) : 360
+            height: 296
+            sourceComponent: WeatherPanel {
+                anchors.fill: parent
+                theme: root.theme
+                weatherService: root.weatherService
+            }
         }
 
         Rectangle {
             id: panelSeparator
 
-            width: 1
-            anchors.left: weatherPanel.right
-            anchors.leftMargin: 12
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            anchors.topMargin: 16
-            anchors.bottomMargin: 16
+            parent: calendarScroll.contentItem
+            visible: root.showWeather
+            x: calendarCard.stacked ? 12 : weatherPanel.x + weatherPanel.width + 12
+            y: calendarCard.stacked ? weatherPanel.y + weatherPanel.height + 12 : 16
+            width: calendarCard.stacked ? parent.width - 24 : 1
+            height: calendarCard.stacked ? 1 : 288
             color: root.theme.calendarBorderColor
             opacity: 0.55
         }
 
         ColumnLayout {
-            anchors.left: panelSeparator.right
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            anchors.margins: 12
+            id: calendarContents
+
+            parent: calendarScroll.contentItem
+            x: !root.showWeather || calendarCard.stacked ? 12 : panelSeparator.x + panelSeparator.width + 12
+            y: root.showWeather && calendarCard.stacked ? panelSeparator.y + panelSeparator.height + 12 : 12
+            width: Math.max(0, parent.width - x - 12)
+            height: 296
             spacing: 8
 
             RowLayout {

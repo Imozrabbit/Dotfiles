@@ -13,6 +13,7 @@ Rectangle {
     required property real brightness
 
     signal brightnessRequested(real value)
+    signal keyboardBacklightRequested
 
     property real pendingBrightness: root.brightness
     property Services.Brightness brightnessService: Services.Brightness {}
@@ -69,7 +70,7 @@ Rectangle {
     }
 
     TapHandler {
-        onTapped: root.brightnessService.cycleKeyboardBacklight()
+        onTapped: root.keyboardBacklightRequested()
     }
 
     Timer {
@@ -105,8 +106,10 @@ Rectangle {
         anchor.rect.y: 1
         anchor.rect.width: root.width
         anchor.rect.height: root.height
+        // qmllint disable missing-type
         anchor.edges: Edges.Top
         anchor.gravity: Edges.Top
+        // qmllint enable missing-type
 
         Rectangle {
             anchors.fill: parent

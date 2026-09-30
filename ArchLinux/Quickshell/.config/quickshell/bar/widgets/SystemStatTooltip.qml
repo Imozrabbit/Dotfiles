@@ -25,8 +25,10 @@ PopupWindow {
     anchor.rect.y: -8
     anchor.rect.width: root.anchorItem.width
     anchor.rect.height: root.anchorItem.height
+    // qmllint disable missing-type
     anchor.edges: Edges.Top
     anchor.gravity: Edges.Top
+    // qmllint enable missing-type
 
     Rectangle {
         anchors.fill: parent
@@ -44,6 +46,7 @@ PopupWindow {
             Text {
                 Layout.alignment: Qt.AlignHCenter
                 text: root.heading
+                textFormat: Text.PlainText
                 color: root.theme.tooltipColor
                 font {
                     family: root.theme.tooltipFontFamily
@@ -60,6 +63,7 @@ PopupWindow {
                     spacing: 4
                     Text {
                         text: parent.modelData.label + ":"
+                        textFormat: Text.PlainText
                         color: root.theme.tooltipColor
                         font {
                             family: root.theme.tooltipFontFamily
@@ -68,6 +72,7 @@ PopupWindow {
                     }
                     Text {
                         text: parent.modelData.value
+                        textFormat: Text.PlainText
                         color: root.theme.tooltipColor
                         font {
                             family: root.theme.tooltipFontFamily

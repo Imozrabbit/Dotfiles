@@ -40,7 +40,7 @@ Scope {
                 try {
                     const devices = JSON.parse(addressOutput.text);
                     const addresses = devices.length > 0 ? devices[0].addr_info : [];
-                    const address = addresses.find(info => info.family === "inet" && info.scope === "global");
+                    const address = addresses.find(info => info.family === "inet" && info.scope === "global" && typeof info.local === "string" && /^(?:\d{1,3}\.){3}\d{1,3}$/.test(info.local) && Number.isInteger(info.prefixlen) && info.prefixlen >= 0 && info.prefixlen <= 32);
                     root.ipAddressCidr = address ? address.local + "/" + address.prefixlen : "";
                 } catch (error) {
                     root.ipAddressCidr = "";

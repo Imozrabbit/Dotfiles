@@ -10,9 +10,10 @@ Rectangle {
     required property string ssid
     required property string uuid
     required property string name
+    required property bool isEnterprise
     required property bool isBusy
 
-    signal clicked(string uuid, string ssid)
+    signal clicked(string uuid, string ssid, bool isEnterprise)
 
     width: ListView.view ? ListView.view.width : 0
     height: 35
@@ -59,6 +60,6 @@ Rectangle {
         hoverEnabled: true
         cursorShape: root.isBusy ? Qt.ArrowCursor : Qt.PointingHandCursor
         enabled: !root.isBusy
-        onClicked: root.clicked(root.uuid, root.ssid)
+        onClicked: root.clicked(root.uuid, root.ssid, root.isEnterprise)
     }
 }

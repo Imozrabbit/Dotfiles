@@ -21,12 +21,14 @@ Item {
     required property bool actionBusy
     required property string actionError
     required property Core.Theme theme
+    required property var outputScreen
 
     signal panelOpened
     signal powerProfileRequested(string profile)
     signal chargeThresholdsRequested(int startValue, int endValue)
 
     property bool tooltipVisible: false
+    readonly property bool watchingThresholds: batteryHover.hovered || batteryPanel.visible
 
     readonly property var dischargingIcons: ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
     readonly property var chargingIcons: ["󰢜", "󰂆", "󰂇", "󰂈", "󰢝", "󰂉", "󰢞", "󰂊", "󰂋", "󰂅"]
@@ -180,6 +182,7 @@ Item {
     BatteryPanel {
         id: batteryPanel
 
+        screen: root.outputScreen
         icon: root.batteryIcon()
         available: root.available
         capacity: root.capacity

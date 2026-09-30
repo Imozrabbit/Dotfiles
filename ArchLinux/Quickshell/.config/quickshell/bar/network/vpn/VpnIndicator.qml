@@ -8,13 +8,13 @@ RowLayout {
     id: root
 
     required property Core.Theme theme
-    required property string networkName
-    readonly property string protectionMode: vpnStatus.protectionMode
-    readonly property string vpnName: vpnStatus.vpnName
-    readonly property string dnsName: vpnStatus.dnsName
-    readonly property string dnsServers: vpnStatus.dnsServers
-    readonly property bool dnsExpected: vpnStatus.dnsExpected
-    readonly property bool dnsKnown: vpnStatus.dnsKnown
+    required property var status
+    readonly property string protectionMode: root.status.protectionMode
+    readonly property string vpnName: root.status.vpnName
+    readonly property string dnsName: root.status.dnsName
+    readonly property string dnsServers: root.status.dnsServers
+    readonly property bool dnsExpected: root.status.dnsExpected
+    readonly property bool dnsKnown: root.status.dnsKnown
 
     function indicatorIcon() {
         if (root.protectionMode === "home")
@@ -50,10 +50,5 @@ RowLayout {
             pixelSize: root.theme.networkUsageFontSize
             bold: true
         }
-    }
-
-    VpnDnsStatus {
-        id: vpnStatus
-        networkName: root.networkName
     }
 }
