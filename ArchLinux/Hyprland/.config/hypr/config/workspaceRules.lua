@@ -34,3 +34,9 @@ hl.workspace_rule({
 	monitor = "eDP-1",
 	layout = "master",
 })
+
+---------------------- Set up my secondary monitor ----------------------
+hl.workspace_rule({
+	workspace = "special:opencode",
+	layout = "dwindle",
+})
