@@ -10,6 +10,7 @@ Scope {
     readonly property string localPath: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/quickshell/bar-local.json"
     readonly property var defaults: ({
             mode: "always",
+            edgeSpacing: 14,
             hoverToggleEnabled: true,
             modules: {
                 workspaces: true,
@@ -47,30 +48,37 @@ Scope {
         return BarConfig.screenConfig(root.settings, name);
     }
 
-    Process {
-        id: localConfigProcess
-
-        command: ["sh", "-c", "if [ -r \"$1\" ]; then cat -- \"$1\"; else printf '{}'; fi", "sh", root.localPath]
-        running: true
-        stdout: StdioCollector {
-            id: localConfigOutput
-        }
-        // qmllint disable signal-handler-parameters
-        onExited: function (exitCode) {
-            if (exitCode === 0)
-                root.settings = BarConfig.resolveConfig(root.defaults, localConfigOutput.text);
+    FileView {
+        id: localConfig
+        path: root.localPath
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reloadDelay.restart()
+        onLoaded: {
+            const next = BarConfig.resolveConfig(root.defaults, text(), root.settings);
+            if (next === root.settings)
+                console.warn("Invalid bar-local.json; keeping last valid configuration");
+            else
+                root.settings = next;
             root.ready = true;
         }
-        // qmllint enable signal-handler-parameters
+        onLoadFailed: {
+            // Missing/unreadable files keep defaults at startup or the last live settings.
+            root.ready = true;
+        }
+    }
+
+    Timer {
+        id: reloadDelay
+        interval: 150
+        repeat: false
+        onTriggered: localConfig.reload()
     }
 
     Timer {
         interval: 3000
         running: !root.ready
         repeat: false
-        onTriggered: {
-            localConfigProcess.running = false;
-            root.ready = true;
-        }
+        onTriggered: root.ready = true
     }
 }

@@ -93,7 +93,7 @@ Scope {
     }
     LazyLoader {
         id: batteryLoader
-        active: root.uses("battery")
+        active: root.uses("battery") || (root.batteryService?.actionBusy ?? false)
         Services.Battery {
             detailsVisible: outputBars.instances.some(bar => bar.batteryDetailsVisible)
         }
@@ -110,7 +110,7 @@ Scope {
     }
     LazyLoader {
         id: weatherLoader
-        active: root.uses("weather")
+        active: root.uses("weather") || (root.weatherService?.loading ?? false) || (root.weatherService?.searching ?? false)
         Services.Weather {}
     }
     LazyLoader {
@@ -134,7 +134,7 @@ Scope {
     }
     LazyLoader {
         id: wifiLoader
-        active: root.uses("wifiMenu")
+        active: root.uses("wifiMenu") || (root.wifiMenu?.actionBusy ?? false)
         Wifi.WifiMenu {
             standalone: false
             theme: root.theme
@@ -149,6 +149,17 @@ Scope {
         root.wifiBarRevealed = revealed;
         root.wifiMenu.screen = screen;
         root.wifiMenu.visible = !root.wifiMenu.visible;
+    }
+
+    Connections {
+        target: root.barConfig
+        function onSettingsChanged() {
+            if (!root.wifiMenu?.visible)
+                return;
+            const config = root.barConfig.forScreen(root.wifiMenu.screen?.name ?? "");
+            if (config.mode === "off" || !config.modules.wifiMenu)
+                root.wifiMenu.visible = false;
+        }
     }
 
     Connections {

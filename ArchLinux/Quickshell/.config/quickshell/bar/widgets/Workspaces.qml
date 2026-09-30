@@ -31,12 +31,18 @@ Rectangle {
     readonly property var normalEntries: BarConfig.normalWorkspaceEntries(root.workspaceDisplay, Hyprland.workspaces.values)
     readonly property var specialEntries: BarConfig.specialWorkspaceEntries(root.workspaceDisplay, Hyprland.workspaces.values)
 
+    onShowTrayChanged: {
+        if (!root.showTray && trayDrawer)
+            trayDrawer.trayOpened = false;
+    }
+
     RowLayout {
         id: workspaceLayout
         spacing: root.workspaceDisplay.itemSpacing
         anchors.centerIn: parent
 
         SystemTrayDrawer {
+            id: trayDrawer
             visible: root.showTray
             outputScreen: root.outputScreen
             theme: root.theme

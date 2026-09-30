@@ -43,6 +43,11 @@ RowLayout {
     property Item tooltipAnchor: null
     property string tooltipText: ""
 
+    onShowLauncherChanged: {
+        if (!root.showLauncher)
+            launcherTooltip.visible = false;
+    }
+
     function launch(command) {
         if (command && command.length > 0)
             Quickshell.execDetached(command);

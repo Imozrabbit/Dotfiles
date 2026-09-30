@@ -7,7 +7,9 @@ by output. Full-screen menus open on the output that owns their button; service
 polling stops when no enabled bar uses that feature.
 
 Left and right sections anchor to their respective screen edges. Media text
-centers in the gap between them and hides when it cannot fit. On very narrow
+centers in up to 70% of the gap between them, capped at 400 px. Long text scrolls
+without shrinking its font; media hides only when no useful icon-sized space
+remains. On very narrow
 screens the sections may overlap, with right-side controls above the left.
 Module sizes and the single-row bar height do not change.
 
@@ -19,7 +21,8 @@ Module sizes and the single-row bar height do not change.
 - **Tray:** app icons, primary activation, and a themed app-provided menu.
 - **Launcher:** wallpaper switcher, GTK Look, and Qt6ct shortcuts.
 - **Updates:** `checkupdates` count and manual refresh; runs hourly.
-- **Media:** active MPRIS player, track text, and playback toggle.
+- **Media:** active MPRIS player, scrolling track text, and playback toggle.
+  Animation runs only when text overflows a visible media box.
 - **Network:** default-route transfer rates sampled every second and a hover
   tooltip with interface, IPv4 address, gateway, and Wi-Fi signal/frequency.
 - **VPN:** router-managed status on exact SSID `HouseOfAnton_5GHz`; away from
@@ -48,15 +51,19 @@ and `hoverToggleEnabled: true`. Put machine-specific settings in optional
 `~/.config/quickshell/bar-local.json`, or
 `$XDG_CONFIG_HOME/quickshell/bar-local.json` if that variable is set. Global
 values override defaults; exact output names in `monitors` override global
-values. Omitted settings keep their defaults. Invalid fields are ignored;
-invalid JSON falls back to shipped defaults. **Restart the bar after creating
-or editing the local file.** The local file lives outside this repository.
+values. Omitted settings keep their defaults. Invalid fields are ignored.
+**Valid saves apply live**, including spacing, modules, and monitor modes;
+no restart is required. Malformed or unreadable saves keep the last valid
+configuration (shipped defaults at startup). File creation and atomic editor
+saves are watched without polling. To return to defaults while running, save
+`{}`. The local file lives outside this repository.
 
 Complete example (replace output names with those from `hyprctl monitors`):
 
 ```json
 {
   "mode": "always",
+  "edgeSpacing": 14,
   "hoverToggleEnabled": true,
   "modules": {
     "workspaces": true,
@@ -87,9 +94,11 @@ Complete example (replace output names with those from `hyprctl monitors`):
     "specialLabels": { "rmpc": "", "steam": "" }
   },
   "monitors": {
-    "DP-1": { "mode": "always" },
+    "DP-1": { "mode": "always", "edgeSpacing": 14 },
     "HDMI-A-1": {
       "mode": "hover",
+      "edgeSpacing": 4,
+      "workspaceDisplay": { "itemSpacing": 8 },
       "hoverToggleEnabled": false,
       "modules": { "media": false, "notifications": false }
     },
@@ -122,7 +131,14 @@ their number or name. Labels do not make absent workspaces visible.
 
 `workspaceDisplay.itemSpacing` sets gaps between items in the workspace box,
 including separators and expanded launcher icons. Default: 21 px; accepted
-range: 0–100 px. Restart the bar after changing the local file.
+range: 0–100 px. `edgeSpacing` sets horizontal screen-edge margins for the
+left/right sections (default: 14 px; range: 0–100 px). Both settings can be
+overridden per monitor as shown above. Monitor workspace settings inherit
+global minimum count and labels unless explicitly overridden.
+
+Mode changes clear pin/reveal state. Menus close when their feature is disabled.
+In-progress charge-limit or Wi-Fi actions finish before their shared service is
+unloaded; live reconfiguration does not terminate those writes halfway through.
 
 ## Install
 

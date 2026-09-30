@@ -36,6 +36,11 @@ Rectangle {
         closeTimer.restart();
     }
 
+    function closePopup() {
+        closeTimer.stop();
+        volumePopup.visible = false;
+    }
+
     implicitWidth: 38
     implicitHeight: iconText.implicitHeight + 4
     radius: root.theme.radiusMedium

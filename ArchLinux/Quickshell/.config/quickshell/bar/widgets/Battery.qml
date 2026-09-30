@@ -28,6 +28,12 @@ Item {
     signal chargeThresholdsRequested(int startValue, int endValue)
 
     property bool tooltipVisible: false
+
+    function closePopup() {
+        tooltipDelay.stop();
+        root.tooltipVisible = false;
+        batteryPanel.visible = false;
+    }
     readonly property bool watchingThresholds: batteryHover.hovered || batteryPanel.visible
 
     readonly property var dischargingIcons: ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]

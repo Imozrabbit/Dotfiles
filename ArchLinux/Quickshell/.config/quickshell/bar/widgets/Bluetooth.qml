@@ -26,6 +26,12 @@ Item {
 
     property bool tooltipVisible: false
 
+    function closePopup() {
+        tooltipDelay.stop();
+        root.tooltipVisible = false;
+        bluetoothPanel.visible = false;
+    }
+
     function bluetoothIcon() {
         return !root.available || !root.powered ? "󰂲" : root.connected ? "󰂱" : "";
     }

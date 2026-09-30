@@ -3,7 +3,6 @@ import QtQuick.Controls
 import Quickshell
 
 import qs.core as Core
-import qs.services as Services
 
 Rectangle {
     id: root
@@ -16,7 +15,6 @@ Rectangle {
     signal keyboardBacklightRequested
 
     property real pendingBrightness: root.brightness
-    property Services.Brightness brightnessService: Services.Brightness {}
 
     readonly property real displayBrightness: Math.max(0.01, Math.min(1.0, root.brightness))
 
@@ -37,6 +35,12 @@ Rectangle {
 
     function schedulePopupClose() {
         closeTimer.restart();
+    }
+
+    function closePopup() {
+        closeTimer.stop();
+        setTimer.stop();
+        brightnessPopup.visible = false;
     }
 
     implicitWidth: 38

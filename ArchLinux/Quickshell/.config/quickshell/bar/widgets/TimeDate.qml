@@ -44,6 +44,11 @@ Rectangle {
 
     readonly property bool batteryDetailsVisible: root.showBattery && battery.watchingThresholds
 
+    onShowBatteryChanged: {
+        if (!root.showBattery)
+            Qt.callLater(battery.closePopup);
+    }
+
     implicitWidth: contentLayout.implicitWidth
     implicitHeight: contentLayout.implicitHeight
     visible: root.showBattery || root.showClock || root.showCalendar || root.showNotifications

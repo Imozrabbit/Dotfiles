@@ -9,6 +9,8 @@ function applyFields(target, override, moduleNames) {
         target.mode = override.mode;
     if (typeof override.hoverToggleEnabled === "boolean")
         target.hoverToggleEnabled = override.hoverToggleEnabled;
+    if (typeof override.edgeSpacing === "number" && isFinite(override.edgeSpacing) && override.edgeSpacing >= 0 && override.edgeSpacing <= 100)
+        target.edgeSpacing = override.edgeSpacing;
     if (isObject(override.modules)) {
         for (const name of moduleNames) {
             if (typeof override.modules[name] === "boolean")
@@ -47,9 +49,10 @@ function workspaceSettings(defaults, override) {
     return result;
 }
 
-function resolveConfig(defaults, text) {
+function resolveConfig(defaults, text, previous) {
     const result = {
         mode: defaults.mode,
+        edgeSpacing: defaults.edgeSpacing,
         hoverToggleEnabled: defaults.hoverToggleEnabled,
         modules: Object.assign({}, defaults.modules),
         workspaceDisplay: workspaceSettings(defaults.workspaceDisplay, null),
@@ -59,10 +62,10 @@ function resolveConfig(defaults, text) {
     try {
         local = JSON.parse(text);
     } catch (_) {
-        return result;
+        return previous || result;
     }
     if (!isObject(local))
-        return result;
+        return previous || result;
     const names = Object.keys(defaults.modules);
     applyFields(result, local, names);
     result.workspaceDisplay = workspaceSettings(defaults.workspaceDisplay, local.workspaceDisplay);
@@ -72,6 +75,8 @@ function resolveConfig(defaults, text) {
                 continue;
             const output = { modules: {} };
             applyFields(output, local.monitors[name], names);
+            if (isObject(local.monitors[name].workspaceDisplay))
+                output.workspaceDisplay = local.monitors[name].workspaceDisplay;
             result.monitors[name] = output;
         }
     }
@@ -117,7 +122,9 @@ function screenConfig(config, name) {
         modules.weather = false;
     return {
         mode: override.mode || config.mode,
+        edgeSpacing: override.edgeSpacing === undefined ? config.edgeSpacing : override.edgeSpacing,
         hoverToggleEnabled: override.hoverToggleEnabled === undefined ? config.hoverToggleEnabled : override.hoverToggleEnabled,
+        workspaceDisplay: workspaceSettings(config.workspaceDisplay, override.workspaceDisplay),
         modules: modules
     };
 }

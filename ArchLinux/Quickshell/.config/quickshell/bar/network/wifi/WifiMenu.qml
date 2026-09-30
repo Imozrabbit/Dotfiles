@@ -15,6 +15,7 @@ PanelWindow { // qmllint disable uncreatable-type
     required property Core.Theme theme
     required property bool barRevealed
     property bool standalone: true
+    readonly property bool actionBusy: controller.isBusy
 
     signal closeRequested
 
