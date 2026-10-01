@@ -72,11 +72,28 @@ assert.deepEqual(Array.from(config.normalWorkspaceEntries(personal.workspaceDisp
 assert.equal(config.normalWorkspaceEntries(personal.workspaceDisplay, [{ id: 8 }])[3].label, "󰝆");
 assert.equal(config.normalWorkspaceEntries(personal.workspaceDisplay, [{ id: 8 }])[7].label, "Dev");
 const specials = config.specialWorkspaceEntries(personal.workspaceDisplay, [
-    { name: "special:steam" }, { name: "special:rmpc" }, { name: "special:notes" }, { name: "1" }, { name: "special:notes" }
+    { name: "special:steam", toplevels: { values: [{}] } },
+    { name: "special:rmpc", toplevels: { values: [{}] } },
+    { name: "special:notes", toplevels: { values: [{}] } },
+    { name: "1" }, { name: "special:notes" }
 ]);
 assert.deepEqual(Array.from(specials, entry => entry.name), ["notes", "rmpc", "steam"]);
 assert.equal(specials[0].label, "notes");
 assert.equal(specials[1].label, "");
+
+const openMonitor = { lastIpcObject: { specialWorkspace: { name: "special:notes" } } };
+const otherMonitor = { lastIpcObject: { specialWorkspace: { name: "" } } };
+for (const occupied of [false, true]) {
+    const workspaces = [{ name: "special:notes", toplevels: { values: occupied ? [{}] : [] } }];
+    assert.equal(config.specialWorkspaceEntries(personal.workspaceDisplay, workspaces, [openMonitor], openMonitor)[0].state, "focused");
+    assert.equal(config.specialWorkspaceEntries(personal.workspaceDisplay, workspaces, [openMonitor, otherMonitor], otherMonitor)[0].state, occupied ? "occupied" : "empty");
+    const closed = config.specialWorkspaceEntries(personal.workspaceDisplay, workspaces, [otherMonitor], otherMonitor);
+    if (occupied)
+        assert.equal(closed[0].state, "occupied");
+    else
+        assert.equal(closed.length, 0, "closed empty workspace must not reserve a slot");
+}
+assert.equal(config.specialWorkspaceEntries(personal.workspaceDisplay, [], [openMonitor], openMonitor)[0].state, "focused", "open empty workspace must appear before workspace-list update");
 
 const badWorkspaces = config.resolveConfig(defaults, JSON.stringify({ workspaceDisplay: {
     minimumCount: 1000000,

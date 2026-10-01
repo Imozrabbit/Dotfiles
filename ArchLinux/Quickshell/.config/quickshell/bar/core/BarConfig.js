@@ -95,19 +95,31 @@ function normalWorkspaceEntries(config, workspaces) {
     return ids.map(id => ({ id: id, label: config.normalLabels[id] || String(id) }));
 }
 
-function specialWorkspaceEntries(config, workspaces) {
+function specialWorkspaceEntries(config, workspaces, monitors, focusedMonitor) {
     const names = [];
+    const occupiedNames = [];
     for (const workspace of workspaces) {
         if (typeof workspace.name !== "string" || !workspace.name.startsWith("special:"))
             continue;
         const name = workspace.name.slice(8);
         if (name !== "" && !names.includes(name))
             names.push(name);
+        if ((workspace.toplevels?.values.length ?? 0) > 0 && !occupiedNames.includes(name))
+            occupiedNames.push(name);
+    }
+    const focusedName = focusedMonitor?.lastIpcObject?.specialWorkspace?.name ?? "";
+    const openedNames = (monitors || []).map(monitor => monitor.lastIpcObject?.specialWorkspace?.name ?? "");
+    if (focusedName !== "")
+        openedNames.push(focusedName);
+    for (const fullName of openedNames) {
+        if (fullName.startsWith("special:") && fullName.length > 8 && !names.includes(fullName.slice(8)))
+            names.push(fullName.slice(8));
     }
     names.sort();
-    return names.map(name => ({
+    return names.filter(name => occupiedNames.includes(name) || openedNames.includes("special:" + name)).map(name => ({
         name: name,
-        label: Object.prototype.hasOwnProperty.call(config.specialLabels, name) ? config.specialLabels[name] : name
+        label: Object.prototype.hasOwnProperty.call(config.specialLabels, name) ? config.specialLabels[name] : name,
+        state: focusedName === "special:" + name ? "focused" : occupiedNames.includes(name) ? "occupied" : "empty"
     }));
 }
 

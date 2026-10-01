@@ -129,6 +129,12 @@ workspace IDs to glyphs/text. Special workspaces appear when Hyprland creates
 them; `specialLabels` maps their names to glyphs/text. Unmapped entries use
 their number or name. Labels do not make absent workspaces visible.
 
+Normal workspace highlighting follows global Hyprland focus on every bar.
+Special workspaces open on the focused monitor use the same active highlight,
+even when empty. Unfocused occupied special workspaces are purple whether
+open or closed; open empty unfocused ones are gray. Closed empty special
+workspaces are hidden. Pointer hover keeps its usual hover color.
+
 `workspaceDisplay.itemSpacing` sets gaps between items in the workspace box,
 including separators and expanded launcher icons. Default: 21 px; accepted
 range: 0–100 px. `edgeSpacing` sets horizontal screen-edge margins for the

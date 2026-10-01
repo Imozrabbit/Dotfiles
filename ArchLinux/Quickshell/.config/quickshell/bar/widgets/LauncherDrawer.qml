@@ -27,13 +27,13 @@ RowLayout {
 
     property var launchers: [
         {
-            icon: "󰸉 ",
+            icon: "󰸉",
             tooltip: "Wallpaper Switcher",
             leftCommand: ["quickshell", "-c", "wallpaper_switcher"],
             rightCommand: []
         },
         {
-            icon: "󰔎 ",
+            icon: "󰔎",
             tooltip: "Left click: GTK Look\nRight click: Qt6ct",
             leftCommand: ["nwg-look"],
             rightCommand: ["qt6ct"]
@@ -93,7 +93,6 @@ RowLayout {
         RowLayout {
             id: launcherRow
 
-            anchors.rightMargin: root.drawerGap
             anchors.verticalCenter: parent.verticalCenter
             spacing: root.itemSpacing
 

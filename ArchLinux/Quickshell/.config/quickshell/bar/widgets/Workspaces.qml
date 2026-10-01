@@ -11,7 +11,6 @@ Rectangle {
 
     required property Core.Theme theme
     required property var outputScreen
-    readonly property var hyprlandMonitor: Hyprland.monitors.values.find(monitor => monitor.name === root.outputScreen.name)
 
     required property int updateCount
     required property bool checking
@@ -29,7 +28,7 @@ Rectangle {
     radius: root.theme.radiusMedium
 
     readonly property var normalEntries: BarConfig.normalWorkspaceEntries(root.workspaceDisplay, Hyprland.workspaces.values)
-    readonly property var specialEntries: BarConfig.specialWorkspaceEntries(root.workspaceDisplay, Hyprland.workspaces.values)
+    readonly property var specialEntries: BarConfig.specialWorkspaceEntries(root.workspaceDisplay, Hyprland.workspaces.values, Hyprland.monitors.values, Hyprland.focusedMonitor)
 
     onShowTrayChanged: {
         if (!root.showTray && trayDrawer)
@@ -65,7 +64,7 @@ Rectangle {
                 required property var modelData
 
                 property var ws: Hyprland.workspaces.values.find(w => w.id === modelData.id)
-                property bool isActive: root.hyprlandMonitor?.activeWorkspace?.id === modelData.id
+                property bool isActive: Hyprland.focusedWorkspace?.id === modelData.id
                 property bool isOccupied: (ws?.toplevels.values.length ?? 0) > 0
 
                 text: modelData.label
@@ -94,13 +93,9 @@ Rectangle {
 
                 required property var modelData
 
-                property var ws: Hyprland.workspaces.values.find(workspace => workspace.name === "special:" + modelData.name)
-                property bool occupied: ws ? ws.toplevels.values.length > 0 : false
-                property bool opened: root.hyprlandMonitor?.lastIpcObject?.specialWorkspace?.name === "special:" + modelData.name
-
                 text: modelData.label
                 textFormat: Text.PlainText
-                color: specialWorkspaceMouse.containsMouse ? root.theme.workspaceHoveredColor : (opened && occupied ? root.theme.specialWorkspaceColor : root.theme.workspaceEmptyColor)
+                color: specialWorkspaceMouse.containsMouse ? root.theme.workspaceHoveredColor : modelData.state === "focused" ? root.theme.workspaceActiveColor : modelData.state === "occupied" ? root.theme.specialWorkspaceColor : root.theme.workspaceEmptyColor
                 font {
                     family: root.theme.fontFamily
                     pixelSize: root.theme.workspaceFontSize
