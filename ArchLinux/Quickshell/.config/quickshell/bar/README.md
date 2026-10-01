@@ -40,6 +40,10 @@ Module sizes and the single-row bar height do not change.
 - **Input method:** Fcitx state and cycling.
 - **Brightness:** display slider and keyboard-backlight cycling when available.
 - **Battery:** charge, health, power profile, and supported charge thresholds.
+- **Mouse battery:** optional WLMouse percentage between battery and clock in
+  the same box. Tooltip shows configured mouse name, wired/wireless transport,
+  and charging status. It remains usable with laptop battery display disabled.
+  Failed readings show `N/A` with a reason rather than stale percentages.
 - **Clock and calendar:** live time, monthly calendar, and weather panel.
 - **Weather:** Open-Meteo location search and forecast; saved locations and a
   validated cache survive restarts.
@@ -47,8 +51,8 @@ Module sizes and the single-row bar height do not change.
 
 ## Configuration
 
-`Config.qml` contains synced defaults: all modules enabled, mode `always`,
-and `hoverToggleEnabled: true`. Put machine-specific settings in optional
+`Config.qml` contains synced defaults: mode `always`, `hoverToggleEnabled: true`,
+and all modules enabled except `mouseBattery`. Put machine-specific settings in optional
 `~/.config/quickshell/bar-local.json`, or
 `$XDG_CONFIG_HOME/quickshell/bar-local.json` if that variable is set. Global
 values override defaults; exact output names in `monitors` override global
@@ -66,6 +70,7 @@ Complete example (replace output names with those from `hyprctl monitors`):
   "mode": "always",
   "edgeSpacing": 14,
   "hoverToggleEnabled": true,
+  "mouseBattery": { "name": "WLMouse Beast X" },
   "launchers": [
     {
       "icon": "󰸉",
@@ -97,6 +102,7 @@ Complete example (replace output names with those from `hyprctl monitors`):
     "inputMethod": false,
     "brightness": false,
     "battery": false,
+    "mouseBattery": false,
     "clock": true,
     "calendar": true,
     "weather": true,
@@ -168,6 +174,21 @@ and supports JSON `\n` line breaks. `leftCommand` and `rightCommand` are optiona
 argument lists; omitted or empty lists perform no action. Invalid entries are
 skipped. Commands run directly, without implicit shell expansion. Saves apply
 live; per-monitor `itemSpacing` controls gaps between revealed icons and trigger.
+
+Enable `modules.mouseBattery` on the PC that uses the mouse and set
+`mouseBattery.name` to the name you want in its tooltip. Both can be overridden
+per monitor. The bundled `scripts/wlmouse.py` supports WLMouse Beast X wired
+and 1K receiver devices (VID `36a7`, PIDs `a884`/`a882`). One shared asynchronous
+process refreshes at startup and every 60 seconds. Hover requests a refresh
+with a global 10-second cooldown; concurrent queries are skipped. A five-second
+watchdog marks stalled queries unavailable and requests termination.
+
+Python 3 and read/write access to the matching `/dev/hidraw*` devices are
+required. If the tooltip reports permission denied, configure device-scoped
+udev access for your desktop user. Missing devices, sleeping/disconnected
+mice, permissions failures, and malformed output produce `N/A`; no response
+does not by itself prove that a mouse is disconnected. Mouse name is user
+configuration, not a name discovered by the collector.
 
 ## Install
 
@@ -247,6 +268,7 @@ running. The `bar` IPC target provides `toggle`; it acts only on a focused
   a host-specific Quickshell VFS path. Adjust that path on another machine.
   To diagnose runtime errors, run `quickshell -c bar` in a graphical terminal.
 - Maintainer checks: `node tests/bar-config-checks.mjs`,
+  `node tests/mouse-battery-checks.mjs`, `python3 tests/wlmouse-checks.py`,
   `node tests/memory-checks.mjs`, and `node tests/regression-checks.mjs`.
   `CHECK_LIVE_MEMORY=1 node tests/memory-checks.mjs` compares memory figures
   with `free -k`. Use Qt 6 `qmllint` with Quickshell's active VFS import path

@@ -22,6 +22,13 @@ Rectangle {
     required property bool acOnline
     required property bool barRevealed
     required property bool showBattery
+    required property bool showMouseBattery
+    required property string mouseName
+    required property bool mouseAvailable
+    required property int mousePercentage
+    required property bool mouseCharging
+    required property string mouseConnection
+    required property string mouseError
     required property bool showClock
     required property bool showCalendar
     required property bool showWeather
@@ -38,6 +45,7 @@ Rectangle {
     required property string batteryActionError
 
     signal notificationsRequested
+    signal mouseRefreshRequested
     signal batteryPanelOpened
     signal batteryPowerProfileRequested(string profile)
     signal batteryChargeThresholdsRequested(int startValue, int endValue)
@@ -51,7 +59,7 @@ Rectangle {
 
     implicitWidth: contentLayout.implicitWidth
     implicitHeight: contentLayout.implicitHeight
-    visible: root.showBattery || root.showClock || root.showCalendar || root.showNotifications
+    visible: root.showBattery || root.showMouseBattery || root.showClock || root.showCalendar || root.showNotifications
     radius: root.theme.radiusMedium
     color: root.theme.timeDateBg
 
@@ -96,8 +104,39 @@ Rectangle {
             Rectangle {
                 id: batterySeparator
 
-                visible: root.showBattery && (root.showClock || root.showCalendar || root.showNotifications)
+                visible: root.showBattery && (root.showMouseBattery || root.showClock || root.showCalendar || root.showNotifications)
                 anchors.left: battery.right
+                anchors.verticalCenter: parent.verticalCenter
+                implicitWidth: 1
+                implicitHeight: root.theme.timeDateFontSize
+                color: root.theme.timeDateColor
+                opacity: 0.25
+            }
+        }
+
+        Item {
+            visible: root.showMouseBattery
+            implicitWidth: mouseBattery.implicitWidth + 11
+            implicitHeight: Math.max(mouseBattery.implicitHeight, mouseSeparator.implicitHeight)
+
+            MouseBattery {
+                id: mouseBattery
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                theme: root.theme
+                mouseName: root.mouseName
+                available: root.mouseAvailable
+                percentage: root.mousePercentage
+                charging: root.mouseCharging
+                connection: root.mouseConnection
+                error: root.mouseError
+                onRefreshRequested: root.mouseRefreshRequested()
+            }
+
+            Rectangle {
+                id: mouseSeparator
+                visible: root.showClock || root.showCalendar || root.showNotifications
+                anchors.left: mouseBattery.right
                 anchors.verticalCenter: parent.verticalCenter
                 implicitWidth: 1
                 implicitHeight: root.theme.timeDateFontSize

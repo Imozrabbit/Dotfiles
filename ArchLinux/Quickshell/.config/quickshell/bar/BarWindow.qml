@@ -26,6 +26,7 @@ PanelWindow { // qmllint disable uncreatable-type
     readonly property var fcitx: root.shared.fcitx
     readonly property var swayncService: root.shared.swayncService
     readonly property var batteryService: root.shared.batteryService
+    readonly property var mouseBatteryService: root.shared.mouseBatteryService
     readonly property var mprisService: root.shared.mprisService
     readonly property var bluetoothService: root.shared.bluetoothService
     readonly property var weatherService: root.shared.weatherService
@@ -226,7 +227,7 @@ PanelWindow { // qmllint disable uncreatable-type
             anchors.right: parent.right
             anchors.rightMargin: root.sideMargin
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.modules.network || root.modules.cpu || root.modules.gpu || root.modules.memory || root.modules.volume || root.modules.bluetooth || root.modules.inputMethod || root.modules.brightness || root.modules.battery || root.modules.clock || root.modules.calendar || root.modules.notifications
+            visible: root.modules.network || root.modules.cpu || root.modules.gpu || root.modules.memory || root.modules.volume || root.modules.bluetooth || root.modules.inputMethod || root.modules.brightness || root.modules.battery || root.modules.mouseBattery || root.modules.clock || root.modules.calendar || root.modules.notifications
             z: 1
 
             Network.NetworkUsage {
@@ -411,6 +412,17 @@ PanelWindow { // qmllint disable uncreatable-type
                 outputScreen: root.modelData
                 currentDate: root.shared.clock?.date ?? new Date()
                 showBattery: root.modules.battery
+                showMouseBattery: root.modules.mouseBattery
+                mouseName: root.configuration.mouseBattery.name
+                mouseAvailable: root.mouseBatteryService?.available ?? false
+                mousePercentage: root.mouseBatteryService?.percentage ?? -1
+                mouseCharging: root.mouseBatteryService?.charging ?? false
+                mouseConnection: root.mouseBatteryService?.connection ?? ""
+                mouseError: root.mouseBatteryService?.error ?? "No reading available"
+                onMouseRefreshRequested: {
+                    if (root.mouseBatteryService)
+                        root.mouseBatteryService.refresh();
+                }
                 showClock: root.modules.clock
                 showCalendar: root.modules.calendar
                 showWeather: root.modules.weather

@@ -12,9 +12,22 @@ Scope {
             mode: "always",
             edgeSpacing: 14,
             hoverToggleEnabled: true,
+            mouseBattery: {
+                name: "WLMouse Beast X"
+            },
             launchers: [
-                { icon: "󰸉", tooltip: "Wallpaper Switcher", leftCommand: ["quickshell", "-c", "wallpaper_switcher"], rightCommand: [] },
-                { icon: "󰔎", tooltip: "Left click: GTK Look\nRight click: Qt6ct", leftCommand: ["nwg-look"], rightCommand: ["qt6ct"] }
+                {
+                    icon: "󰸉",
+                    tooltip: "Wallpaper Switcher",
+                    leftCommand: ["quickshell", "-c", "wallpaper_switcher"],
+                    rightCommand: []
+                },
+                {
+                    icon: "󰔎",
+                    tooltip: "Left click: GTK Look\nRight click: Qt6ct",
+                    leftCommand: ["nwg-look"],
+                    rightCommand: ["qt6ct"]
+                }
             ],
             modules: {
                 workspaces: true,
@@ -33,6 +46,7 @@ Scope {
                 inputMethod: true,
                 brightness: true,
                 battery: true,
+                mouseBattery: false,
                 clock: true,
                 calendar: true,
                 weather: true,

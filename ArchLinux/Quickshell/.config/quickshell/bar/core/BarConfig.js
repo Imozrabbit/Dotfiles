@@ -13,6 +13,9 @@ function applyFields(target, override, moduleNames) {
         target.edgeSpacing = override.edgeSpacing;
     if (Array.isArray(override.launchers))
         target.launchers = launcherEntries(override.launchers);
+    if (isObject(override.mouseBattery) && typeof override.mouseBattery.name === "string"
+        && override.mouseBattery.name.trim() !== "" && override.mouseBattery.name.length <= 128)
+        target.mouseBattery = { name: override.mouseBattery.name.trim() };
     if (isObject(override.modules)) {
         for (const name of moduleNames) {
             if (typeof override.modules[name] === "boolean")
@@ -70,6 +73,7 @@ function resolveConfig(defaults, text, previous) {
         edgeSpacing: defaults.edgeSpacing,
         hoverToggleEnabled: defaults.hoverToggleEnabled,
         launchers: launcherEntries(defaults.launchers || []),
+        mouseBattery: Object.assign({}, defaults.mouseBattery),
         modules: Object.assign({}, defaults.modules),
         workspaceDisplay: workspaceSettings(defaults.workspaceDisplay, null),
         monitors: {}
@@ -153,6 +157,7 @@ function screenConfig(config, name) {
         edgeSpacing: override.edgeSpacing === undefined ? config.edgeSpacing : override.edgeSpacing,
         hoverToggleEnabled: override.hoverToggleEnabled === undefined ? config.hoverToggleEnabled : override.hoverToggleEnabled,
         launchers: override.launchers === undefined ? config.launchers : override.launchers,
+        mouseBattery: override.mouseBattery || config.mouseBattery,
         workspaceDisplay: workspaceSettings(config.workspaceDisplay, override.workspaceDisplay),
         modules: modules
     };

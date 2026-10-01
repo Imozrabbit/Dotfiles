@@ -26,6 +26,7 @@ Scope {
     readonly property var fcitx: fcitxLoader.item
     readonly property var swayncService: swayncLoader.item
     readonly property var batteryService: batteryLoader.item
+    readonly property var mouseBatteryService: mouseBatteryLoader.item
     readonly property var mprisService: mprisLoader.item
     readonly property var bluetoothService: bluetoothLoader.item
     readonly property var weatherService: weatherLoader.item
@@ -102,6 +103,11 @@ Scope {
         id: mprisLoader
         active: root.uses("media")
         Services.Mpris {}
+    }
+    LazyLoader {
+        id: mouseBatteryLoader
+        active: root.uses("mouseBattery")
+        Services.MouseBattery {}
     }
     LazyLoader {
         id: bluetoothLoader
