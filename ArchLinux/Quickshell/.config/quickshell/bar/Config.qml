@@ -12,6 +12,10 @@ Scope {
             mode: "always",
             edgeSpacing: 14,
             hoverToggleEnabled: true,
+            launchers: [
+                { icon: "󰸉", tooltip: "Wallpaper Switcher", leftCommand: ["quickshell", "-c", "wallpaper_switcher"], rightCommand: [] },
+                { icon: "󰔎", tooltip: "Left click: GTK Look\nRight click: Qt6ct", leftCommand: ["nwg-look"], rightCommand: ["qt6ct"] }
+            ],
             modules: {
                 workspaces: true,
                 tray: true,

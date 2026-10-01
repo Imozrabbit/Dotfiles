@@ -11,12 +11,27 @@ function applyFields(target, override, moduleNames) {
         target.hoverToggleEnabled = override.hoverToggleEnabled;
     if (typeof override.edgeSpacing === "number" && isFinite(override.edgeSpacing) && override.edgeSpacing >= 0 && override.edgeSpacing <= 100)
         target.edgeSpacing = override.edgeSpacing;
+    if (Array.isArray(override.launchers))
+        target.launchers = launcherEntries(override.launchers);
     if (isObject(override.modules)) {
         for (const name of moduleNames) {
             if (typeof override.modules[name] === "boolean")
                 target.modules[name] = override.modules[name];
         }
     }
+}
+
+function launcherEntries(entries) {
+    const validCommand = command => command === undefined || Array.isArray(command)
+        && command.every(argument => typeof argument === "string" && !argument.includes("\0"))
+        && (command.length === 0 || command[0].trim() !== "");
+    return entries.filter(entry => isObject(entry) && typeof entry.icon === "string" && entry.icon.trim() !== ""
+        && validCommand(entry.leftCommand) && validCommand(entry.rightCommand)).map(entry => ({
+        icon: entry.icon.trim(),
+        tooltip: typeof entry.tooltip === "string" ? entry.tooltip : "",
+        leftCommand: entry.leftCommand || [],
+        rightCommand: entry.rightCommand || []
+    }));
 }
 
 function workspaceSettings(defaults, override) {
@@ -54,6 +69,7 @@ function resolveConfig(defaults, text, previous) {
         mode: defaults.mode,
         edgeSpacing: defaults.edgeSpacing,
         hoverToggleEnabled: defaults.hoverToggleEnabled,
+        launchers: launcherEntries(defaults.launchers || []),
         modules: Object.assign({}, defaults.modules),
         workspaceDisplay: workspaceSettings(defaults.workspaceDisplay, null),
         monitors: {}
@@ -136,6 +152,7 @@ function screenConfig(config, name) {
         mode: override.mode || config.mode,
         edgeSpacing: override.edgeSpacing === undefined ? config.edgeSpacing : override.edgeSpacing,
         hoverToggleEnabled: override.hoverToggleEnabled === undefined ? config.hoverToggleEnabled : override.hoverToggleEnabled,
+        launchers: override.launchers === undefined ? config.launchers : override.launchers,
         workspaceDisplay: workspaceSettings(config.workspaceDisplay, override.workspaceDisplay),
         modules: modules
     };

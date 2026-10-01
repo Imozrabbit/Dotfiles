@@ -180,6 +180,7 @@ PanelWindow { // qmllint disable uncreatable-type
             showLauncher: root.modules.launcher
             showUpdates: root.modules.updates
             workspaceDisplay: root.configuration.workspaceDisplay
+            launchers: root.configuration.launchers
 
             // qmllint disable Quick.layout-positioning
             transform: Translate {

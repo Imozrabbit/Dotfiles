@@ -19,7 +19,8 @@ Module sizes and the single-row bar height do not change.
   Slots 1–3 stay visible by default; other workspaces appear when created.
   `workspaceDisplay` sets a larger minimum and optional labels/icons.
 - **Tray:** app icons, primary activation, and a themed app-provided menu.
-- **Launcher:** wallpaper switcher, GTK Look, and Qt6ct shortcuts.
+- **Launcher:** configurable app shortcuts that expand rightward from the
+  update/launcher icon on hover. Defaults: wallpaper switcher, GTK Look, Qt6ct.
 - **Updates:** `checkupdates` count and manual refresh; runs hourly.
 - **Media:** active MPRIS player, scrolling track text, and playback toggle.
   Animation runs only when text overflows a visible media box.
@@ -65,6 +66,20 @@ Complete example (replace output names with those from `hyprctl monitors`):
   "mode": "always",
   "edgeSpacing": 14,
   "hoverToggleEnabled": true,
+  "launchers": [
+    {
+      "icon": "󰸉",
+      "tooltip": "Wallpaper Switcher",
+      "leftCommand": ["quickshell", "-c", "wallpaper_switcher"],
+      "rightCommand": []
+    },
+    {
+      "icon": "󰔎",
+      "tooltip": "Left click: GTK Look\nRight click: Qt6ct",
+      "leftCommand": ["nwg-look"],
+      "rightCommand": ["qt6ct"]
+    }
+  ],
   "modules": {
     "workspaces": true,
     "tray": true,
@@ -145,6 +160,14 @@ global minimum count and labels unless explicitly overridden.
 Mode changes clear pin/reveal state. Menus close when their feature is disabled.
 In-progress charge-limit or Wi-Fi actions finish before their shared service is
 unloaded; live reconfiguration does not terminate those writes halfway through.
+
+`launchers` is an ordered replacement list: omit it to use shipped defaults,
+provide an array to replace them, or use `[]` to clear entries. It can also be
+overridden per monitor. Each entry needs a nonempty `icon`; `tooltip` is optional
+and supports JSON `\n` line breaks. `leftCommand` and `rightCommand` are optional
+argument lists; omitted or empty lists perform no action. Invalid entries are
+skipped. Commands run directly, without implicit shell expansion. Saves apply
+live; per-monitor `itemSpacing` controls gaps between revealed icons and trigger.
 
 ## Install
 

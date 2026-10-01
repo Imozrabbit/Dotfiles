@@ -15,6 +15,7 @@ RowLayout {
     required property bool showLauncher
     required property bool showUpdates
     required property real itemSpacing
+    required property var launchers
 
     signal updateRequested
 
@@ -25,21 +26,6 @@ RowLayout {
         id: drawerHover
     }
 
-    property var launchers: [
-        {
-            icon: "󰸉",
-            tooltip: "Wallpaper Switcher",
-            leftCommand: ["quickshell", "-c", "wallpaper_switcher"],
-            rightCommand: []
-        },
-        {
-            icon: "󰔎",
-            tooltip: "Left click: GTK Look\nRight click: Qt6ct",
-            leftCommand: ["nwg-look"],
-            rightCommand: ["qt6ct"]
-        }
-    ]
-
     property Item tooltipAnchor: null
     property string tooltipText: ""
 
@@ -48,12 +34,19 @@ RowLayout {
             launcherTooltip.visible = false;
     }
 
+    onLaunchersChanged: {
+        launcherTooltip.visible = false;
+        root.tooltipAnchor = null;
+    }
+
     function launch(command) {
         if (command && command.length > 0)
             Quickshell.execDetached(command);
     }
 
     function showTooltip(anchorItem, text) {
+        if (text === "")
+            return;
         root.tooltipAnchor = anchorItem;
         root.tooltipText = text;
         tooltipDelay.restart();
@@ -69,9 +62,11 @@ RowLayout {
     }
 
     spacing: 0
+    // Order the trigger before the reveal area without reversing app order.
+    layoutDirection: Qt.RightToLeft
 
     Item {
-        implicitWidth: root.showLauncher && root.expanded ? launcherRow.implicitWidth + root.drawerGap : 0
+        implicitWidth: root.showLauncher && root.expanded && root.launchers.length > 0 ? launcherRow.implicitWidth + root.drawerGap : 0
         implicitHeight: toggleText.implicitHeight
 
         clip: true
@@ -93,6 +88,8 @@ RowLayout {
         RowLayout {
             id: launcherRow
 
+            x: root.drawerGap
+            layoutDirection: Qt.LeftToRight
             anchors.verticalCenter: parent.verticalCenter
             spacing: root.itemSpacing
 

@@ -15,7 +15,8 @@ const defaults = {
     edgeSpacing: 14,
     hoverToggleEnabled: true,
     modules: { network: true, wifiMenu: true, vpn: true, bluetooth: true, calendar: true, weather: true, cpu: true },
-    workspaceDisplay: { minimumCount: 3, itemSpacing: 21, normalLabels: {}, specialLabels: {} }
+    workspaceDisplay: { minimumCount: 3, itemSpacing: 21, normalLabels: {}, specialLabels: {} },
+    launchers: [{ icon: "D", tooltip: "Default", leftCommand: ["default-app"], rightCommand: [] }]
 };
 
 const missing = config.resolveConfig(defaults, "{}");
@@ -122,5 +123,23 @@ assert.equal(config.screenConfig(spacing, "unlisted").workspaceDisplay.itemSpaci
 assert.equal(config.resolveConfig(defaults, "partial json", spacing), spacing, "invalid live save preserves last valid settings");
 assert.equal(config.resolveConfig(defaults, "[]", spacing), spacing);
 assert.equal(config.screenConfig(config.resolveConfig(defaults, "{}", spacing), "DP-1").edgeSpacing, 14);
+
+assert.equal(config.screenConfig(missing, "DP-1").launchers[0].icon, "D");
+const customLaunchers = [{ icon: "F", tooltip: "Left click\nRight click", leftCommand: ["firefox", "a b"], rightCommand: [] }];
+const apps = config.resolveConfig(defaults, JSON.stringify({ launchers: customLaunchers, monitors: { "DP-1": { launchers: [] } } }));
+assert.equal(config.screenConfig(apps, "DP-1").launchers.length, 0);
+assert.equal(config.screenConfig(apps, "DP-2").launchers.length, 1);
+assert.equal(config.screenConfig(apps, "DP-2").launchers[0].tooltip, "Left click\nRight click");
+assert.equal(config.screenConfig(apps, "DP-2").launchers[0].leftCommand[1], "a b");
+const badApps = config.resolveConfig(defaults, JSON.stringify({ launchers: [
+    { icon: "", leftCommand: ["bad"] },
+    { icon: "X", leftCommand: "not an argument list" },
+    { icon: "Y", rightCommand: [7] },
+    { icon: "R", rightCommand: ["right-app"] }
+] }));
+assert.equal(badApps.launchers.length, 1);
+assert.equal(badApps.launchers[0].icon, "R");
+assert.equal(badApps.launchers[0].leftCommand.length, 0);
+assert.equal(config.resolveConfig(defaults, '{"launchers":false}').launchers[0].icon, "D");
 
 console.log("bar config checks passed");

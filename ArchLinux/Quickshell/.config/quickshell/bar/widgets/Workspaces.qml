@@ -19,6 +19,7 @@ Rectangle {
     required property bool showLauncher
     required property bool showUpdates
     required property var workspaceDisplay
+    required property var launchers
 
     signal updateRequested
 
@@ -121,6 +122,7 @@ Rectangle {
         }
 
         LauncherDrawer {
+            launchers: root.launchers
             visible: root.showLauncher || root.showUpdates
             updateCount: root.updateCount
             checking: root.checking
