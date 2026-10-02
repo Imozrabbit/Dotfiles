@@ -184,8 +184,8 @@ with a global 10-second cooldown; concurrent queries are skipped. A five-second
 watchdog marks stalled queries unavailable and requests termination.
 
 Python 3 and read/write access to the matching `/dev/hidraw*` devices are
-required. If the tooltip reports permission denied, configure device-scoped
-udev access for your desktop user. Missing devices, sleeping/disconnected
+required. The optional udev setup below grants device-scoped access for the
+active desktop user; the collector does not use sudo. Missing devices, sleeping/disconnected
 mice, permissions failures, and malformed output produce `N/A`; no response
 does not by itself prove that a mouse is disconnected. Mouse name is user
 configuration, not a name discovered by the collector.
@@ -217,7 +217,8 @@ configuration, not a name discovered by the collector.
      Dotfiles-thinkpad/ArchLinux/Quickshell/.config/quickshell/bar &&
    mkdir -p "$config_dir" &&
    rm -rf "$config_dir/bar" &&
-   mv "$stage/bar" "$config_dir/bar" &&
+    mv "$stage/bar" "$config_dir/bar" &&
+    chmod +x "$config_dir/bar/scripts/wlmouse.py" &&
    rm -rf "$stage" &&
    # To run the bar
    qs -c bar -d
@@ -230,7 +231,27 @@ configuration, not a name discovered by the collector.
 4. Create `bar-local.json` outside the repository if this host needs module,
    workspace, or monitor overrides. A missing file uses defaults. Battery charge limits
    additionally require supported sysfs threshold files and narrowly scoped
-   permission for existing `sudo -n` writes; ordinary battery display does not.
+    permission for existing `sudo -n` writes; ordinary battery display does not.
+
+5. On the PC using WLMouse, install Python 3 and the bundled udev rule once:
+
+   ```sh
+   config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell"
+   sudo install -m 0644 "$config_dir/bar/scripts/70-wlmouse.rules" /etc/udev/rules.d/70-wlmouse.rules
+   sudo udevadm control --reload-rules
+   sudo udevadm trigger --action=add --subsystem-match=hidraw
+   sudo udevadm settle
+   python3 "$config_dir/bar/scripts/wlmouse.py"
+   ```
+
+   In order to take effect immediately, unplug then plug the doggle.
+   The final command should print JSON without sudo. Reconnect mouse/receiver
+   if access has not updated, then retry from your graphical session. The rule
+   explicitly matches receiver PID `a882` and wired PID `a884` under vendor
+   `36a7`. Attribute selectors use `==`, not assignment `=`. Enable
+   `modules.mouseBattery` after access works. Hover refresh has a 10-second
+   cooldown. Executable permission is for direct script execution; the bar
+   invokes it through Python and does not require `chmod +x` to collect data.
 
 ## Update
 
