@@ -29,7 +29,7 @@ Item {
     Text {
         id: mouseText
         anchors.centerIn: parent
-        text: "󰍽 " + (root.available ? root.percentage + "%" : "N/A")
+        text: "󰍽 " + (root.available ? root.percentage + "%" : "N/A") + (root.available && root.charging ? " " : "")
         color: root.theme.timeDateColor
         font {
             family: root.theme.fontFamily

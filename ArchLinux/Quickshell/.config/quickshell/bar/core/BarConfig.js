@@ -74,6 +74,7 @@ function resolveConfig(defaults, text, previous) {
         hoverToggleEnabled: defaults.hoverToggleEnabled,
         launchers: launcherEntries(defaults.launchers || []),
         mouseBattery: Object.assign({}, defaults.mouseBattery),
+        vpn: { routerManagedSsids: (defaults.vpn?.routerManagedSsids || []).slice() },
         modules: Object.assign({}, defaults.modules),
         workspaceDisplay: workspaceSettings(defaults.workspaceDisplay, null),
         monitors: {}
@@ -88,6 +89,9 @@ function resolveConfig(defaults, text, previous) {
         return previous || result;
     const names = Object.keys(defaults.modules);
     applyFields(result, local, names);
+    if (isObject(local.vpn) && Array.isArray(local.vpn.routerManagedSsids))
+        result.vpn.routerManagedSsids = local.vpn.routerManagedSsids.filter((ssid, index, entries) =>
+            typeof ssid === "string" && ssid !== "" && ssid.length <= 32 && !ssid.includes("\0") && entries.indexOf(ssid) === index);
     result.workspaceDisplay = workspaceSettings(defaults.workspaceDisplay, local.workspaceDisplay);
     if (isObject(local.monitors)) {
         for (const name of Object.keys(local.monitors)) {

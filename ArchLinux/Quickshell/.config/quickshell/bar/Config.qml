@@ -12,6 +12,9 @@ Scope {
             mode: "always",
             edgeSpacing: 14,
             hoverToggleEnabled: true,
+            vpn: {
+                routerManagedSsids: []
+            },
             mouseBattery: {
                 name: "WLMouse Beast X"
             },
@@ -47,6 +50,7 @@ Scope {
                 brightness: true,
                 battery: true,
                 mouseBattery: false,
+                openAiUsage: false,
                 clock: true,
                 calendar: true,
                 weather: true,

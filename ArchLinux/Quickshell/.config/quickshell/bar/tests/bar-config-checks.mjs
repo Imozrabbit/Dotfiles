@@ -14,8 +14,9 @@ const defaults = {
     mode: "always",
     edgeSpacing: 14,
     hoverToggleEnabled: true,
-    modules: { network: true, wifiMenu: true, vpn: true, bluetooth: true, calendar: true, weather: true, cpu: true, mouseBattery: false },
+    modules: { network: true, wifiMenu: true, vpn: true, bluetooth: true, calendar: true, weather: true, cpu: true, mouseBattery: false, openAiUsage: false },
     mouseBattery: { name: "WLMouse Beast X" },
+    vpn: { routerManagedSsids: [] },
     workspaceDisplay: { minimumCount: 3, itemSpacing: 21, normalLabels: {}, specialLabels: {} },
     launchers: [{ icon: "D", tooltip: "Default", leftCommand: ["default-app"], rightCommand: [] }]
 };
@@ -148,5 +149,9 @@ const namedMouse = config.resolveConfig(defaults, JSON.stringify({ mouseBattery:
 assert.equal(config.screenConfig(namedMouse, "DP-1").mouseBattery.name, "My mouse");
 assert.equal(config.screenConfig(namedMouse, "DP-1").modules.mouseBattery, true);
 assert.equal(config.resolveConfig(defaults, '{"mouseBattery":{"name":""}}').mouseBattery.name, "WLMouse Beast X");
+assert.equal(config.screenConfig(missing, "DP-1").modules.openAiUsage, false);
+assert.equal(config.screenConfig(config.resolveConfig(defaults, '{"monitors":{"DP-1":{"modules":{"openAiUsage":true}}}}'), "DP-1").modules.openAiUsage, true);
+assert.equal(config.resolveConfig(defaults, "{}").vpn.routerManagedSsids.length, 0);
+assert.equal(config.resolveConfig(defaults, '{"vpn":{"routerManagedSsids":["Home",7,""]}}').vpn.routerManagedSsids.join(","), "Home");
 
 console.log("bar config checks passed");

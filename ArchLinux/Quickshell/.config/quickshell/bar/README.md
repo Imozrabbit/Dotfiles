@@ -24,11 +24,15 @@ Module sizes and the single-row bar height do not change.
 - **Updates:** `checkupdates` count and manual refresh; runs hourly.
 - **Media:** active MPRIS player, scrolling track text, and playback toggle.
   Animation runs only when text overflows a visible media box.
+- **OpenAI usage:** optional amber chip between controls and time/date showing
+  five-hour Codex subscription percentage remaining. Bundled OpenAI logo and
+  tooltip show five-hour/weekly allowances, reset countdowns, plan, and status.
 - **Network:** default-route transfer rates sampled every second and a hover
   tooltip with interface, IPv4 address, gateway, and Wi-Fi signal/frequency.
-- **VPN:** router-managed status on exact SSID `HouseOfAnton_5GHz`; away from
-  home, shows active VPN and live DNS/NextDNS status. This indicator can be
-  hidden without hiding network rates.
+- **VPN/DNS:** independent local VPN and resolver status, refreshed every two
+  seconds by one shared service. Active NetworkManager VPN/WireGuard profiles
+  take precedence over an optional configured router VPN fallback. This
+  indicator can be hidden without hiding network rates.
 - **Wi-Fi menu:** NetworkManager radio, active connection, saved profiles,
   available-network scans, credentials, and advanced editor. It is optional
   even when the network widget remains visible.
@@ -52,7 +56,7 @@ Module sizes and the single-row bar height do not change.
 ## Configuration
 
 `Config.qml` contains synced defaults: mode `always`, `hoverToggleEnabled: true`,
-and all modules enabled except `mouseBattery`. Put machine-specific settings in optional
+and all modules enabled except `mouseBattery` and `openAiUsage`. Put machine-specific settings in optional
 `~/.config/quickshell/bar-local.json`, or
 `$XDG_CONFIG_HOME/quickshell/bar-local.json` if that variable is set. Global
 values override defaults; exact output names in `monitors` override global
@@ -70,6 +74,7 @@ Complete example (replace output names with those from `hyprctl monitors`):
   "mode": "always",
   "edgeSpacing": 14,
   "hoverToggleEnabled": true,
+  "vpn": { "routerManagedSsids": [] },
   "mouseBattery": { "name": "WLMouse Beast X" },
   "launchers": [
     {
@@ -103,6 +108,7 @@ Complete example (replace output names with those from `hyprctl monitors`):
     "brightness": false,
     "battery": false,
     "mouseBattery": false,
+    "openAiUsage": false,
     "clock": true,
     "calendar": true,
     "weather": true,
@@ -142,6 +148,30 @@ Complete example (replace output names with those from `hyprctl monitors`):
 Disabling a parent also disables its dependent feature. Layout order does not
 change when a module is hidden. Status services are shared among outputs and
 unused services do not poll.
+
+`vpn.routerManagedSsids` is a global list of exact Wi-Fi SSIDs, empty by default.
+On a machine using a router VPN, set it to, for example,
+`["HouseOfAnton_5GHz"]`. With no active local VPN, a matching connected SSID
+shows **Router VPN**. This is configuration, not a router health
+check. Local VPN detection continues on that network. Ethernet-only machines
+normally leave the list empty. A failed VPN query shows **Unavailable**, not
+the router fallback.
+
+The VPN glyph shows local VPN (``), configured router VPN (`󰣫`), no local VPN
+(`󱙲`), or unavailable (``). The adjacent DNS dot identifies resolver category:
+NextDNS mint, router blue, VPN/other neutral, mixed purple, unavailable muted red.
+These colors describe category, not a protection guarantee. Classification
+follows systemd-resolved routing for ordinary Internet queries: a `~.` DNS
+route takes precedence; otherwise default DNS links and global resolvers apply.
+Domain-specific split DNS, such as Tailscale machine-name resolution, does not
+make the main indicator Mixed. Tailscale is not classified as a local Internet
+VPN. Wrapped resolver lists are supported. NextDNS addresses
+take precedence; router DNS requires a resolver matching a connected physical
+interface's gateway; VPN DNS requires an active VPN interface. Other addresses
+remain Other DNS. Different categories serving ordinary queries show Mixed.
+The tooltip shows the DNS category without individual resolver addresses;
+use `resolvectl status` for endpoint details. DNS status remains visible even
+when the VPN query fails; missing gateway evidence never implies router DNS.
 
 `workspaceDisplay.minimumCount` keeps slots 1 through that number visible
 even when empty (default: 3). Existing higher-numbered workspaces appear
@@ -190,6 +220,23 @@ mice, permissions failures, and malformed output produce `N/A`; no response
 does not by itself prove that a mouse is disconnected. Mouse name is user
 configuration, not a name discovered by the collector.
 
+Enable `modules.openAiUsage` globally or per monitor to read existing OpenCode
+ChatGPT OAuth credentials from `$XDG_DATA_HOME/opencode/auth.json` (default:
+`~/.local/share/opencode/auth.json`). Python 3 and Qt SVG support are required;
+OpenCode need not be running. The collector reads only the OpenAI login, never
+refreshes or modifies credentials, and sends only quota GET requests to
+`https://chatgpt.com/backend-api/wham/usage`. It does not perform inference or
+use billed API keys. Tokens, account IDs, and email are not included in output.
+Do not put passwords/tokens in the override or sync the authentication file.
+
+One service refreshes every five minutes, on hover if the last attempt is at
+least five minutes old, and when a known reset becomes due. Reset countdowns
+use the shared local clock; elapsed time does not fabricate a restored quota.
+A failed request shows `N/A`, reason, and last update time. Refresh an expired
+login in OpenCode. This is a ChatGPT backend endpoint, not a stable public
+billing API: unexpected schema changes degrade to unavailable state. The SVG
+logo is bundled from Simple Icons v13.21.0 (CC0; OpenAI retains its trademark).
+
 ## Install
 
 1. Install Quickshell (tested with 0.3.1), Hyprland, Qt 6 Quick Controls and
@@ -218,7 +265,7 @@ configuration, not a name discovered by the collector.
    mkdir -p "$config_dir" &&
    rm -rf "$config_dir/bar" &&
     mv "$stage/bar" "$config_dir/bar" &&
-    chmod +x "$config_dir/bar/scripts/wlmouse.py" &&
+    chmod +x "$config_dir/bar/scripts/"*.py &&
    rm -rf "$stage" &&
    # To run the bar
    qs -c bar -d
@@ -281,7 +328,7 @@ running. The `bar` IPC target provides `toggle`; it acts only on a focused
   running without a bar window.
 - No rates or Wi-Fi control: inspect the `network` and `wifiMenu` switches,
   NetworkManager, and the active default route. VPN/DNS details use `nmcli`
-  and `resolvectl` only away from the trusted home SSID.
+  and `resolvectl status` on every network, including configured router VPN SSIDs.
 - Missing sensor/device: CPU temperature needs a `k10temp` or `coretemp`
   hwmon sensor; GPU metrics need `amdgpu`; battery/AC are discovered under
   `/sys/class/power_supply`. Unsupported data stays `N/A`.
@@ -289,6 +336,9 @@ running. The `bar` IPC target provides `toggle`; it acts only on a focused
   a host-specific Quickshell VFS path. Adjust that path on another machine.
   To diagnose runtime errors, run `quickshell -c bar` in a graphical terminal.
 - Maintainer checks: `node tests/bar-config-checks.mjs`,
+  `node tests/vpn-dns-checks.mjs`,
+  `node tests/vpn-process-checks.mjs`,
+  `python3 tests/openai-usage-checks.py`, `node tests/openai-usage-checks.mjs`,
   `node tests/mouse-battery-checks.mjs`, `python3 tests/wlmouse-checks.py`,
   `node tests/memory-checks.mjs`, and `node tests/regression-checks.mjs`.
   `CHECK_LIVE_MEMORY=1 node tests/memory-checks.mjs` compares memory figures

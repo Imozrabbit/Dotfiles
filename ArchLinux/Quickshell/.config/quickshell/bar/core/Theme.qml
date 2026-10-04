@@ -96,6 +96,10 @@ QtObject {
     property color overloadColor: "#FF3B30"
     property int systemUsageFontSize: fontSizeMedium
 
+    // OpenAI subscription usage chip.
+    property color openAiUsageBg: "#30291F"
+    property color openAiUsageColor: calendarHeaderColor
+
     // -----------------------------------------------------------------------
     // Network usage
     // -----------------------------------------------------------------------

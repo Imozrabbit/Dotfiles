@@ -27,6 +27,7 @@ Scope {
     readonly property var swayncService: swayncLoader.item
     readonly property var batteryService: batteryLoader.item
     readonly property var mouseBatteryService: mouseBatteryLoader.item
+    readonly property var openAiUsageService: openAiUsageLoader.item
     readonly property var mprisService: mprisLoader.item
     readonly property var bluetoothService: bluetoothLoader.item
     readonly property var weatherService: weatherLoader.item
@@ -115,6 +116,13 @@ Scope {
         Services.Bluetooth {}
     }
     LazyLoader {
+        id: openAiUsageLoader
+        active: root.uses("openAiUsage")
+        Services.OpenAiUsage {
+            currentDate: root.clock?.date ?? new Date()
+        }
+    }
+    LazyLoader {
         id: weatherLoader
         active: root.uses("weather") || (root.weatherService?.loading ?? false) || (root.weatherService?.searching ?? false)
         Services.Weather {}
@@ -126,7 +134,7 @@ Scope {
     }
     LazyLoader {
         id: clockLoader
-        active: root.uses("clock") || root.uses("calendar")
+        active: root.uses("clock") || root.uses("calendar") || root.uses("openAiUsage")
         SystemClock {
             precision: SystemClock.Seconds
         }
@@ -135,7 +143,7 @@ Scope {
         id: vpnLoader
         active: root.uses("vpn")
         Vpn.VpnDnsStatus {
-            networkName: root.networkStats?.networkName ?? ""
+            routerManagedSsids: root.barConfig.settings.vpn.routerManagedSsids
         }
     }
     LazyLoader {

@@ -1,198 +1,161 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Networking
+import "VpnDns.js" as VpnDns
 
 Scope {
     id: root
 
-    readonly property string homeNetworkName: "HouseOfAnton_5GHz"
-    readonly property var nextDnsAddresses: ["45.90.28.0", "45.90.30.0", "2a07:a8c0::", "2a07:a8c1::"]
-
-    property string networkName: ""
+    property var routerManagedSsids: []
     property bool queriesEnabled: true
-    property int networkGeneration: 0
+    readonly property var activeSsids: Networking.devices.values.filter(device => device.type === DeviceType.Wifi).map(device => device.networks.values.find(network => network.connected)?.name ?? "").filter(name => name !== "")
+    property var connections: null
+    property var devices: null
+    property var dnsRows: null
+    readonly property var vpn: VpnDns.vpnState(root.connections, root.activeSsids, root.routerManagedSsids)
+    readonly property var dns: VpnDns.classifyDns(root.dnsRows, root.devices, root.connections)
+    readonly property string protectionMode: root.vpn.mode
+    readonly property string vpnName: root.vpn.name
+    readonly property string dnsKind: root.dns.kind
+    readonly property string dnsName: root.dns.name
+    readonly property string dnsServers: root.dns.servers
 
-    property string awayVpnName: ""
-    property bool vpnKnown: false
-    property string awayDnsName: ""
-    property string awayDnsServers: ""
-    property bool awayDnsKnown: false
-
-    readonly property bool atHome: root.networkName === root.homeNetworkName
-    readonly property string protectionMode: root.atHome ? "home" : !root.vpnKnown ? "unknown" : root.awayVpnName !== "" ? "vpn" : "unprotected"
-    readonly property string vpnName: root.atHome ? "Router-managed" : root.awayVpnName
-    readonly property string dnsName: root.atHome ? "Router-managed" : root.awayDnsName
-    readonly property string dnsServers: root.atHome ? "" : root.awayDnsServers
-    readonly property bool dnsKnown: root.atHome || root.awayDnsKnown
-    readonly property bool dnsExpected: root.atHome || (root.protectionMode === "vpn" && root.awayDnsKnown && root.awayDnsName === "NextDNS")
-
-    function clearAwayState() {
-        root.awayVpnName = "";
-        root.vpnKnown = false;
-        root.awayDnsName = "";
-        root.awayDnsServers = "";
-        root.awayDnsKnown = false;
-    }
-
-    function clearDns() {
-        root.awayDnsName = "Unavailable";
-        root.awayDnsServers = "";
-        root.awayDnsKnown = false;
-    }
-
-    function applyVpnStatus(output) {
-        if (root.atHome)
-            return;
-
-        let activeVpn = "";
-        for (let line of String(output || "").split(/\r?\n/)) {
-            if (line.trim() === "")
-                continue;
-
-            const separator = line.lastIndexOf(":");
-            if (separator < 1) {
-                root.awayVpnName = "";
-                root.vpnKnown = false;
-                return;
-            }
-
-            const name = line.slice(0, separator).trim();
-            const type = line.slice(separator + 1).trim();
-            if (activeVpn === "" && (type === "wireguard" || type === "vpn"))
-                activeVpn = name;
-        }
-
-        root.awayVpnName = activeVpn;
-        root.vpnKnown = true;
-    }
-
-    function applyDnsStatus(output) {
-        if (root.atHome)
-            return;
-
-        const entries = [];
-        for (let line of String(output || "").split(/\r?\n/)) {
-            const separator = line.indexOf(":");
-            if (separator < 0)
-                continue;
-            for (let address of line.slice(separator + 1).trim().split(/\s+/)) {
-                const server = address.split("#")[0];
-                const valid = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(server) || /^[0-9a-f:]+$/i.test(server) && server.indexOf(":") !== -1;
-                if (address !== "" && valid && !entries.includes(address))
-                    entries.push(address);
-            }
-        }
-
-        if (entries.length === 0) {
-            root.clearDns();
-            return;
-        }
-
-        root.awayDnsName = entries.some(address => root.nextDnsAddresses.includes(address.split("#")[0])) ? "NextDNS" : "Other";
-        root.awayDnsServers = entries.slice(0, 2).join(", ");
-        root.awayDnsKnown = true;
-    }
+    property int generation: 0
+    property int requestGeneration: -1
+    property int pending: 0
+    property bool timedOut: false
+    property var nextConnections: null
+    property var nextDevices: null
+    property var nextDnsRows: null
 
     function refresh() {
-        if (!root.queriesEnabled || root.atHome)
+        if (!root.queriesEnabled || root.pending !== 0 || vpnProcess.running || deviceProcess.running || dnsProcess.running)
             return;
-        if (!updateVpnProcess.running) {
-            updateVpnProcess.requestGeneration = root.networkGeneration;
-            updateVpnProcess.running = true;
-        }
-        if (!updateDnsProcess.running) {
-            updateDnsProcess.requestGeneration = root.networkGeneration;
-            updateDnsProcess.running = true;
-        }
+        root.requestGeneration = root.generation;
+        root.nextConnections = null;
+        root.nextDevices = null;
+        root.nextDnsRows = null;
+        root.timedOut = false;
+        root.pending = 3;
+        vpnProcess.requestDone = false;
+        deviceProcess.requestDone = false;
+        dnsProcess.requestDone = false;
+        timeout.restart();
+        vpnProcess.running = true;
+        deviceProcess.running = true;
+        dnsProcess.running = true;
     }
 
-    onNetworkNameChanged: {
-        root.networkGeneration++;
-        root.clearAwayState();
-        if (!root.atHome)
+    function complete(process, field, value) {
+        if (process.requestDone)
+            return;
+        process.requestDone = true;
+        root[field] = value;
+        root.finish();
+    }
+
+    function finish() {
+        root.pending--;
+        if (root.pending !== 0)
+            return;
+        timeout.stop();
+        if (root.requestGeneration !== root.generation) {
             Qt.callLater(root.refresh);
+            return;
+        }
+        root.connections = root.nextConnections;
+        root.devices = root.nextDevices;
+        root.dnsRows = root.nextDnsRows;
+    }
+
+    onActiveSsidsChanged: {
+        root.generation++;
+        root.connections = null;
+        root.devices = null;
+        root.dnsRows = null;
+        Qt.callLater(root.refresh);
     }
 
     Process {
-        id: updateVpnProcess
-        property int requestGeneration: -1
-        command: ["nmcli", "--wait", "2", "--terse", "--escape", "no", "--fields", "NAME,TYPE", "connection", "show", "--active"]
+        id: vpnProcess
+        property bool requestDone: true
+        command: ["nmcli", "--wait", "2", "--terse", "--escape", "yes", "--fields", "UUID,NAME,TYPE,DEVICE", "connection", "show", "--active"]
         stdout: StdioCollector {
             id: vpnOutput
         }
         // qmllint disable signal-handler-parameters
         onExited: function (exitCode) {
-            if (root.atHome || updateVpnProcess.requestGeneration !== root.networkGeneration) {
-                if (!root.atHome)
-                    Qt.callLater(root.refresh);
-                return;
-            }
-            if (exitCode === 0)
-                root.applyVpnStatus(vpnOutput.text);
-            else {
-                root.awayVpnName = "";
-                root.vpnKnown = false;
-            }
+            root.complete(vpnProcess, "nextConnections", exitCode === 0 && !root.timedOut ? VpnDns.parseConnections(vpnOutput.text) : null);
+        }
+        onRunningChanged: {
+            if (!vpnProcess.running)
+                root.complete(vpnProcess, "nextConnections", null);
         }
         // qmllint enable signal-handler-parameters
     }
 
-    Timer {
-        id: vpnTimeout
-
-        interval: 3000
-        running: updateVpnProcess.running
-        repeat: false
-        onTriggered: {
-            if (!updateVpnProcess.running)
-                return;
-            updateVpnProcess.running = false;
-            root.awayVpnName = "";
-            root.vpnKnown = false;
+    Process {
+        id: deviceProcess
+        property bool requestDone: true
+        command: ["nmcli", "--wait", "2", "--terse", "--escape", "yes", "--fields", "GENERAL.DEVICE,GENERAL.TYPE,GENERAL.STATE,GENERAL.CONNECTION,IP4.GATEWAY,IP6.GATEWAY", "device", "show"]
+        stdout: StdioCollector {
+            id: deviceOutput
         }
+        // qmllint disable signal-handler-parameters
+        onExited: function (exitCode) {
+            root.complete(deviceProcess, "nextDevices", exitCode === 0 && !root.timedOut ? VpnDns.parseDevices(deviceOutput.text) : null);
+        }
+        onRunningChanged: {
+            if (!deviceProcess.running)
+                root.complete(deviceProcess, "nextDevices", null);
+        }
+        // qmllint enable signal-handler-parameters
     }
 
     Process {
-        id: updateDnsProcess
-        property int requestGeneration: -1
-        command: ["resolvectl", "dns"]
+        id: dnsProcess
+        property bool requestDone: true
+        command: ["resolvectl", "status"]
+        // Process accepts a JS environment object; qmllint cannot infer QVariantHash conversion.
+        // qmllint disable incompatible-type
+        environment: ({
+                LC_ALL: "C"
+            })
+        // qmllint enable incompatible-type
         stdout: StdioCollector {
             id: dnsOutput
         }
         // qmllint disable signal-handler-parameters
         onExited: function (exitCode) {
-            if (root.atHome || updateDnsProcess.requestGeneration !== root.networkGeneration) {
-                if (!root.atHome)
-                    Qt.callLater(root.refresh);
-                return;
-            }
-            if (exitCode === 0)
-                root.applyDnsStatus(dnsOutput.text);
-            else
-                root.clearDns();
+            root.complete(dnsProcess, "nextDnsRows", exitCode === 0 && !root.timedOut ? VpnDns.parseDnsStatus(dnsOutput.text) : null);
+        }
+        onRunningChanged: {
+            if (!dnsProcess.running)
+                root.complete(dnsProcess, "nextDnsRows", null);
         }
         // qmllint enable signal-handler-parameters
     }
 
     Timer {
         interval: 2000
-        running: root.queriesEnabled && !root.atHome
+        running: root.queriesEnabled
         repeat: true
         triggeredOnStart: true
         onTriggered: root.refresh()
     }
 
     Timer {
-        id: dnsTimeout
-
+        id: timeout
         interval: 3000
-        running: updateDnsProcess.running
-        repeat: false
         onTriggered: {
-            if (!updateDnsProcess.running)
-                return;
-            updateDnsProcess.running = false;
-            root.clearDns();
+            root.timedOut = true;
+            if (vpnProcess.running)
+                vpnProcess.running = false;
+            if (deviceProcess.running)
+                deviceProcess.running = false;
+            if (dnsProcess.running)
+                dnsProcess.running = false;
         }
     }
 }

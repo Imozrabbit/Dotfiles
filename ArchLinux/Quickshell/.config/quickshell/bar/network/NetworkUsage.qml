@@ -172,7 +172,6 @@ Rectangle {
         protectionMode: root.vpnStatus?.protectionMode ?? "unknown"
         vpnName: root.vpnStatus?.vpnName ?? ""
         dnsName: root.vpnStatus?.dnsName ?? ""
-        dnsServers: root.vpnStatus?.dnsServers ?? ""
         theme: root.theme
     }
 }

@@ -21,7 +21,6 @@ PopupWindow {
     required property string protectionMode
     required property string vpnName
     required property string dnsName
-    required property string dnsServers
     required property Core.Theme theme
 
     function valueOrUnavailable(value) {
@@ -44,14 +43,14 @@ PopupWindow {
         return (root.frequencyMhz / 1000).toFixed(2) + " GHz";
     }
 
-    function protectionText() {
+    function vpnText() {
         if (root.protectionMode === "unknown")
-            return "N/A";
+            return "Unavailable";
         if (root.protectionMode === "home")
-            return "Trusted home router";
+            return "Router VPN";
         if (root.protectionMode === "vpn")
-            return "Laptop VPN";
-        return "Unprotected";
+            return root.vpnName;
+        return "Not connected";
     }
 
     // Build only the detail rows that apply to the current connection type.
@@ -83,22 +82,12 @@ PopupWindow {
         });
         if (root.vpnEnabled) {
             rows.push({
-                label: "Protection",
-                value: root.protectionText()
-            });
-            rows.push({
                 label: "VPN",
-                value: root.protectionMode === "unknown" ? "N/A" : root.vpnName === "" ? "Disconnected" : root.vpnName
+                value: root.vpnText()
             });
             rows.push({
                 label: "DNS",
-                value: root.protectionMode === "unknown" ? "N/A" : root.valueOrUnavailable(root.dnsName)
-            });
-        }
-        if (root.vpnEnabled && root.protectionMode !== "unknown" && root.dnsName !== "NextDNS" && root.dnsServers !== "") {
-            rows.push({
-                label: "Resolver",
-                value: root.dnsServers
+                value: root.valueOrUnavailable(root.dnsName)
             });
         }
         return rows;

@@ -27,6 +27,7 @@ PanelWindow { // qmllint disable uncreatable-type
     readonly property var swayncService: root.shared.swayncService
     readonly property var batteryService: root.shared.batteryService
     readonly property var mouseBatteryService: root.shared.mouseBatteryService
+    readonly property var openAiUsageService: root.shared.openAiUsageService
     readonly property var mprisService: root.shared.mprisService
     readonly property var bluetoothService: root.shared.bluetoothService
     readonly property var weatherService: root.shared.weatherService
@@ -227,7 +228,7 @@ PanelWindow { // qmllint disable uncreatable-type
             anchors.right: parent.right
             anchors.rightMargin: root.sideMargin
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.modules.network || root.modules.cpu || root.modules.gpu || root.modules.memory || root.modules.volume || root.modules.bluetooth || root.modules.inputMethod || root.modules.brightness || root.modules.battery || root.modules.mouseBattery || root.modules.clock || root.modules.calendar || root.modules.notifications
+            visible: root.modules.network || root.modules.cpu || root.modules.gpu || root.modules.memory || root.modules.volume || root.modules.bluetooth || root.modules.inputMethod || root.modules.brightness || root.modules.battery || root.modules.mouseBattery || root.modules.openAiUsage || root.modules.clock || root.modules.calendar || root.modules.notifications
             z: 1
 
             Network.NetworkUsage {
@@ -405,6 +406,24 @@ PanelWindow { // qmllint disable uncreatable-type
                         theme: root.theme
                     }
                 }
+            }
+
+            Widgets.OpenAiUsage {
+                visible: root.modules.openAiUsage
+                theme: root.theme
+                snapshot: root.openAiUsageService?.snapshot ?? null
+                available: root.openAiUsageService?.available ?? false
+                error: root.openAiUsageService?.error ?? "No quota reading available"
+                currentDate: root.shared.clock?.date ?? new Date()
+                onRefreshRequested: {
+                    if (root.openAiUsageService)
+                        root.openAiUsageService.refresh(false);
+                }
+                // qmllint disable Quick.layout-positioning
+                transform: Translate {
+                    y: root.bottomMargin
+                }
+                // qmllint enable Quick.layout-positioning
             }
 
             Widgets.TimeDate {
