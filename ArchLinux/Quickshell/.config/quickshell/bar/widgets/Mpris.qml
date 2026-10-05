@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 
 import qs.core as Core
 
@@ -17,7 +18,6 @@ Rectangle {
     signal togglePlayingRequested
 
     property bool mprisTooltipVisible: false
-    readonly property int maximumWidth: 400
     property real scrollOffset: 0
     readonly property real textWidth: mediaText.implicitWidth
     readonly property bool scrolling: root.visible && textViewport.width > 0 && root.textWidth > textViewport.width
@@ -33,7 +33,7 @@ Rectangle {
         return root.app.trim() || "Media";
     }
 
-    implicitWidth: root.active ? Math.max(0, Math.min(root.textWidth + 16, root.maximumWidth, root.availableWidth)) : 0
+    implicitWidth: root.active ? Math.max(0, Math.min(root.textWidth + 16, root.availableWidth)) : 0
     implicitHeight: mediaText.implicitHeight + 4
 
     visible: root.active && width >= root.theme.volumeFontSize + 16
@@ -139,6 +139,11 @@ Rectangle {
     SystemStatTooltip {
         visible: root.active && root.mprisTooltipVisible
         anchorItem: root
+        anchor.rect.y: 8
+        // qmllint disable missing-type
+        anchor.edges: Edges.Bottom
+        anchor.gravity: Edges.Bottom
+        // qmllint enable missing-type
         heading: root.app !== "" ? root.app : "Media"
         rows: [
             {

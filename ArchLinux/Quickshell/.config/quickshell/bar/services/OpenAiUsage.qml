@@ -37,9 +37,9 @@ Scope {
         root.refresh(true);
     }
 
-    function refresh(afterReset) {
+    function refresh(force) {
         const elapsed = Date.now() - root.lastAttemptAt;
-        if (root.queryPending || queryProcess.running || !afterReset && elapsed >= 0 && elapsed < 300000)
+        if (root.queryPending || queryProcess.running || !force && elapsed >= 0 && elapsed < 300000)
             return;
         root.lastAttemptAt = Date.now();
         root.outputFinished = false;

@@ -10,6 +10,7 @@ Scope {
     readonly property string localPath: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/quickshell/bar-local.json"
     readonly property var defaults: ({
             mode: "always",
+            topMediaMode: "hover",
             edgeSpacing: 14,
             hoverToggleEnabled: true,
             vpn: {

@@ -6,10 +6,10 @@ output. Bar windows show the same fixed module order, but visibility can differ
 by output. Full-screen menus open on the output that owns their button; service
 polling stops when no enabled bar uses that feature.
 
-Left and right sections anchor to their respective screen edges. Media text
-centers in up to 70% of the gap between them, capped at 400 px. Long text scrolls
-without shrinking its font; media hides only when no useful icon-sized space
-remains. On very narrow
+Left and right sections anchor to their respective screen edges. Media appears
+in a separate full-width transparent top panel, centered at its natural width
+up to 40% of the monitor width. Long text scrolls without shrinking its font.
+On very narrow
 screens the sections may overlap, with right-side controls above the left.
 Module sizes and the single-row bar height do not change.
 
@@ -72,6 +72,7 @@ Complete example (replace output names with those from `hyprctl monitors`):
 ```json
 {
   "mode": "always",
+  "topMediaMode": "hover",
   "edgeSpacing": 14,
   "hoverToggleEnabled": true,
   "vpn": { "routerManagedSsids": [] },
@@ -121,15 +122,16 @@ Complete example (replace output names with those from `hyprctl monitors`):
     "specialLabels": { "rmpc": "", "steam": "" }
   },
   "monitors": {
-    "DP-1": { "mode": "always", "edgeSpacing": 14 },
+    "DP-1": { "mode": "always", "topMediaMode": "hover", "edgeSpacing": 14 },
     "HDMI-A-1": {
       "mode": "hover",
+      "topMediaMode": "always",
       "edgeSpacing": 4,
       "workspaceDisplay": { "itemSpacing": 8 },
       "hoverToggleEnabled": false,
-      "modules": { "media": false, "notifications": false }
+      "modules": { "notifications": false }
     },
-    "DP-2": { "mode": "off" }
+    "DP-2": { "mode": "off", "topMediaMode": "off" }
   }
 }
 ```
@@ -148,6 +150,21 @@ Complete example (replace output names with those from `hyprctl monitors`):
 Disabling a parent also disables its dependent feature. Layout order does not
 change when a module is hidden. Status services are shared among outputs and
 unused services do not poll.
+
+`topMediaMode` controls the independent top MPRIS panel, globally or per monitor
+under `monitors`: `hover` (default), `always`, or `off`. `modules.media: false`
+also disables it. Bottom `mode: "off"` does not disable top media. `hover` uses
+a full-width 2 px top-edge reveal target and expands to 35 px without reserving
+space; `always` reserves 35 px. No active player means no top window or reserved
+space in either mode. Paused players remain available. The existing `bar toggle`
+IPC/shortcut only controls the bottom bar; top media cannot be pinned by it.
+Set global `topMediaMode` for all outputs, then override individual monitor
+names as above. Omitted monitor values inherit the global setting. Both modes
+apply live when the override file is saved. In the example, DP-1 reveals top
+media on hover, HDMI-A-1 keeps it visible while a player exists, and DP-2 has
+neither bar. Set `modules.media: false` per monitor to disable media there
+regardless of `topMediaMode`. The centered 40% width limit is fixed, not a
+configuration field; `hoverToggleEnabled` affects only the bottom bar.
 
 `vpn.routerManagedSsids` is a global list of exact Wi-Fi SSIDs, empty by default.
 On a machine using a router VPN, set it to, for example,
@@ -236,8 +253,10 @@ use billed API keys. Tokens, account IDs, and email are not included in output.
 Do not put passwords/tokens in the override or sync the authentication file.
 
 One service refreshes every five minutes, on hover if the last attempt is at
-least five minutes old, and when a known reset becomes due. Reset countdowns
-use the shared local clock; elapsed time does not fabricate a restored quota.
+least five minutes old, and when a known reset becomes due.
+Left-click the quota chip to refresh immediately, bypassing the five-minute
+cooldown. Clicks while a request is running do not start another request.
+Reset countdowns use the shared local clock; elapsed time does not fabricate a restored quota.
 A failed request shows `N/A`, reason, and last update time. Refresh an expired
 login in OpenCode. This is a ChatGPT backend endpoint, not a stable public
 billing API: unexpected schema changes degrade to unavailable state. The SVG

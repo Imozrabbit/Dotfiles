@@ -12,7 +12,7 @@ Rectangle {
     required property bool available
     required property string error
     required property date currentDate
-    signal refreshRequested
+    signal refreshRequested(bool force)
     property bool tooltipVisible: false
 
     implicitWidth: content.implicitWidth + 16
@@ -92,15 +92,21 @@ Rectangle {
 
     HoverHandler {
         id: usageHover
+        cursorShape: Qt.PointingHandCursor
         onHoveredChanged: {
             if (hovered) {
-                root.refreshRequested();
+                root.refreshRequested(false);
                 tooltipDelay.restart();
             } else {
                 tooltipDelay.stop();
                 root.tooltipVisible = false;
             }
         }
+    }
+
+    TapHandler {
+        acceptedButtons: Qt.LeftButton
+        onTapped: root.refreshRequested(true)
     }
 
     Timer {

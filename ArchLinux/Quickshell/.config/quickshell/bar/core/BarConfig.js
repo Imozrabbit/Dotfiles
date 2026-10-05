@@ -7,6 +7,8 @@ function applyFields(target, override, moduleNames) {
         return;
     if (override.mode === "off" || override.mode === "always" || override.mode === "hover")
         target.mode = override.mode;
+    if (["off", "always", "hover"].includes(override.topMediaMode))
+        target.topMediaMode = override.topMediaMode;
     if (typeof override.hoverToggleEnabled === "boolean")
         target.hoverToggleEnabled = override.hoverToggleEnabled;
     if (typeof override.edgeSpacing === "number" && isFinite(override.edgeSpacing) && override.edgeSpacing >= 0 && override.edgeSpacing <= 100)
@@ -70,6 +72,7 @@ function workspaceSettings(defaults, override) {
 function resolveConfig(defaults, text, previous) {
     const result = {
         mode: defaults.mode,
+        topMediaMode: defaults.topMediaMode || "hover",
         edgeSpacing: defaults.edgeSpacing,
         hoverToggleEnabled: defaults.hoverToggleEnabled,
         launchers: launcherEntries(defaults.launchers || []),
@@ -158,6 +161,7 @@ function screenConfig(config, name) {
         modules.weather = false;
     return {
         mode: override.mode || config.mode,
+        topMediaMode: override.topMediaMode || config.topMediaMode,
         edgeSpacing: override.edgeSpacing === undefined ? config.edgeSpacing : override.edgeSpacing,
         hoverToggleEnabled: override.hoverToggleEnabled === undefined ? config.hoverToggleEnabled : override.hoverToggleEnabled,
         launchers: override.launchers === undefined ? config.launchers : override.launchers,

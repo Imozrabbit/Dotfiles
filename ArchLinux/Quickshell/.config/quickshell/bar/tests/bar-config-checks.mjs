@@ -155,3 +155,6 @@ assert.equal(config.resolveConfig(defaults, "{}").vpn.routerManagedSsids.length,
 assert.equal(config.resolveConfig(defaults, '{"vpn":{"routerManagedSsids":["Home",7,""]}}').vpn.routerManagedSsids.join(","), "Home");
 
 console.log("bar config checks passed");
+assert.equal(config.screenConfig(config.resolveConfig(defaults, "{}"), "DP-1").topMediaMode, "hover");
+assert.equal(config.screenConfig(config.resolveConfig(defaults, '{"mode":"off","topMediaMode":"always","monitors":{"DP-1":{"topMediaMode":"off"}}}'), "DP-1").topMediaMode, "off");
+assert.equal(config.screenConfig(config.resolveConfig(defaults, '{"topMediaMode":"invalid"}'), "DP-1").topMediaMode, "hover");

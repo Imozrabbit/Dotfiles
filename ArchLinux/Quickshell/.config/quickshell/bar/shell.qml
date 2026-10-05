@@ -40,7 +40,7 @@ Scope {
     function uses(moduleName) {
         return root.barConfig.ready && Quickshell.screens.some(screen => {
             const config = root.barConfig.forScreen(screen.name);
-            return config.mode !== "off" && config.modules[moduleName];
+            return (moduleName === "media" ? config.topMediaMode !== "off" : config.mode !== "off") && config.modules[moduleName];
         });
     }
 
@@ -201,6 +201,16 @@ Scope {
         model: root.barConfig.ready ? Quickshell.screens.filter(screen => root.barConfig.forScreen(screen.name).mode !== "off") : []
 
         BarWindow {
+            shared: root
+            theme: root.theme
+        }
+    }
+    Variants {
+        model: root.barConfig.ready && (root.mprisService?.active ?? false) ? Quickshell.screens.filter(screen => {
+            const config = root.barConfig.forScreen(screen.name);
+            return config.topMediaMode !== "off" && config.modules.media;
+        }) : []
+        TopMediaWindow {
             shared: root
             theme: root.theme
         }
