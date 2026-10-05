@@ -1,0 +1,348 @@
+{
+    "$schema": "https://opencode.ai/config.json",
+    "shell": "zsh",
+    "default_agent": "plan",
+    "share": "disabled",
+    "autoupdate": false,
+    "experimental": {
+        "subagent_depth": 3,
+        "policies": [
+            {
+                "action": "provider.use",
+                "resource": "*",
+                "effect": "deny"
+            },
+            {
+                "action": "provider.use",
+                "resource": "openai",
+                "effect": "allow"
+            },
+            {
+                "action": "provider.use",
+                "resource": "ollama",
+                "effect": "allow"
+            }
+        ]
+    },
+    "agents": {
+        "explore": {
+            "model": "openai/gpt-6-luna#low"
+        },
+        "build": {
+            "model": "openai/gpt-6.1-sol#low",
+            "permissions": [
+                {
+                    "action": "edit",
+                    "resource": "*",
+                    "effect": "ask"
+                },
+                {
+                    "action": "subagent",
+                    "resource": "*",
+                    "effect": "ask"
+                },
+                {
+                    "action": "subagent",
+                    "resource": "doc-writer",
+                    "effect": "allow"
+                }
+            ]
+        },
+        "plan": {
+            "model": "openai/gpt-6-luna#high",
+            "permissions": [
+                {
+                    "action": "edit",
+                    "resource": "*",
+                    "effect": "deny"
+                },
+                {
+                    "action": "subagent",
+                    "resource": "doc-writer",
+                    "effect": "ask"
+                }
+            ]
+        },
+        "conversation": {
+            "model": "openai/gpt-6-luna-fast#medium",
+            "permissions": [
+                {
+                    "action": "*",
+                    "resource": "*",
+                    "effect": "deny"
+                }
+            ]
+        },
+        "doc-writer": {
+            "model": "openai/gpt-6-luna#high",
+            "permissions": [
+                {
+                    "action": "*",
+                    "resource": "*",
+                    "effect": "deny"
+                },
+                {
+                    "action": "read",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "glob",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "grep",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "edit",
+                    "resource": "*",
+                    "effect": "ask"
+                },
+                {
+                    "action": "websearch",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "webfetch",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "question",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "external_directory",
+                    "resource": "*",
+                    "effect": "deny"
+                }
+            ]
+        },
+        "learn": {
+            "model": "openai/gpt-6-luna#high",
+            "permissions": [
+                {
+                    "action": "*",
+                    "resource": "*",
+                    "effect": "deny"
+                },
+                {
+                    "action": "read",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "glob",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "grep",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "subagent",
+                    "resource": "*",
+                    "effect": "ask"
+                },
+                {
+                    "action": "skill",
+                    "resource": "*",
+                    "effect": "ask"
+                },
+                {
+                    "action": "shell",
+                    "resource": "*",
+                    "effect": "ask"
+                },
+                {
+                    "action": "websearch",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "webfetch",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "question",
+                    "resource": "*",
+                    "effect": "allow"
+                }
+            ]
+        },
+        "security-auditor": {
+            "model": "openai/gpt-6.1-sol#low",
+            "permissions": [
+                {
+                    "action": "*",
+                    "resource": "*",
+                    "effect": "deny"
+                },
+                {
+                    "action": "read",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "glob",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "grep",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "websearch",
+                    "resource": "*",
+                    "effect": "allow"
+                },
+                {
+                    "action": "webfetch",
+                    "resource": "*",
+                    "effect": "allow"
+                }
+            ]
+        }
+    },
+    "plugin": [
+        "@slkiser/opencode-quota@latest"
+    ],
+    "plugins": [
+        "superpowers@git+https://github.com/obra/superpowers.git",
+        "@dietrichgebert/ponytail"
+    ],
+    "permissions": [
+        {
+            "action": "*",
+            "resource": "*",
+            "effect": "ask"
+        },
+        {
+            "action": "todowrite",
+            "resource": "*",
+            "effect": "allow"
+        },
+        {
+            "action": "read",
+            "resource": "*",
+            "effect": "allow"
+        },
+        {
+            "action": "read",
+            "resource": "*.env",
+            "effect": "deny"
+        },
+        {
+            "action": "read",
+            "resource": "*.env.*",
+            "effect": "deny"
+        },
+        {
+            "action": "read",
+            "resource": "*.env.example",
+            "effect": "allow"
+        },
+        {
+            "action": "grep",
+            "resource": "*",
+            "effect": "allow"
+        },
+        {
+            "action": "glob",
+            "resource": "*",
+            "effect": "allow"
+        },
+        {
+            "action": "shell",
+            "resource": "*",
+            "effect": "ask"
+        },
+        {
+            "action": "shell",
+            "resource": "git status *",
+            "effect": "allow"
+        },
+        {
+            "action": "shell",
+            "resource": "git diff *",
+            "effect": "allow"
+        },
+        {
+            "action": "shell",
+            "resource": "git log *",
+            "effect": "allow"
+        },
+        {
+            "action": "shell",
+            "resource": "git show *",
+            "effect": "allow"
+        },
+        {
+            "action": "subagent",
+            "resource": "*",
+            "effect": "ask"
+        },
+        {
+            "action": "subagent",
+            "resource": "doc-writer",
+            "effect": "allow"
+        },
+        {
+            "action": "subagent",
+            "resource": "security-auditor",
+            "effect": "deny"
+        },
+        {
+            "action": "skill",
+            "resource": "*",
+            "effect": "allow"
+        },
+        {
+            "action": "question",
+            "resource": "*",
+            "effect": "allow"
+        },
+        {
+            "action": "webfetch",
+            "resource": "*",
+            "effect": "allow"
+        },
+        {
+            "action": "websearch",
+            "resource": "*",
+            "effect": "allow"
+        }
+    ],
+    "watcher": {
+        "ignore": [
+            "node_modules/**",
+            "dist/**",
+            ".git/**",
+            ".DS_Store"
+        ]
+    },
+    "providers": {
+        "ollama": {
+            "package": "aisdk:@ai-sdk/openai-compatible",
+            "name": "Ollama",
+            "settings": {
+                "baseURL": "http://localhost:11434/v1"
+            },
+            "models": {
+                "gemma4:12b": {
+                    "name": "gemma4 12b"
+                }
+            }
+        }
+    }
+}
