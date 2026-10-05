@@ -1,10 +1,10 @@
 ---
 description: >
   Deep security analysis for concrete security findings discovered during
-  review. Use when cavecrew-reviewer finds a credible auth flaw, injection,
-  unsafe command execution, path traversal, secret exposure, privilege
-  violation, or unsafe untrusted input. Do not invoke for speculative
-  hardening concerns.
+  review. Use when a credible auth flaw, injection, unsafe command execution,
+  path traversal, secret exposure, privilege violation, or unsafe untrusted
+  input needs deeper validation. Do not invoke for speculative hardening
+  concerns.
 mode: subagent
 ---
 
