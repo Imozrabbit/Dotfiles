@@ -303,12 +303,11 @@ window_rule(
 window_rule(
 	"Pavucontrol: positioned floating dialog",
 	{
-		class = "org.pulseaudio.pavucontrol",
+		class = "pavucontrol-qt",
 		title = "Volume Control",
 	},
 	STYLE.persistent_floating,
 	{
-		move = "2741 900",
 		size = "692 533",
 	}
 )
