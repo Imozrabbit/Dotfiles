@@ -6,7 +6,7 @@
 [[ -r "$XDG_CONFIG_HOME/shell/variables.zsh" ]] && source "$XDG_CONFIG_HOME/shell/variables.zsh"
 
 # Put my scripts in the PATH for interactive shell
-export PATH="$XDG_CONFIG_HOME/shell/script:$HOME/.local/bin:$PATH"
+export PATH="$XDG_CONFIG_HOME/shell/script:${XDG_DATA_HOME:-$HOME/.local/share}/npm/bin:$HOME/.local/bin:$PATH"
 
 # Setup shell to enable the starship prompt
 eval "$(starship init zsh)"
