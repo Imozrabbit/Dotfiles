@@ -221,8 +221,14 @@ does not by itself prove that a mouse is disconnected. Mouse name is user
 configuration, not a name discovered by the collector.
 
 Enable `modules.openAiUsage` globally or per monitor to read existing OpenCode
-ChatGPT OAuth credentials from `$XDG_DATA_HOME/opencode/auth.json` (default:
-`~/.local/share/opencode/auth.json`). Python 3 and Qt SVG support are required;
+ChatGPT OAuth credentials from `$XDG_DATA_HOME/opencode/opencode.db` (default:
+`~/.local/share/opencode/opencode.db`), opened read-only through Python's built-in
+SQLite support. The active v2 OpenAI credential takes precedence; a sole
+credential with a null active flag is also supported. Multiple equally preferred
+credentials report an error rather than choose an account arbitrarily. If no
+usable v2 credential is available, the collector falls back to `opencode/auth.json`
+in the same data directory for v1. An expired selected v2 credential does not
+fall back to an old JSON login. Python 3 and Qt SVG support are required;
 OpenCode need not be running. The collector reads only the OpenAI login, never
 refreshes or modifies credentials, and sends only quota GET requests to
 `https://chatgpt.com/backend-api/wham/usage`. It does not perform inference or

@@ -4,6 +4,7 @@
 import json
 import math
 import os
+import sqlite3
 import sys
 import time
 import urllib.error
@@ -55,6 +56,37 @@ def normalize_usage(payload, fetched_at):
 
 def read_auth():
     data_home = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+    database = data_home / "opencode/opencode.db"
+    auth = None
+    try:
+        connection = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True, timeout=1)
+        try:
+            rows = connection.execute(
+                "SELECT value, active FROM credential WHERE integration_id = 'openai' "
+                "AND (active = 1 OR active IS NULL) ORDER BY active = 1 DESC LIMIT 2"
+            ).fetchall()
+        finally:
+            connection.close()
+        if rows:
+            if len(rows) > 1 and rows[0][1] == rows[1][1]:
+                raise QuotaError("Multiple OpenCode OpenAI credentials; select one in OpenCode")
+            candidate = json.loads(rows[0][0])
+            if isinstance(candidate, dict) and candidate.get("type") == "oauth" and isinstance(candidate.get("access"), str) and candidate["access"]:
+                auth = candidate
+    except (sqlite3.Error, OSError, ValueError):
+        # v1, missing schema, or unreadable v2 store: try the legacy credential file.
+        pass
+    if auth is None:
+        auth = read_legacy_auth(data_home)
+    expiry = auth.get("expires")
+    if type(expiry) in (int, float) and expiry <= time.time() * 1000:
+        raise QuotaError("OpenCode login expired; refresh it in OpenCode")
+    metadata = auth.get("metadata")
+    account_id = metadata.get("accountID") if isinstance(metadata, dict) else None
+    return {"access": auth["access"], "accountId": account_id or auth.get("accountId")}
+
+
+def read_legacy_auth(data_home):
     try:
         data = json.loads((data_home / "opencode/auth.json").read_text())
     except FileNotFoundError:
@@ -64,10 +96,7 @@ def read_auth():
     auth = data.get("openai") if isinstance(data, dict) else None
     if not isinstance(auth, dict) or auth.get("type") != "oauth" or not isinstance(auth.get("access"), str) or not auth["access"]:
         raise QuotaError("OpenCode ChatGPT OAuth login required")
-    expiry = auth.get("expires")
-    if type(expiry) in (int, float) and expiry <= time.time() * 1000:
-        raise QuotaError("OpenCode login expired; refresh it in OpenCode")
-    return {"access": auth["access"], "accountId": auth.get("accountId")}
+    return auth
 
 
 def fetch_usage(auth):
