@@ -1,9 +1,4 @@
 hl.on("hyprland.start", function()
-	-- Status bar
-	hl.exec_cmd("waybar -c /home/Zrabbit/.config/waybar/config_DP1.jsonc -s /home/Zrabbit/.config/waybar/style_DP1.css")
-	hl.exec_cmd("waybar -c /home/Zrabbit/.config/waybar/config_DP2.jsonc -s /home/Zrabbit/.config/waybar/style_DP2.css")
-	hl.exec_cmd("/home/Zrabbit/.config/hypr/scripts/waybar_auto_hide --side bottom --always-hidden")
-
 	-- Password box Authentification Agent
 	hl.exec_cmd("systemctl --user start hyprpolkitagent")
 
@@ -31,7 +26,11 @@ hl.on("hyprland.start", function()
 	hl.exec_cmd("qs -p ~/.config/quickshell/weather/shell.qml")
 	hl.exec_cmd("qs -p ~/.config/quickshell/alt-tab_view/shell.qml")
 	hl.exec_cmd("qs -c calendar -d")
+	hl.exec_cmd("qs -c bar -d")
 
 	-- Autostart the input methode framework fcitx5
 	hl.exec_cmd("fcitx5 --replace -d")
+
+	-- Set up DP-1 as my primary monitor in x11 sessions like some steam games
+	hl.exec_cmd("xrandr --output DP-1 --primary")
 end)
