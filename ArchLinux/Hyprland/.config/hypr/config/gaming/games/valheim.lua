@@ -20,7 +20,7 @@ hl.window_rule({
 		title = "Valheim",
 	},
 	content = "game",
-	confine_pointer = true,
+	--confine_pointer = true,
 	workspace = GAME_WORKSPACE,
 	opaque = true,
 	no_blur = true,
