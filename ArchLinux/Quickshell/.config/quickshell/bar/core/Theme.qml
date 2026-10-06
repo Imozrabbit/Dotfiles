@@ -31,7 +31,7 @@ QtObject {
     // Workspaces
     // -----------------------------------------------------------------------
     // Module
-    property color workspaceBg: "#05F5F5FA"
+    property color workspaceBg: "#99000000"
     property color workspaceActiveColor: "#f43f5e"
     property color workspaceHoveredColor: "#94e2d5"
     property color workspaceOccupiedColor: whiteColor
