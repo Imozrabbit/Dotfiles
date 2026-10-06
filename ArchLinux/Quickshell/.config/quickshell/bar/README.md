@@ -2,7 +2,8 @@
 
 A configurable bottom bar for **Hyprland**, built with [Quickshell](https://quickshell.org/).
 Use it on multiple monitors, keep it visible or reveal it on hover, and choose
-which features appear on each screen. Music appears in a separate top panel.
+which features appear on each screen. Music appears in a separate top panel
+or centered in the bottom bar.
 
 ## Features
 
@@ -71,7 +72,7 @@ Install tools for features you use; missing tools leave those controls unavailab
 | AMD GPU name | `lspci` |
 | Advanced Wi-Fi editor | `nm-connection-editor` |
 | Default shortcuts | `nwg-look`, `qt6ct`, separate `wallpaper_switcher` config |
-| Mouse battery / quota display | Python 3; quota also needs Qt SVG support |
+| Mouse battery / quota display | Python 3 |
 | Proton Manager | Python 3.11+; optional `pacman` and `checkupdates` for package status |
 
 ## Configuration
@@ -95,10 +96,12 @@ enabling Proton Manager.
 {
   "mode": "always",
   "topMediaMode": "hover",
+  "mediaPosition": "top",
   "edgeSpacing": 14,
   "hoverToggleEnabled": true,
   "vpn": { "routerManagedSsids": [] },
   "mouseBattery": { "name": "WLMouse Beast X" },
+  "openAiUsage": { "display": "weekly" },
   "protonManager": {
     "compatibilityToolsDir": "/home/Steam/.local/share/Steam/compatibilitytools.d",
     "umuConfigPath": "/home/Steam/.config/umu-launcher/config.toml",
@@ -150,12 +153,19 @@ enabling Proton Manager.
     "specialLabels": { "steam": "" }
   },
   "monitors": {
-    "DP-1": { "mode": "always", "topMediaMode": "hover" },
+    "DP-1": {
+      "mode": "always",
+      "topMediaMode": "hover",
+      "mediaPosition": "bottom",
+      "openAiUsage": { "display": "both" }
+    },
     "HDMI-A-1": {
       "mode": "hover",
       "topMediaMode": "always",
+      "mediaPosition": "top",
       "edgeSpacing": 4,
       "hoverToggleEnabled": false,
+      "openAiUsage": { "display": "fiveHour" },
       "workspaceDisplay": { "itemSpacing": 8 },
       "modules": { "notifications": false }
     },
@@ -169,7 +179,8 @@ enabling Proton Manager.
 | Option | What it does |
 | --- | --- |
 | `mode` | Bottom bar: `always` stays visible and reserves 35 px; `hover` reveals from a 2 px bottom edge; `off` removes it. Default: `always`. |
-| `topMediaMode` | Music panel: `hover`, `always`, or `off`. Default: `hover`. Appears only when a player is available, even if paused. Independent of bottom bar mode. |
+| `mediaPosition` | Music placement: `top` (default) uses a separate panel; `bottom` centers music between bottom-bar sections, capped at 70% of that gap. Bottom music follows bar hover/pinning and `mode`; `topMediaMode` is ignored there. |
+| `topMediaMode` | Top music panel: `hover`, `always`, or `off`. Default: `hover`. Appears only when a player is available, even if paused. Independent of bottom bar mode; applies only with `mediaPosition: "top"`. |
 | `edgeSpacing` | Left/right margins in pixels, 0–100. Default: 14. |
 | `hoverToggleEnabled` | Allow the toggle command to pin/unpin a hover bar. Default: `true`. Pinned bars reserve 35 px. Does not affect mouse hover or top media. |
 | `monitors` | Settings for individual screens. Use exact names from `hyprctl monitors`; omitted values inherit global settings. |
@@ -178,9 +189,14 @@ enabling Proton Manager.
 | `workspaceDisplay.normalLabels` | Replace numbered workspace labels, e.g. `"1": "Web"`. Default: `{}` (numbers). |
 | `workspaceDisplay.specialLabels` | Replace special-workspace names, e.g. `"steam": ""`. Default: `{}` (names). Does not create workspaces. |
 
-Inside a monitor entry, you can override `mode`, `topMediaMode`, `edgeSpacing`,
-`hoverToggleEnabled`, `modules`, `workspaceDisplay`, `launchers`, and
-`mouseBattery`. **`vpn` and `protonManager` settings are global only.**
+Inside a monitor entry, you can override `mode`, `topMediaMode`, `mediaPosition`, `edgeSpacing`,
+`hoverToggleEnabled`, `modules`, `workspaceDisplay`, `launchers`,
+`mouseBattery`, and `openAiUsage`. **`vpn` and `protonManager` settings are global only.**
+
+In the example, DP-1 shows both quota periods, HDMI-A-1 shows only the 5-hour
+quota, and other monitors inherit the global weekly setting when quota is enabled.
+DP-1 places music in its bottom bar; HDMI-A-1 uses an always-visible top panel
+when a player is available. Other monitors inherit global top placement.
 
 To pin/unpin the focused hover bar:
 
@@ -203,7 +219,7 @@ except **`protonManager`**, **`mouseBattery`**, and **`openAiUsage`**.
 | `launcher` | App shortcuts revealed on hover. |
 | `updates` | Available Arch update count; manual refresh. |
 | `protonManager` | GE-Proton/CachyOS installs, confirmed cleanup, and umu selection. [Setup and safety](docs/proton-manager.md). |
-| `media` | Top MPRIS music panel with scrolling track text and playback toggle. |
+| `media` | MPRIS music in the selected top/bottom position, with scrolling track text and playback toggle. |
 | `network` | Download/upload speeds and connection details. |
 | `vpn` | Local VPN/router VPN indicator and DNS category. Requires `network`. |
 | `wifiMenu` | Wi-Fi connections, saved networks, and credentials. Requires `network`. |
@@ -234,6 +250,7 @@ unavailable data rather than breaking the bar. Module order is fixed.
 | `launchers[].tooltip` | Optional hover text. Use `\n` for a new line. |
 | `launchers[].leftCommand` / `rightCommand` | Program plus arguments for each click, e.g. `["qt6ct"]`. Omitted or `[]` does nothing. No shell expansion. |
 | `mouseBattery.name` | Name displayed in the mouse tooltip. Default: `WLMouse Beast X`; does not change device detection. |
+| `openAiUsage.display` | Quota remaining on the chip: `weekly` (default), `fiveHour`, or `both`. Both shows weekly first, then 5-hour, separated by a dot. Calendar/timer icons identify each period. |
 | `vpn.routerManagedSsids` | Exact Wi-Fi names where your router is configured for VPN. Default: `[]`. A matching name is **not proof** the router VPN is working. Local VPN takes priority. |
 | `protonManager.compatibilityToolsDir` | Host folder containing Proton installations, not an individual version folder. |
 | `protonManager.umuConfigPath` | Existing umu TOML config file to update. |
@@ -282,6 +299,11 @@ Sign in to ChatGPT through OpenCode, then enable `modules.openAiUsage`.
 This shows subscription allowance, **not billed API-key usage**. OpenCode
 does not need to be running. Click the chip to refresh immediately.
 
+Add `"openAiUsage": { "display": "weekly" }` to your override; change `display`
+to `"fiveHour"` or `"both"` as needed. Chips show **percentage remaining**, not used:
+`󰨳 64%`, `󰔛 25%`, or `󰨳 64% · 󰔛 25%`. Tooltip always includes both
+periods and reset times. Missing readings show `N/A` for that period.
+
 The collector reads existing OpenAI OAuth credentials from OpenCode's local
 database, with a legacy `auth.json` fallback when no usable v2 credential exists.
 It never refreshes or edits credentials and only requests quota data from
@@ -290,8 +312,6 @@ or include tokens/account IDs/email in output.
 **Do not put tokens or passwords in `bar-local.json` or sync authentication files.**
 Expired logins must be renewed in OpenCode; failures show `N/A`.
 This unofficial backend endpoint may change.
-
-The bundled OpenAI SVG is from Simple Icons v13.21.0 (CC0); OpenAI retains its trademark.
 
 </details>
 

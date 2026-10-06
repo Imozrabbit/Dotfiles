@@ -9,6 +9,8 @@ function applyFields(target, override, moduleNames) {
         target.mode = override.mode;
     if (["off", "always", "hover"].includes(override.topMediaMode))
         target.topMediaMode = override.topMediaMode;
+    if (["top", "bottom"].includes(override.mediaPosition))
+        target.mediaPosition = override.mediaPosition;
     if (typeof override.hoverToggleEnabled === "boolean")
         target.hoverToggleEnabled = override.hoverToggleEnabled;
     if (typeof override.edgeSpacing === "number" && isFinite(override.edgeSpacing) && override.edgeSpacing >= 0 && override.edgeSpacing <= 100)
@@ -18,6 +20,8 @@ function applyFields(target, override, moduleNames) {
     if (isObject(override.mouseBattery) && typeof override.mouseBattery.name === "string"
         && override.mouseBattery.name.trim() !== "" && override.mouseBattery.name.length <= 128)
         target.mouseBattery = { name: override.mouseBattery.name.trim() };
+    if (isObject(override.openAiUsage) && ["weekly", "fiveHour", "both"].includes(override.openAiUsage.display))
+        target.openAiUsage = { display: override.openAiUsage.display };
     if (isObject(override.modules)) {
         for (const name of moduleNames) {
             if (typeof override.modules[name] === "boolean")
@@ -73,10 +77,12 @@ function resolveConfig(defaults, text, previous) {
     const result = {
         mode: defaults.mode,
         topMediaMode: defaults.topMediaMode || "hover",
+        mediaPosition: defaults.mediaPosition || "top",
         edgeSpacing: defaults.edgeSpacing,
         hoverToggleEnabled: defaults.hoverToggleEnabled,
         launchers: launcherEntries(defaults.launchers || []),
         mouseBattery: Object.assign({}, defaults.mouseBattery),
+        openAiUsage: { display: defaults.openAiUsage?.display || "weekly" },
         vpn: { routerManagedSsids: (defaults.vpn?.routerManagedSsids || []).slice() },
         protonManager: Object.assign({}, defaults.protonManager || {}),
         modules: Object.assign({}, defaults.modules),
@@ -171,10 +177,12 @@ function screenConfig(config, name) {
     return {
         mode: override.mode || config.mode,
         topMediaMode: override.topMediaMode || config.topMediaMode,
+        mediaPosition: override.mediaPosition || config.mediaPosition,
         edgeSpacing: override.edgeSpacing === undefined ? config.edgeSpacing : override.edgeSpacing,
         hoverToggleEnabled: override.hoverToggleEnabled === undefined ? config.hoverToggleEnabled : override.hoverToggleEnabled,
         launchers: override.launchers === undefined ? config.launchers : override.launchers,
         mouseBattery: override.mouseBattery || config.mouseBattery,
+        openAiUsage: override.openAiUsage || config.openAiUsage,
         workspaceDisplay: workspaceSettings(config.workspaceDisplay, override.workspaceDisplay),
         modules: modules
     };

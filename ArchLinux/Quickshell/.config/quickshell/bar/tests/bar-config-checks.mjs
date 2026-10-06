@@ -12,10 +12,12 @@ assert.equal(typeof config.specialWorkspaceEntries, "function", "special workspa
 
 const defaults = {
     mode: "always",
+    mediaPosition: "top",
     edgeSpacing: 14,
     hoverToggleEnabled: true,
     modules: { network: true, wifiMenu: true, vpn: true, bluetooth: true, calendar: true, weather: true, cpu: true, mouseBattery: false, openAiUsage: false },
     mouseBattery: { name: "WLMouse Beast X" },
+    openAiUsage: { display: "weekly" },
     vpn: { routerManagedSsids: [] },
     protonManager: { compatibilityToolsDir: "/host/tools", umuConfigPath: "/host/umu.toml", sandboxCompatibilityToolsDir: "/sandbox/tools" },
     workspaceDisplay: { minimumCount: 3, itemSpacing: 21, normalLabels: {}, specialLabels: {} },
@@ -160,6 +162,23 @@ assert.equal(config.screenConfig(namedMouse, "DP-1").modules.mouseBattery, true)
 assert.equal(config.resolveConfig(defaults, '{"mouseBattery":{"name":""}}').mouseBattery.name, "WLMouse Beast X");
 assert.equal(config.screenConfig(missing, "DP-1").modules.openAiUsage, false);
 assert.equal(config.screenConfig(config.resolveConfig(defaults, '{"monitors":{"DP-1":{"modules":{"openAiUsage":true}}}}'), "DP-1").modules.openAiUsage, true);
+assert.equal(config.screenConfig(missing, "DP-1").openAiUsage?.display, "weekly", "Quota defaults to weekly");
+for (const display of ["weekly", "fiveHour", "both"]) {
+    const settings = config.resolveConfig(defaults, JSON.stringify({ openAiUsage: { display } }));
+    assert.equal(config.screenConfig(settings, "DP-1").openAiUsage.display, display);
+}
+for (const override of [null, [], false, "both", {}, { display: "bad" }, { display: 5 }, { display: null }]) {
+    const settings = config.resolveConfig(defaults, JSON.stringify({ openAiUsage: override }));
+    assert.equal(config.screenConfig(settings, "DP-1").openAiUsage.display, "weekly");
+}
+const quotaScreens = config.resolveConfig(defaults, JSON.stringify({
+    openAiUsage: { display: "both" },
+    monitors: { "DP-1": { openAiUsage: { display: "fiveHour" } }, "DP-2": { openAiUsage: { display: "bad" } } }
+}));
+assert.equal(config.screenConfig(quotaScreens, "DP-1").openAiUsage.display, "fiveHour");
+assert.equal(config.screenConfig(quotaScreens, "DP-2").openAiUsage.display, "both", "Invalid monitor option inherits global value");
+assert.equal(config.screenConfig(quotaScreens, "unlisted").openAiUsage.display, "both");
+assert.equal(config.screenConfig(config.resolveConfig(defaults, "{}", quotaScreens), "DP-1").openAiUsage.display, "weekly", "Live reset restores weekly default");
 assert.equal(config.resolveConfig(defaults, "{}").vpn.routerManagedSsids.length, 0);
 assert.equal(config.resolveConfig(defaults, '{"vpn":{"routerManagedSsids":["Home",7,""]}}').vpn.routerManagedSsids.join(","), "Home");
 
@@ -167,3 +186,14 @@ console.log("bar config checks passed");
 assert.equal(config.screenConfig(config.resolveConfig(defaults, "{}"), "DP-1").topMediaMode, "hover");
 assert.equal(config.screenConfig(config.resolveConfig(defaults, '{"mode":"off","topMediaMode":"always","monitors":{"DP-1":{"topMediaMode":"off"}}}'), "DP-1").topMediaMode, "off");
 assert.equal(config.screenConfig(config.resolveConfig(defaults, '{"topMediaMode":"invalid"}'), "DP-1").topMediaMode, "hover");
+assert.equal(config.screenConfig(missing, "DP-1").mediaPosition, "top", "Media defaults to top panel");
+const mediaScreens = config.resolveConfig(defaults, JSON.stringify({
+    mediaPosition: "bottom",
+    monitors: { "DP-1": { mediaPosition: "top" }, "DP-2": { mediaPosition: "invalid" } }
+}));
+assert.equal(config.screenConfig(mediaScreens, "DP-1").mediaPosition, "top");
+assert.equal(config.screenConfig(mediaScreens, "DP-2").mediaPosition, "bottom");
+assert.equal(config.screenConfig(mediaScreens, "unlisted").mediaPosition, "bottom");
+for (const mediaPosition of [null, false, 0, "both", "invalid"])
+    assert.equal(config.screenConfig(config.resolveConfig(defaults, JSON.stringify({mediaPosition})), "DP-1").mediaPosition, "top");
+assert.equal(config.screenConfig(config.resolveConfig(defaults, "{}", mediaScreens), "DP-1").mediaPosition, "top");

@@ -70,16 +70,23 @@ PanelWindow { // qmllint disable uncreatable-type
         opacity: root.shown ? 1 : 0
         Behavior on opacity {
             enabled: root.mode === "hover"
-            NumberAnimation { duration: root.shown ? 10 : 20; easing.type: Easing.Linear }
+            NumberAnimation {
+                duration: root.shown ? 10 : 20
+                easing.type: Easing.Linear
+            }
         }
         transform: Translate {
             y: root.shown ? 0 : -4
             Behavior on y {
                 enabled: root.mode === "hover"
-                NumberAnimation { duration: root.shown ? 10 : 20; easing.type: Easing.Linear }
+                NumberAnimation {
+                    duration: root.shown ? 10 : 20
+                    easing.type: Easing.Linear
+                }
             }
         }
         Widgets.Mpris {
+            topPanel: true
             anchors.centerIn: parent
             availableWidth: root.width * 0.4
             active: root.service?.active ?? false

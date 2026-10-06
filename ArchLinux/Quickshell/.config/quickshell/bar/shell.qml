@@ -45,7 +45,8 @@ Scope {
     function uses(moduleName) {
         return root.barConfig.ready && Quickshell.screens.some(screen => {
             const config = root.barConfig.forScreen(screen.name);
-            return (moduleName === "media" ? config.topMediaMode !== "off" : config.mode !== "off") && config.modules[moduleName];
+            const mode = moduleName === "media" && config.mediaPosition === "top" ? config.topMediaMode : config.mode;
+            return mode !== "off" && config.modules[moduleName];
         });
     }
 
@@ -76,7 +77,9 @@ Scope {
     LazyLoader {
         id: protonLoader
         active: root.uses("protonManager") || (root.protonService?.busy ?? false)
-        ProtonServices.Service { config: root.barConfig.settings.protonManager }
+        ProtonServices.Service {
+            config: root.barConfig.settings.protonManager
+        }
     }
     LazyLoader {
         id: protonManagerLoader
@@ -240,15 +243,18 @@ Scope {
     Connections {
         target: root.barConfig
         function onSettingsChanged() {
-            if (!root.protonManagerWindow?.visible) return;
+            if (!root.protonManagerWindow?.visible)
+                return;
             const config = root.barConfig.forScreen(root.protonManagerWindow.screen?.name ?? "");
-            if (config.mode === "off" || !config.modules.protonManager) root.protonManagerWindow.visible = false;
+            if (config.mode === "off" || !config.modules.protonManager)
+                root.protonManagerWindow.visible = false;
         }
     }
     Connections {
         target: Quickshell
         function onScreensChanged() {
-            if (root.protonManagerWindow?.visible && !Quickshell.screens.includes(root.protonManagerWindow.screen)) root.protonManagerWindow.visible = false;
+            if (root.protonManagerWindow?.visible && !Quickshell.screens.includes(root.protonManagerWindow.screen))
+                root.protonManagerWindow.visible = false;
         }
     }
 
@@ -264,7 +270,7 @@ Scope {
     Variants {
         model: root.barConfig.ready && (root.mprisService?.active ?? false) ? Quickshell.screens.filter(screen => {
             const config = root.barConfig.forScreen(screen.name);
-            return config.topMediaMode !== "off" && config.modules.media;
+            return config.mediaPosition === "top" && config.topMediaMode !== "off" && config.modules.media;
         }) : []
         TopMediaWindow {
             shared: root

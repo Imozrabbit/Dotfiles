@@ -21,6 +21,14 @@ function remaining(window) {
     return window ? Math.max(0, Math.min(100, 100 - window.usedPercent)) : null;
 }
 
+function displayText(display, snapshot, available) {
+    const windows = display === "both" ? ["weekly", "fiveHour"] : [display === "fiveHour" ? "fiveHour" : "weekly"];
+    return windows.map(name => {
+        const left = available && snapshot ? remaining(snapshot[name]) : null;
+        return (name === "weekly" ? "󰨳 " : "󰔛 ") + (left === null ? "N/A" : Math.round(left) + "%");
+    }).join(" · ");
+}
+
 function countdown(resetAt, now) {
     if (resetAt === null || resetAt === undefined)
         return "unknown";

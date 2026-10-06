@@ -16,20 +16,28 @@ PanelWindow { // qmllint disable uncreatable-type
     property int selectedTab: 0
     property string selectedFamily: ""
     property var confirmation: null
-    property ProtonCore.Palette colors: ProtonCore.Palette { theme: root.theme }
+    property ProtonCore.Palette colors: ProtonCore.Palette {
+        theme: root.theme
+    }
     readonly property var blockers: service.snapshot?.blockers ?? []
     readonly property bool canManage: !service.busy && service.snapshot !== null && blockers.length === 0
     visible: false
     color: "transparent"
     focusable: true
-    anchors { top: true; bottom: true; left: true; right: true }
+    anchors {
+        top: true
+        bottom: true
+        left: true
+        right: true
+    }
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     WlrLayershell.exclusiveZone: -1
     WlrLayershell.namespace: "proton-manager"
     onVisibleChanged: {
         if (visible) {
-            if (!root.service.busy) root.service.open();
+            if (!root.service.busy)
+                root.service.open();
         } else {
             root.confirmation = null;
             root.selectedFamily = "";
@@ -40,18 +48,24 @@ PanelWindow { // qmllint disable uncreatable-type
     Connections {
         target: root.service
         function onConfirmationChanged() {
-            if (root.visible) root.confirmation = root.service.confirmation;
+            if (root.visible)
+                root.confirmation = root.service.confirmation;
         }
     }
     Shortcut {
         sequence: "Esc"
         enabled: root.visible && !launcherTab.menuOpen
         onActivated: {
-            if (root.confirmation !== null) root.confirmation = null;
-            else root.visible = false;
+            if (root.confirmation !== null)
+                root.confirmation = null;
+            else
+                root.visible = false;
         }
     }
-    MouseArea { anchors.fill: parent; onClicked: root.visible = false }
+    MouseArea {
+        anchors.fill: parent
+        onClicked: root.visible = false
+    }
     Rectangle {
         id: managerCard
         anchors.left: parent.left
@@ -64,7 +78,10 @@ PanelWindow { // qmllint disable uncreatable-type
         color: root.colors.manager
         border.color: root.colors.border
         radius: 8
-        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+        }
         ColumnLayout {
             id: popupContent
             anchors.fill: parent
@@ -76,10 +93,19 @@ PanelWindow { // qmllint disable uncreatable-type
                 Layout.fillWidth: true
                 Layout.bottomMargin: 3
                 implicitHeight: Math.max(headerTitle.implicitHeight, refreshAction.implicitHeight)
-                Proton.Label { id: headerTitle; theme: root.theme; colors: root.colors; anchors.centerIn: parent; text: "Proton Manager"; font.pixelSize: 20; font.bold: true }
+                Proton.Label {
+                    id: headerTitle
+                    theme: root.theme
+                    colors: root.colors
+                    anchors.centerIn: parent
+                    text: "Proton Manager"
+                    font.pixelSize: 20
+                    font.bold: true
+                }
                 Proton.Action {
                     id: refreshAction
-                    theme: root.theme; colors: root.colors
+                    theme: root.theme
+                    colors: root.colors
                     anchors.right: parent.right
                     anchors.rightMargin: 3
                     anchors.verticalCenter: parent.verticalCenter
@@ -107,7 +133,8 @@ PanelWindow { // qmllint disable uncreatable-type
                 border.width: tabCard.border.width
                 Proton.Label {
                     id: warning
-                    theme: root.theme; colors: root.colors
+                    theme: root.theme
+                    colors: root.colors
                     anchors.fill: parent
                     anchors.margins: 9
                     anchors.leftMargin: 12
@@ -134,7 +161,9 @@ PanelWindow { // qmllint disable uncreatable-type
                     anchors.margins: 10
                     currentIndex: root.selectedTab
                     onCurrentIndexChanged: root.selectedTab = currentIndex
-                    background: Rectangle { color: "transparent" }
+                    background: Rectangle {
+                        color: "transparent"
+                    }
                     Repeater {
                         model: ["Updates", "Installed", "Launcher"]
                         TabButton {
@@ -142,7 +171,9 @@ PanelWindow { // qmllint disable uncreatable-type
                             required property string modelData
                             implicitHeight: 36
                             text: modelData
-                            HoverHandler { cursorShape: tab.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                            HoverHandler {
+                                cursorShape: tab.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            }
                             contentItem: Text {
                                 text: tab.text
                                 color: tab.down ? root.colors.foreground : tab.checked ? root.colors.accent : root.colors.secondary
@@ -154,7 +185,12 @@ PanelWindow { // qmllint disable uncreatable-type
                             background: Rectangle {
                                 color: tab.down ? root.colors.tabPressed : tab.hovered ? root.colors.tabHover : "transparent"
                                 radius: 6
-                                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: tab.checked ? 2 : 1; color: tab.checked ? root.colors.tabUnderline : root.colors.guide }
+                                Rectangle {
+                                    anchors.bottom: parent.bottom
+                                    width: parent.width
+                                    height: tab.checked ? 2 : 1
+                                    color: tab.checked ? root.colors.tabUnderline : root.colors.guide
+                                }
                             }
                         }
                     }
@@ -169,13 +205,22 @@ PanelWindow { // qmllint disable uncreatable-type
                     anchors.margins: 10
                     anchors.bottomMargin: 16
                     Proton.Action {
-                        theme: root.theme; colors: root.colors
+                        theme: root.theme
+                        colors: root.colors
                         text: "Update & clean"
                         enabled: root.canManage && !!root.service.snapshot?.releases[root.selectedFamily]
                         onClicked: root.service.prepareInstall(root.selectedFamily)
                     }
-                    Item { Layout.fillWidth: true }
-                    Proton.Action { theme: root.theme; colors: root.colors; text: "Clear selection"; enabled: root.selectedFamily !== "" && !root.service.busy; onClicked: root.selectedFamily = "" }
+                    Item {
+                        Layout.fillWidth: true
+                    }
+                    Proton.Action {
+                        theme: root.theme
+                        colors: root.colors
+                        text: "Clear selection"
+                        enabled: root.selectedFamily !== "" && !root.service.busy
+                        onClicked: root.selectedFamily = ""
+                    }
                 }
                 ScrollView {
                     id: scroll
@@ -194,14 +239,38 @@ PanelWindow { // qmllint disable uncreatable-type
                         id: tabContents
                         width: scroll.availableWidth
                         spacing: 10
-                        UpdatesTab { id: updatesTab; theme: root.theme; colors: root.colors; service: root.service; Layout.fillWidth: true; visible: root.selectedTab === 0; selectedFamily: root.selectedFamily; onFamilySelected: family => root.selectedFamily = family }
-                        InstalledTab { id: installedTab; theme: root.theme; colors: root.colors; service: root.service; Layout.fillWidth: true; visible: root.selectedTab === 1 }
-                        LauncherTab { id: launcherTab; theme: root.theme; colors: root.colors; service: root.service; Layout.fillWidth: true; visible: root.selectedTab === 2 }
+                        UpdatesTab {
+                            id: updatesTab
+                            theme: root.theme
+                            colors: root.colors
+                            service: root.service
+                            Layout.fillWidth: true
+                            visible: root.selectedTab === 0
+                            selectedFamily: root.selectedFamily
+                            onFamilySelected: family => root.selectedFamily = family
+                        }
+                        InstalledTab {
+                            id: installedTab
+                            theme: root.theme
+                            colors: root.colors
+                            service: root.service
+                            Layout.fillWidth: true
+                            visible: root.selectedTab === 1
+                        }
+                        LauncherTab {
+                            id: launcherTab
+                            theme: root.theme
+                            colors: root.colors
+                            service: root.service
+                            Layout.fillWidth: true
+                            visible: root.selectedTab === 2
+                        }
                     }
                 }
                 Confirmation {
                     id: confirmationOverlay
-                    theme: root.theme; colors: root.colors
+                    theme: root.theme
+                    colors: root.colors
                     anchors.fill: parent
                     descriptor: root.confirmation
                     busy: root.service.busy
@@ -218,8 +287,19 @@ PanelWindow { // qmllint disable uncreatable-type
                 Layout.topMargin: 1
                 Layout.leftMargin: 8
                 Layout.rightMargin: 8
-                Proton.Label { theme: root.theme; colors: root.colors; text: root.service.busy ? root.service.progress?.stage ?? "Checking state" : "Ready"; font.pixelSize: 13 }
-                Proton.Label { theme: root.theme; colors: root.colors; Layout.fillWidth: false; text: root.service.busy && root.service.progress?.fraction !== null && root.service.progress ? Math.round(root.service.progress.fraction * 100) + "%" : ""; color: root.colors.accent }
+                Proton.Label {
+                    theme: root.theme
+                    colors: root.colors
+                    text: root.service.busy ? root.service.progress?.stage ?? "Checking state" : "Ready"
+                    font.pixelSize: 13
+                }
+                Proton.Label {
+                    theme: root.theme
+                    colors: root.colors
+                    Layout.fillWidth: false
+                    text: root.service.busy && root.service.progress?.fraction !== null && root.service.progress ? Math.round(root.service.progress.fraction * 100) + "%" : ""
+                    color: root.colors.accent
+                }
             }
             ProgressBar {
                 id: progress
@@ -228,13 +308,22 @@ PanelWindow { // qmllint disable uncreatable-type
                 Layout.rightMargin: 8
                 implicitHeight: 4
                 value: root.service.busy ? root.service.progress?.fraction ?? 0 : 0
-                background: Rectangle { color: root.colors.progressTrack; radius: 2 }
+                background: Rectangle {
+                    color: root.colors.progressTrack
+                    radius: 2
+                }
                 contentItem: Item {
-                    Rectangle { width: progress.visualPosition * parent.width; height: parent.height; radius: 2; color: root.colors.accent }
+                    Rectangle {
+                        width: progress.visualPosition * parent.width
+                        height: parent.height
+                        radius: 2
+                        color: root.colors.accent
+                    }
                 }
             }
             Proton.Label {
-                theme: root.theme; colors: root.colors
+                theme: root.theme
+                colors: root.colors
                 Layout.bottomMargin: 1
                 Layout.leftMargin: 8
                 Layout.rightMargin: 8

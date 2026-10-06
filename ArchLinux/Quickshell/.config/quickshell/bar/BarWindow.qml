@@ -28,6 +28,7 @@ PanelWindow { // qmllint disable uncreatable-type
     readonly property var batteryService: root.shared.batteryService
     readonly property var mouseBatteryService: root.shared.mouseBatteryService
     readonly property var openAiUsageService: root.shared.openAiUsageService
+    readonly property var mprisService: root.shared.mprisService
     readonly property var bluetoothService: root.shared.bluetoothService
     readonly property var weatherService: root.shared.weatherService
     readonly property var networkStats: root.shared.networkStats
@@ -125,6 +126,10 @@ PanelWindow { // qmllint disable uncreatable-type
     Item {
         id: barContents
 
+        readonly property real leftEnd: workspaceBox.visible ? workspaceBox.x + workspaceBox.width : 0
+        readonly property real rightStart: rightSection.visible ? rightSection.x : width
+        readonly property real middleSpace: Math.max(0, rightStart - leftEnd)
+
         anchors.fill: parent
         anchors.margins: 1
         visible: root.windowExpanded
@@ -190,6 +195,28 @@ PanelWindow { // qmllint disable uncreatable-type
             }
             // qmllint enable Quick.layout-positioning
             theme: root.theme
+        }
+
+        // -----------------------------------------------------------------------
+        // Central Modules
+        // -----------------------------------------------------------------------
+        Widgets.Mpris {
+            id: mediaBox
+
+            x: barContents.leftEnd + (barContents.middleSpace - width) / 2
+            anchors.verticalCenter: parent.verticalCenter
+            availableWidth: barContents.middleSpace * 0.7
+            active: root.configuration.mediaPosition === "bottom" && root.modules.media && (root.mprisService?.active ?? false)
+            paused: root.mprisService?.paused ?? false
+            canTogglePlaying: root.mprisService?.canTogglePlaying ?? false
+            app: root.mprisService?.app ?? ""
+            title: root.mprisService?.title ?? ""
+            artist: root.mprisService?.artist ?? ""
+            theme: root.theme
+            onTogglePlayingRequested: root.mprisService?.togglePlaying()
+            transform: Translate {
+                y: root.bottomMargin
+            }
         }
 
         // -----------------------------------------------------------------------
@@ -383,6 +410,7 @@ PanelWindow { // qmllint disable uncreatable-type
 
             Widgets.OpenAiUsage {
                 visible: root.modules.openAiUsage
+                display: root.configuration.openAiUsage.display
                 theme: root.theme
                 snapshot: root.openAiUsageService?.snapshot ?? null
                 available: root.openAiUsageService?.available ?? false

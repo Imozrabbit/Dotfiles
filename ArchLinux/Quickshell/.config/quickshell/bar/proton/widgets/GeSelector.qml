@@ -22,12 +22,22 @@ Item {
     Accessible.name: "Current Proton " + (currentVersion || "not selected")
     Keys.onSpacePressed: toggleMenu()
     Keys.onReturnPressed: toggleMenu()
-    onEnabledChanged: { if (!enabled) geMenu.close(); }
-    onVisibleChanged: { if (!visible) geMenu.close(); }
-    function closeMenu() { geMenu.close(); }
+    onEnabledChanged: {
+        if (!enabled)
+            geMenu.close();
+    }
+    onVisibleChanged: {
+        if (!visible)
+            geMenu.close();
+    }
+    function closeMenu() {
+        geMenu.close();
+    }
     function toggleMenu() {
-        if (geMenu.visible) geMenu.close();
-        else if (root.enabled && root.versions.length) geMenu.open();
+        if (geMenu.visible)
+            geMenu.close();
+        else if (root.enabled && root.versions.length)
+            geMenu.open();
     }
     function positionWheel() {
         const position = root.mapToItem(geMenu.parent, 0, root.height - 1);
@@ -160,7 +170,10 @@ Item {
                                 font.pixelSize: 13
                                 font.bold: true
                             }
-                            HoverHandler { id: geEntryHover; cursorShape: Qt.PointingHandCursor }
+                            HoverHandler {
+                                id: geEntryHover
+                                cursorShape: Qt.PointingHandCursor
+                            }
                             TapHandler {
                                 id: geEntryTap
                                 onTapped: {

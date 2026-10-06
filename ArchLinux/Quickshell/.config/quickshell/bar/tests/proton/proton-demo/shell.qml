@@ -13,10 +13,17 @@ ShellRoot {
     FileView {
         path: (Quickshell.env("PROTON_FIXTURE_ROOT") || "/invalid-proton-fixture") + "/config.json"
         onLoaded: {
-            try { root.config = JSON.parse(text()); }
-            catch (_) { console.error("Invalid dummy config"); Qt.quit(); }
+            try {
+                root.config = JSON.parse(text());
+            } catch (_) {
+                console.error("Invalid dummy config");
+                Qt.quit();
+            }
         }
-        onLoadFailed: { console.error("Set PROTON_FIXTURE_ROOT to directory printed by tests/proton/proton-demo.py"); Qt.quit(); }
+        onLoadFailed: {
+            console.error("Set PROTON_FIXTURE_ROOT to directory printed by tests/proton/proton-demo.py");
+            Qt.quit();
+        }
     }
     LazyLoader {
         id: serviceLoader
@@ -34,7 +41,10 @@ ShellRoot {
             screen: Quickshell.screens[0]
             barRevealed: false
             visible: true
-            onVisibleChanged: { if (!visible) Qt.quit(); }
+            onVisibleChanged: {
+                if (!visible)
+                    Qt.quit();
+            }
         }
     }
 }

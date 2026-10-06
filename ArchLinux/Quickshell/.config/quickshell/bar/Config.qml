@@ -11,6 +11,7 @@ Scope {
     readonly property var defaults: ({
             mode: "always",
             topMediaMode: "hover",
+            mediaPosition: "top",
             edgeSpacing: 14,
             hoverToggleEnabled: true,
             vpn: {
@@ -23,6 +24,9 @@ Scope {
             },
             mouseBattery: {
                 name: "WLMouse Beast X"
+            },
+            openAiUsage: {
+                display: "weekly"
             },
             launchers: [
                 {

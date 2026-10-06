@@ -12,6 +12,7 @@ Rectangle {
     required property bool available
     required property string error
     required property date currentDate
+    property string display: "weekly"
     signal refreshRequested(bool force)
     property bool tooltipVisible: false
 
@@ -71,18 +72,8 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 6
 
-        Image {
-            source: Qt.resolvedUrl("../assets/openai.svg")
-            sourceSize.width: root.theme.systemUsageFontSize
-            sourceSize.height: root.theme.systemUsageFontSize
-            Layout.preferredWidth: root.theme.systemUsageFontSize
-            Layout.preferredHeight: root.theme.systemUsageFontSize
-            opacity: root.available ? 1 : 0.5
-        }
-
         Text {
-            readonly property var remaining: root.available && root.snapshot ? Usage.remaining(root.snapshot.fiveHour) : null
-            text: remaining === null ? "N/A" : Math.round(remaining) + "%"
+            text: Usage.displayText(root.display, root.snapshot, root.available)
             color: root.available ? root.theme.openAiUsageColor : root.theme.whiteMutedColor
             font.family: root.theme.fontFamily
             font.pixelSize: root.theme.systemUsageFontSize

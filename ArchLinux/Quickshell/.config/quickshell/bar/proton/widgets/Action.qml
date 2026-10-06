@@ -11,7 +11,9 @@ Button {
     topPadding: 6
     bottomPadding: 6
     font.pixelSize: 13
-    HoverHandler { cursorShape: action.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
+    HoverHandler {
+        cursorShape: action.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
     contentItem: Text {
         text: action.text
         color: action.flat ? (action.down ? action.colors.pressedText : action.hovered ? action.colors.hoverText : action.colors.secondary) : action.enabled ? (action.down ? action.colors.pressedText : action.hovered ? action.colors.hoverText : action.colors.accent) : action.colors.secondary

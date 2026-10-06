@@ -14,6 +14,7 @@ Rectangle {
     required property string artist
     required property Core.Theme theme
     required property real availableWidth
+    property bool topPanel: false
 
     signal togglePlayingRequested
 
@@ -140,10 +141,10 @@ Rectangle {
     SystemStatTooltip {
         visible: root.active && root.mprisTooltipVisible
         anchorItem: root
-        anchor.rect.y: 8
+        anchor.rect.y: root.topPanel ? 8 : -8
         // qmllint disable missing-type
-        anchor.edges: Edges.Bottom
-        anchor.gravity: Edges.Bottom
+        anchor.edges: root.topPanel ? Edges.Bottom : Edges.Top
+        anchor.gravity: root.topPanel ? Edges.Bottom : Edges.Top
         // qmllint enable missing-type
         heading: root.app !== "" ? root.app : "Media"
         rows: [

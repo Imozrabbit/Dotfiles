@@ -35,7 +35,8 @@ Scope {
     }
 
     function request(action, payload) {
-        if (root.busy) return false;
+        if (root.busy)
+            return false;
         root.requestId = "proton-" + Date.now() + "-" + (++root.sequence);
         root.requestArea = ["remove", "prepareRemove"].includes(action) ? "installed" : ["selectGe", "syncGe"].includes(action) ? "selection" : "updates";
         root.currentAction = action;
@@ -46,10 +47,27 @@ Scope {
         root.exitCode = -1;
         root.invalidOutput = false;
         root.outputOffset = 0;
-        const serialized = JSON.stringify({ id: root.requestId, action: action, config: root.config, payload: payload || {} });
+        const serialized = JSON.stringify({
+            id: root.requestId,
+            action: action,
+            config: root.config,
+            payload: payload || {}
+        });
         // ponytail: conservative UTF-8 argv ceiling; use stdin if huge cleanup selections become necessary.
         if (serialized.length > 32768) {
-            root.state = State.applyEvent(root.state, {type:"result", data:{area:root.requestArea, messages:[{severity:"error", text:"Proton request too large; remove older versions in smaller groups."}], snapshot:null}});
+            root.state = State.applyEvent(root.state, {
+                type: "result",
+                data: {
+                    area: root.requestArea,
+                    messages: [
+                        {
+                            severity: "error",
+                            text: "Proton request too large; remove older versions in smaller groups."
+                        }
+                    ],
+                    snapshot: null
+                }
+            });
             return false;
         }
         root.command = ["python3", root.helperPath, "--request", serialized];
@@ -57,33 +75,58 @@ Scope {
         helper.running = true;
         return true;
     }
-    function inspect() { return request("inspect"); }
+    function inspect() {
+        return request("inspect");
+    }
     // ponytail: cooldown lasts for this shared service lifetime; persist cached results only if shell restarts cause excessive repeat checks.
     function open() {
         return Date.now() - root.lastAutomaticRefresh >= 86400000 ? request("refresh") : inspect();
     }
-    function refresh() { return request("refresh"); }
-    function prepareInstall(family) { return request("prepareInstall", { family: family }); }
-    function prepareRemove(name) { return request("prepareRemove", { name: name }); }
+    function refresh() {
+        return request("refresh");
+    }
+    function prepareInstall(family) {
+        return request("prepareInstall", {
+            family: family
+        });
+    }
+    function prepareRemove(name) {
+        return request("prepareRemove", {
+            name: name
+        });
+    }
     function confirm(descriptor) {
-        if (!State.confirmation(descriptor)) return false;
+        if (!State.confirmation(descriptor))
+            return false;
         return request(descriptor.action, descriptor);
     }
-    function selectGe(name) { return request("selectGe", { name: name }); }
-    function syncGe() { return request("syncGe"); }
+    function selectGe(name) {
+        return request("selectGe", {
+            name: name
+        });
+    }
+    function syncGe() {
+        return request("syncGe");
+    }
     function readOutput(text) {
-        if (text.length > 8 * 1024 * 1024) { root.invalidOutput = true; return; }
+        if (text.length > 8 * 1024 * 1024) {
+            root.invalidOutput = true;
+            return;
+        }
         let end = text.indexOf("\n", root.outputOffset);
         while (end >= 0) {
             const event = State.parseEvent(text.slice(root.outputOffset, end), root.requestId);
-            if (!event || root.state.finished) root.invalidOutput = true;
-            else if (!root.configChangedDuringRequest) root.state = State.applyEvent(root.state, event);
+            if (!event || root.state.finished)
+                root.invalidOutput = true;
+            else if (!root.configChangedDuringRequest)
+                root.state = State.applyEvent(root.state, event);
             root.outputOffset = end + 1;
             end = text.indexOf("\n", root.outputOffset);
         }
     }
     function finish() {
-        if (!root.busy || !root.exited || !root.outputFinished || !root.errorFinished) return;
+        if (!root.busy || !root.exited || !root.outputFinished || !root.errorFinished)
+            return;
         if (root.configChangedDuringRequest) {
             root.configChangedDuringRequest = false;
             root.state = State.emptyState();
@@ -95,11 +138,17 @@ Scope {
             const next = Object.assign({}, root.state);
             next.confirmation = null;
             next.messages = Object.assign({}, root.state.messages);
-            next.messages[root.requestArea] = [{ severity: "error", text: "Proton helper failed or returned invalid output." + (errors.text.trim() ? " " + errors.text.trim().slice(0, 500) : "") }];
+            next.messages[root.requestArea] = [
+                {
+                    severity: "error",
+                    text: "Proton helper failed or returned invalid output." + (errors.text.trim() ? " " + errors.text.trim().slice(0, 500) : "")
+                }
+            ];
             next.finished = true;
             root.state = next;
         }
-        if (root.currentAction === "refresh") root.lastAutomaticRefresh = Date.now();
+        if (root.currentAction === "refresh")
+            root.lastAutomaticRefresh = Date.now();
         root.busy = false;
     }
     Process {
@@ -118,14 +167,18 @@ Scope {
             onTextChanged: root.readOutput(text)
             onStreamFinished: {
                 root.readOutput(text);
-                if (root.outputOffset !== text.length) root.invalidOutput = true;
+                if (root.outputOffset !== text.length)
+                    root.invalidOutput = true;
                 root.outputFinished = true;
                 root.finish();
             }
         }
         stderr: StdioCollector {
             id: errors
-            onStreamFinished: { root.errorFinished = true; root.finish(); }
+            onStreamFinished: {
+                root.errorFinished = true;
+                root.finish();
+            }
         }
         // qmllint disable signal-handler-parameters
         onExited: function (exitCode) {

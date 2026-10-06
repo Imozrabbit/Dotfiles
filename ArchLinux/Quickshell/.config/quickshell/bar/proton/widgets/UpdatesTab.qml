@@ -12,8 +12,16 @@ ColumnLayout {
     signal familySelected(string family)
     spacing: 10
     readonly property var families: [
-        { family: "ge", label: "GE-Proton", variant: "x86-64" },
-        { family: "cachyos", label: "CachyOS Proton", variant: "SLR · x86-64-v3" }
+        {
+            family: "ge",
+            label: "GE-Proton",
+            variant: "x86-64"
+        },
+        {
+            family: "cachyos",
+            label: "CachyOS Proton",
+            variant: "SLR · x86-64-v3"
+        }
     ]
     Repeater {
         model: root.families
@@ -39,7 +47,10 @@ ColumnLayout {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: { familyCard.forceActiveFocus(); root.familySelected(familyCard.modelData.family); }
+                onClicked: {
+                    familyCard.forceActiveFocus();
+                    root.familySelected(familyCard.modelData.family);
+                }
             }
             ColumnLayout {
                 id: familyContent
@@ -49,13 +60,15 @@ ColumnLayout {
                 spacing: 6
                 RowLayout {
                     Label {
-                        theme: root.theme; colors: root.colors
+                        theme: root.theme
+                        colors: root.colors
                         text: familyCard.modelData.label + " <span style=\"font-size: 11px; font-weight: normal; color: " + root.colors.dimText + "\">(" + familyCard.modelData.variant + ")</span>"
                         textFormat: Text.RichText
                         font.bold: true
                     }
                     Label {
-                        theme: root.theme; colors: root.colors
+                        theme: root.theme
+                        colors: root.colors
                         Layout.fillWidth: false
                         text: !familyCard.release ? "Unavailable" : familyCard.upToDate ? "Up to date" : familyCard.installed.length ? "Update available" : "Not installed"
                         color: !familyCard.release ? root.colors.secondary : familyCard.upToDate ? root.colors.success : root.colors.warning
@@ -63,18 +76,43 @@ ColumnLayout {
                     }
                 }
                 RowLayout {
-                    Label { theme: root.theme; colors: root.colors; Layout.fillWidth: false; text: "Newest installed"; color: root.colors.dimText }
-                    Label { theme: root.theme; colors: root.colors; text: familyCard.installed[0]?.name ?? "—"; horizontalAlignment: Text.AlignRight; color: root.colors.dimText }
+                    Label {
+                        theme: root.theme
+                        colors: root.colors
+                        Layout.fillWidth: false
+                        text: "Newest installed"
+                        color: root.colors.dimText
+                    }
+                    Label {
+                        theme: root.theme
+                        colors: root.colors
+                        text: familyCard.installed[0]?.name ?? "—"
+                        horizontalAlignment: Text.AlignRight
+                        color: root.colors.dimText
+                    }
                 }
                 RowLayout {
-                    Label { theme: root.theme; colors: root.colors; Layout.fillWidth: false; text: "Latest"; color: root.colors.dimText }
-                    Label { theme: root.theme; colors: root.colors; text: familyCard.release?.name ?? "—"; horizontalAlignment: Text.AlignRight; color: root.colors.dimText }
+                    Label {
+                        theme: root.theme
+                        colors: root.colors
+                        Layout.fillWidth: false
+                        text: "Latest"
+                        color: root.colors.dimText
+                    }
+                    Label {
+                        theme: root.theme
+                        colors: root.colors
+                        text: familyCard.release?.name ?? "—"
+                        horizontalAlignment: Text.AlignRight
+                        color: root.colors.dimText
+                    }
                 }
             }
         }
     }
     Messages {
-        theme: root.theme; colors: root.colors
+        theme: root.theme
+        colors: root.colors
         Layout.leftMargin: 12
         Layout.rightMargin: 12
         entries: (root.service.snapshot?.messages.updates ?? []).concat(root.service.messages.updates)
