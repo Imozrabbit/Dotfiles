@@ -36,7 +36,7 @@ def create_fixture():
         (root / (family + "-release.json")).write_text(json.dumps(metadata))
     (root / "config.json").write_text(json.dumps(config, indent=2))
     (root / ".proton-fixture.json").write_text(json.dumps({"schema": 1, "config": config}))
-    (root / "scenario.json").write_text(json.dumps({"blocked":false, "badChecksum":True, "packageUnavailable":false}, indent=2))
+    (root / "scenario.json").write_text(json.dumps({"blocked": False, "badChecksum": False, "packageUnavailable": False}, indent=2))
     # Quickshell rejects imports outside its config root; stage real files, not symlinks.
     tests = Path(__file__).resolve().parent
     demo = root / "demo"

@@ -22,16 +22,26 @@ ShellRoot {
         id: service
         config: ({compatibilityToolsDir:"/fixture",umuConfigPath:"/fixture/umu",sandboxCompatibilityToolsDir:"/sandbox"})
         property int stage: 0
-        Component.onCompleted: Qt.callLater(function() { stage = 1; inspect(); })
+        function lastAction() { return JSON.parse(command[3]).action; }
+        Component.onCompleted: Qt.callLater(function() { stage = 1; open(); })
         onBusyChanged: {
             if (busy || stage === 0) return;
             if (stage === 1) {
-                if (!messages.updates.length || !messages.updates[0].text.includes("invalid")) { console.error("FAIL abnormal exit"); Qt.exit(1); return; }
+                if (lastAction() !== "refresh" || lastAutomaticRefresh <= 0) { console.error("FAIL first open refresh"); Qt.exit(1); return; }
                 stage = 2;
+                Qt.callLater(function() { open(); });
+            } else if (stage === 2) {
+                if (lastAction() !== "inspect" || !messages.updates[0].text.includes("invalid")) { console.error("FAIL cached open"); Qt.exit(1); return; }
+                lastAutomaticRefresh = Date.now() - 86400001;
+                stage = 3;
+                Qt.callLater(function() { open(); });
+            } else if (stage === 3) {
+                if (lastAction() !== "refresh" || messages.updates[0].text !== "Fixture failure") { console.error("FAIL expired daily refresh"); Qt.exit(1); return; }
+                stage = 4;
                 Qt.callLater(function() { refresh(); });
             } else {
-                if (!messages.updates.length || messages.updates[0].text !== "Fixture failure") { console.error("FAIL terminal result"); Qt.exit(1); return; }
-                console.log("SERVICE PASS"); Qt.quit();
+                if (lastAction() !== "refresh" || messages.updates[0].text !== "Fixture failure") { console.error("FAIL manual refresh"); Qt.exit(1); return; }
+                console.log("SERVICE PASS daily open cooldown and forced refresh"); Qt.quit();
             }
         }
     }
@@ -46,6 +56,6 @@ ShellRoot {
     });
     const output = result.stdout + result.stderr;
     assert.equal(result.status, 0, result.error?.message ?? output);
-    assert.ok(output.includes('SERVICE PASS'), output);
-    console.log('Proton service lifecycle checks passed');
+    assert.ok(output.includes('SERVICE PASS daily open cooldown and forced refresh'), output);
+    console.log('Proton service daily refresh checks passed');
 } finally { rmSync(directory, { recursive: true, force: true }); }

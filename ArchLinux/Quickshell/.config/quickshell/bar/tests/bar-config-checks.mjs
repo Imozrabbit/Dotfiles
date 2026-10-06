@@ -25,6 +25,9 @@ const defaults = {
 const missing = config.resolveConfig(defaults, "{}");
 assert.equal(missing.protonManager?.compatibilityToolsDir, "/host/tools");
 assert.equal(config.resolveConfig(defaults, '{"protonManager":{"compatibilityToolsDir":"/new/tools"}}').protonManager.compatibilityToolsDir, "/new/tools");
+const protonPaths = { compatibilityToolsDir: "/new/tools", umuConfigPath: "/new/umu.toml", sandboxCompatibilityToolsDir: "/new/sandbox/tools" };
+const protonOverride = config.resolveConfig(defaults, JSON.stringify({ protonManager: protonPaths })).protonManager;
+for (const key of Object.keys(protonPaths)) assert.equal(protonOverride[key], protonPaths[key]);
 for (const invalidPath of ["relative", "", "/", "/a/../b", "/bad\0path"])
     assert.equal(config.resolveConfig(defaults, JSON.stringify({ protonManager: { compatibilityToolsDir: invalidPath } })).protonManager.compatibilityToolsDir, "/host/tools");
 assert.equal(config.resolveConfig(defaults, '{"monitors":{"DP-1":{"protonManager":{"compatibilityToolsDir":"/other"}}}}').monitors["DP-1"].protonManager, undefined);

@@ -269,11 +269,16 @@ logo is bundled from Simple Icons v13.21.0 (CC0; OpenAI retains its trademark).
 ## Proton Manager
 
 Enable `modules.protonManager` globally or per output. One service and popup are
-shared; opening and Refresh check state/upstream on demand, with no background
-polling. `qs -c bar ipc call bar protonManager` opens on the focused enabled
-output; `bar previewProton` remains a compatibility alias.
+shared. Opening always inspects local installations/config; automatic release and
+package checks run at most once every 24 hours per Quickshell session. **Refresh**
+bypasses that cooldown. Restarting Quickshell triggers a new initial check. No
+background polling. `qs -c bar ipc call bar protonManager` opens on the focused
+enabled output; `bar previewProton` remains a compatibility alias.
 
-Global path configuration (not per-monitor):
+Add this top-level `protonManager` object to `~/.config/quickshell/bar-local.json`
+(or `$XDG_CONFIG_HOME/quickshell/bar-local.json`). Merge it into existing JSON;
+do not place it inside `modules` or `monitors`. Paths override the shipped defaults
+and are global, not per-monitor:
 
 ```json
 {
@@ -297,7 +302,10 @@ status; missing/failed commands show unavailable. No package installation,
 host package database synchronization, sudo, or AUR management is performed.
 
 Updates targets official GE-Proton **x86_64** and CachyOS Proton **SLR
-x86_64_v3**, requiring the matching published SHA-512 checksum. Confirm the
+x86_64_v3**, requiring the matching published SHA-512 checksum. GE folders named
+`GE-Proton<major>-<minor>[-<patch>]` and the same name with `-x86_64` suffix are
+recognized; the canonical compatibility metadata name may omit that suffix.
+Confirm the
 release and exact older same-family versions before **Update & clean**.
 Downloads stage on the installation filesystem; archives/links and installation
 metadata are validated before no-replace atomic activation. GE updates umu
@@ -379,6 +387,7 @@ require Quickshell. Neither launches your actual bar.
    `curl` and GNU `tar`:
 
    ```sh
+   qs -c bar kill
    config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell"
    stage=$(mktemp -d)
    curl -fL https://codeload.github.com/Imozrabbit/Dotfiles/tar.gz/refs/heads/thinkpad \

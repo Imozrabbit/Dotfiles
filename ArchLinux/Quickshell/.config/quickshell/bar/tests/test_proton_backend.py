@@ -40,6 +40,14 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual(len(snapshot["installations"]), 5)
         self.assertEqual(snapshot["installations"][3]["name"], "proton-cachyos-11.0-20261005-slr-x86_64_v3")
 
+    def test_ge_arch_suffix_folder_and_canonical_metadata(self):
+        path = installation(self.base, "GE-Proton11-7-x86_64")
+        metadata = path / "compatibilitytool.vdf"
+        metadata.write_text(metadata.read_text().replace("GE-Proton11-7-x86_64", "GE-Proton11-7"))
+        snapshot = backend.inspect_local(self.config, self.proc)
+        self.assertEqual(snapshot["geVersions"], ["GE-Proton11-7-x86_64"])
+        self.assertEqual(snapshot["installations"][0]["version"], [11, 7, 0])
+
     def test_missing_selected_ge(self):
         snapshot = backend.inspect_local(self.config, self.proc)
         self.assertIsNone(snapshot["currentGeVersion"])

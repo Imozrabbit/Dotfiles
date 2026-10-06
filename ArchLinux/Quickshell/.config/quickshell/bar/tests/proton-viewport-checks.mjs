@@ -19,6 +19,7 @@ try {
             property int writes: 0
             property var messages: ({updates:[],installed:[],package:[],selection:[]})
             property var snapshot: ({installations:[{name:"GE-Proton11-7",family:"ge",version:[11,7,0],path:"/fixture/GE-Proton11-7",umuSelected:true}],geVersions:["GE-Proton11-7"],currentGeVersion:"GE-Proton11-7",releases:{},package:{state:"notInstalled",installedVersion:null,availableVersion:"1.3",messages:[]},blockers:[],messages:{updates:Array.from({length:25},(_,i)=>({severity:"warning",text:"Long operation result " + i})),installed:[],package:[],selection:[]}})
+            function open() {}
             function refresh() {}
             function selectGe(name) { writes++; }
             function syncGe() { writes++; }

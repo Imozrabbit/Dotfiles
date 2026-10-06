@@ -127,6 +127,13 @@ class StorageTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             storage.extract_verified(self.archive(self.valid_entries()), self.root / "stage", max_members=2)
 
+    def test_ge_suffix_rejects_unrelated_metadata_name(self):
+        path = installation(self.base, "GE-Proton11-7-x86_64")
+        metadata = path / "compatibilitytool.vdf"
+        metadata.write_text(metadata.read_text().replace("GE-Proton11-7-x86_64", "GE-Proton11-6"))
+        with self.assertRaises(ValueError):
+            storage.validate_installation(path)
+
     def test_identity_survives_qml_json_precision(self):
         item = storage.validate_installation(installation(self.base, "GE-Proton11-7"))
         self.assertIsInstance(item["identity"]["modified"], str)

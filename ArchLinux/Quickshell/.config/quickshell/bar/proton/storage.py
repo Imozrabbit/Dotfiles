@@ -18,7 +18,7 @@ from pathlib import Path
 
 
 def version_info(name):
-    ge = re.fullmatch(r"GE-Proton(\d+)-(\d+)(?:-(\d+))?", name)
+    ge = re.fullmatch(r"GE-Proton(\d+)-(\d+)(?:-(\d+))?(?:-x86_64)?", name)
     if ge:
         return "ge", [int(part or 0) for part in ge.groups()]
     cachy = re.fullmatch(r"proton-cachyos-(?:(\d+)\.(\d+)-)?(\d{8})-slr-x86_64_v3", name)
@@ -86,7 +86,8 @@ def validate_installation(path):
     if not isinstance(tools, dict) or len(tools) != 1:
         raise ValueError("Invalid compatibility metadata")
     tool_name, tool = next(iter(tools.items()))
-    if tool_name != path.name or not isinstance(tool, dict) or tool.get("install_path") != ".":
+    canonical_name = path.name.removesuffix("-x86_64") if family == "ge" else path.name
+    if tool_name not in (path.name, canonical_name) or not isinstance(tool, dict) or tool.get("install_path") != ".":
         raise ValueError("Installation metadata/name mismatch")
     manifest = parse_vdf(read_regular(path / "toolmanifest.vdf").decode("utf-8"))
     if not isinstance(manifest.get("manifest"), dict) or "proton" not in manifest["manifest"].get("commandline", ""):

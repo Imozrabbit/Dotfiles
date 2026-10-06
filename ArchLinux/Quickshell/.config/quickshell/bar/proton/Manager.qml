@@ -27,7 +27,7 @@ PanelWindow { // qmllint disable uncreatable-type
     WlrLayershell.namespace: "proton-manager"
     onVisibleChanged: {
         if (visible) {
-            if (!root.service.busy) root.service.refresh();
+            if (!root.service.busy) root.service.open();
         } else {
             root.confirmation = null;
             root.selectedFamily = "";

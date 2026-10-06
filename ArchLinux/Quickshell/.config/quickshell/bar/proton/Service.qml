@@ -22,12 +22,15 @@ Scope {
     property int exitCode: -1
     property bool invalidOutput: false
     property int sequence: 0
+    property double lastAutomaticRefresh: 0
+    property string currentAction: ""
     property int outputOffset: 0
 
     function request(action, payload) {
         if (root.busy) return false;
         root.requestId = "proton-" + Date.now() + "-" + (++root.sequence);
         root.requestArea = ["remove", "prepareRemove"].includes(action) ? "installed" : ["selectGe", "syncGe"].includes(action) ? "selection" : "updates";
+        root.currentAction = action;
         root.state = State.beginRequest(root.state, action === "refresh");
         root.outputFinished = false;
         root.errorFinished = false;
@@ -41,6 +44,10 @@ Scope {
         return true;
     }
     function inspect() { return request("inspect"); }
+    // ponytail: cooldown lasts for this shared service lifetime; persist cached results only if shell restarts cause excessive repeat checks.
+    function open() {
+        return Date.now() - root.lastAutomaticRefresh >= 86400000 ? request("refresh") : inspect();
+    }
     function refresh() { return request("refresh"); }
     function prepareInstall(family) { return request("prepareInstall", { family: family }); }
     function prepareRemove(name) { return request("prepareRemove", { name: name }); }
@@ -71,6 +78,7 @@ Scope {
             next.finished = true;
             root.state = next;
         }
+        if (root.currentAction === "refresh") root.lastAutomaticRefresh = Date.now();
         root.busy = false;
     }
     Process {
