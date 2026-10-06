@@ -29,10 +29,15 @@
             "model": "openai/gpt-6-luna#low"
         },
         "build": {
-            "model": "openai/gpt-6.1-sol#low",
+            "model": "openai/gpt-6.1-sol#medium",
             "permissions": [
                 {
                     "action": "edit",
+                    "resource": "*",
+                    "effect": "ask"
+                },
+                {
+                    "action": "patch",
                     "resource": "*",
                     "effect": "ask"
                 },
@@ -53,6 +58,11 @@
             "permissions": [
                 {
                     "action": "edit",
+                    "resource": "*",
+                    "effect": "deny"
+                },
+                {
+                    "action": "patch",
                     "resource": "*",
                     "effect": "deny"
                 },
@@ -98,6 +108,11 @@
                 },
                 {
                     "action": "edit",
+                    "resource": "*",
+                    "effect": "ask"
+                },
+                {
+                    "action": "patch",
                     "resource": "*",
                     "effect": "ask"
                 },
@@ -179,7 +194,7 @@
             ]
         },
         "security-auditor": {
-            "model": "openai/gpt-6.1-sol#low",
+            "model": "openai/gpt-6.1-sol#medium",
             "permissions": [
                 {
                     "action": "*",
