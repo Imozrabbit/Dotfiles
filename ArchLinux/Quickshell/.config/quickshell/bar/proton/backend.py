@@ -34,6 +34,27 @@ def installation_identity(path):
     return storage.validate_installation(path)["identity"]
 
 
+def systemd_user_session(pid, args, uid):
+    """Recognize the user manager and its direct PAM helper when exe access is denied."""
+    try:
+        comm = (pid / "comm").read_text().strip()
+        parent = re.search(r"^PPid:\s*(\d+)\s*$", (pid / "status").read_text(), re.M)
+        if parent is None:
+            return False
+        manager_args = ["/usr/lib/systemd/systemd", "--user"]
+        if args[:2] == manager_args:
+            return (comm == "systemd" and parent.group(1) == "1"
+                    and (len(args) == 2 or len(args) == 3 and re.fullmatch(r"--deserialize=\d+", args[2]) is not None))
+        if args == ["(sd-pam)"] and comm == "(sd-pam)":
+            manager = pid.parent / parent.group(1)
+            parent_args = [part.decode("utf-8", "replace") for part in (manager / "cmdline").read_bytes()[:65536].split(b"\0") if part]
+            return (manager.stat().st_uid == uid and parent_args[:2] == manager_args
+                    and systemd_user_session(manager, parent_args, uid))
+    except (OSError, UnicodeError):
+        pass
+    return False
+
+
 def process_blockers(proc_root=Path("/proc"), relevant_uids=None):
     blockers = []
     relevant_uids = {os.getuid(), *(relevant_uids or [])}
@@ -60,8 +81,12 @@ def process_blockers(proc_root=Path("/proc"), relevant_uids=None):
                 actual = Path(os.readlink(pid / "exe")).name.removesuffix(" (deleted)")
                 if actual in names:
                     blockers.append(f"{actual} is running; close it to continue.")
-            except OSError:
+            except OSError as error:
                 if uid in relevant_uids and pid.exists():
+                    # systemd's protected user/PAM processes are not active games.
+                    # Keep failing closed for unknown processes and non-permission errors.
+                    if isinstance(error, PermissionError) and systemd_user_session(pid, args, uid):
+                        continue
                     blockers.append("Relevant executable state unavailable; operations blocked.")
         except FileNotFoundError:
             if pid.exists():

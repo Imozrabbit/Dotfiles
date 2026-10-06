@@ -331,7 +331,9 @@ metadata are validated before no-replace atomic activation. GE updates umu
 before cleanup. Unknown folders, newer versions, and the selected umu version
 are protected. Steam/umu/Proton/Wine command lines across users and readable
 executable evidence block mutation. Uninspectable executable state for the
-desktop user or installation/config owner also blocks mutation; checks repeat before
+desktop user or installation/config owner also blocks mutation, except for
+permission-denied `systemd --user` and its direct `(sd-pam)` helper with matching
+command lines, process names, ownership, and parent relationships. Checks repeat before
 activation/config writes and every removal.
 
 Launcher selection and **Sync latest GE** only write the existing umu config.

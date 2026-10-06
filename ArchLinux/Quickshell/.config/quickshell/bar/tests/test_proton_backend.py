@@ -95,6 +95,59 @@ class InventoryTests(unittest.TestCase):
         (pid / "cmdline").write_bytes(b"game.exe\0")
         self.assertTrue(backend.process_blockers(self.proc))
 
+    def systemd_session_fixture(self):
+        manager = self.proc / "796"
+        helper = self.proc / "798"
+        for path, comm, parent, command in [
+            (manager, "systemd", "1", b"/usr/lib/systemd/systemd\0--user\0--deserialize=38\0"),
+            (helper, "(sd-pam)", "796", b"(sd-pam)\0"),
+        ]:
+            path.mkdir()
+            (path / "comm").write_text(comm + "\n")
+            (path / "status").write_text(f"PPid:\t{parent}\n")
+            (path / "cmdline").write_bytes(command)
+        return manager, helper
+
+    def test_permission_denied_systemd_session_not_blocker(self):
+        self.systemd_session_fixture()
+        from unittest.mock import patch
+        with patch.object(backend.os, "readlink", side_effect=PermissionError(13, "Permission denied")):
+            self.assertEqual(backend.process_blockers(self.proc), [])
+
+    def test_systemd_exception_requires_exact_signature_and_parent(self):
+        manager, helper = self.systemd_session_fixture()
+        from unittest.mock import patch
+        for path, file, content in [
+            (manager, "cmdline", b"/tmp/systemd\0--user\0"),
+            (manager, "cmdline", b"/usr/lib/systemd/systemd\0--system\0"),
+            (manager, "comm", b"game.exe\n"),
+            (manager, "comm", b"\xff\n"),
+            (manager, "status", b"PPid:\t123\n"),
+            (helper, "status", b"PPid:\t1\n"),
+            (helper, "cmdline", b"(sd-pam)\0game.exe\0"),
+        ]:
+            original = (path / file).read_bytes()
+            with self.subTest(file=file, content=content):
+                (path / file).write_bytes(content)
+                with patch.object(backend.os, "readlink", side_effect=PermissionError(13, "Permission denied")):
+                    self.assertTrue(backend.process_blockers(self.proc))
+                (path / file).write_bytes(original)
+
+    def test_systemd_exception_does_not_hide_unknown_or_wine(self):
+        self.systemd_session_fixture()
+        pid = self.proc / "123"
+        pid.mkdir()
+        (pid / "cmdline").write_bytes(b"game.exe\0")
+        from unittest.mock import patch
+        with patch.object(backend.os, "readlink", side_effect=PermissionError(13, "Permission denied")):
+            self.assertTrue(backend.process_blockers(self.proc))
+        with patch.object(backend.os, "readlink", return_value="/usr/bin/wine64"):
+            self.assertTrue(any("wine64 is running" in item for item in backend.process_blockers(self.proc)))
+
+    def test_missing_systemd_executable_still_blocks(self):
+        self.systemd_session_fixture()
+        self.assertTrue(backend.process_blockers(self.proc))
+
     def test_foreign_package_version_not_up_to_date(self):
         def run(command, **kwargs):
             if command[:2] == ["pacman", "-Q"]:
