@@ -11,12 +11,16 @@ import qs.network as Network
 import qs.network.vpn as Vpn
 import qs.network.wifi as Wifi
 import qs.services as Services
+import "proton" as Proton
 
 Scope {
     id: root
 
     property Config barConfig: Config {}
     property Core.Theme theme: Core.Theme {}
+    readonly property var protonManagerWindow: protonManagerLoader.item
+    readonly property var protonManagerScreen: root.protonManagerWindow?.visible ? root.protonManagerWindow.screen : null
+    readonly property var protonService: protonLoader.item
     readonly property var cpuStats: cpuLoader.item
     readonly property var gpuStats: gpuLoader.item
     readonly property var updateChecker: updateLoader.item
@@ -67,6 +71,16 @@ Scope {
         id: updateLoader
         active: root.uses("updates")
         Services.UpdateCount {}
+    }
+    LazyLoader {
+        id: protonLoader
+        active: root.uses("protonManager") || (root.protonService?.busy ?? false)
+        Proton.Service { config: root.barConfig.settings.protonManager }
+    }
+    LazyLoader {
+        id: protonManagerLoader
+        active: root.protonService !== null && root.protonService !== undefined
+        Proton.Manager { theme: root.theme; service: root.protonService }
     }
     LazyLoader {
         id: memoryLoader
@@ -184,8 +198,28 @@ Scope {
         }
     }
 
+    function openProtonManager(screen, revealed) {
+        if (!root.protonManagerWindow || !screen || !root.barConfig.forScreen(screen.name).modules.protonManager)
+            return;
+        root.protonManagerWindow.screen = screen;
+        root.protonManagerWindow.barRevealed = revealed === undefined ? true : revealed;
+        root.protonManagerWindow.visible = true;
+    }
+
     IpcHandler {
         target: "bar"
+
+        function previewProton(): void {
+            const screen = Quickshell.screens.find(screen => Hyprland.monitorFor(screen)?.name === Hyprland.focusedMonitor?.name);
+            if (!screen)
+                return;
+            root.openProtonManager(screen);
+        }
+
+        function protonManager(): void {
+            const screen = Quickshell.screens.find(screen => Hyprland.monitorFor(screen)?.name === Hyprland.focusedMonitor?.name);
+            root.openProtonManager(screen);
+        }
 
         function toggle(): void {
             if (!Hyprland.focusedMonitor)
@@ -193,6 +227,21 @@ Scope {
             const bar = outputBars.instances.find(item => item.modelData && Hyprland.monitorFor(item.modelData)?.name === Hyprland.focusedMonitor.name);
             if (bar)
                 bar.toggle();
+        }
+    }
+
+    Connections {
+        target: root.barConfig
+        function onSettingsChanged() {
+            if (!root.protonManagerWindow?.visible) return;
+            const config = root.barConfig.forScreen(root.protonManagerWindow.screen?.name ?? "");
+            if (config.mode === "off" || !config.modules.protonManager) root.protonManagerWindow.visible = false;
+        }
+    }
+    Connections {
+        target: Quickshell
+        function onScreensChanged() {
+            if (root.protonManagerWindow?.visible && !Quickshell.screens.includes(root.protonManagerWindow.screen)) root.protonManagerWindow.visible = false;
         }
     }
 

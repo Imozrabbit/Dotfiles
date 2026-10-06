@@ -37,7 +37,8 @@ Rectangle {
     implicitHeight: mediaText.implicitHeight + 4
 
     visible: root.active && width >= root.theme.volumeFontSize + 16
-    color: "transparent"
+    color: "#E6252525"
+    radius: root.theme.radiusMedium
 
     onVisibleChanged: {
         if (!visible) {

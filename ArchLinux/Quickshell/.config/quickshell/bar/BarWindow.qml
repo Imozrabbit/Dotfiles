@@ -114,7 +114,7 @@ PanelWindow { // qmllint disable uncreatable-type
     Timer {
         id: collapseTimer
 
-        interval: 100
+        interval: 20
         repeat: false
         onTriggered: {
             if (!root.barShown)
@@ -131,9 +131,10 @@ PanelWindow { // qmllint disable uncreatable-type
         opacity: root.barShown ? 1 : 0
 
         Behavior on opacity {
+            enabled: root.mode === "hover"
             NumberAnimation {
-                duration: 80
-                easing.type: Easing.OutCubic
+                duration: root.barShown ? 10 : 20
+                easing.type: Easing.Linear
                 onFinished: {
                     if (!root.barShown)
                         root.windowExpanded = false;
@@ -143,12 +144,13 @@ PanelWindow { // qmllint disable uncreatable-type
 
         // qmllint disable Quick.layout-positioning
         transform: Translate {
-            y: root.barShown ? 0 : 6
+            y: root.barShown ? 0 : 4
 
             Behavior on y {
+                enabled: root.mode === "hover"
                 NumberAnimation {
-                    duration: 80
-                    easing.type: Easing.OutCubic
+                    duration: root.barShown ? 10 : 20
+                    easing.type: Easing.Linear
                 }
             }
         }
@@ -164,7 +166,7 @@ PanelWindow { // qmllint disable uncreatable-type
             anchors.leftMargin: root.sideMargin
             anchors.verticalCenter: parent.verticalCenter
             outputScreen: root.modelData
-            visible: root.modules.tray || root.modules.workspaces || root.modules.launcher || root.modules.updates
+            visible: root.modules.tray || root.modules.workspaces || root.modules.launcher || root.modules.updates || root.modules.protonManager
 
             updateCount: root.updateChecker?.updateCount ?? 0
             checking: root.updateChecker?.checking ?? false
@@ -176,6 +178,9 @@ PanelWindow { // qmllint disable uncreatable-type
             showWorkspaces: root.modules.workspaces
             showLauncher: root.modules.launcher
             showUpdates: root.modules.updates
+            showProtonManager: root.modules.protonManager
+            protonManagerOpen: root.shared.protonManagerScreen === root.modelData
+            onProtonManagerRequested: root.shared.openProtonManager(root.modelData, root.barShown)
             workspaceDisplay: root.configuration.workspaceDisplay
             launchers: root.configuration.launchers
 

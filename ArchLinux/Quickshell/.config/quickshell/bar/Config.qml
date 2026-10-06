@@ -16,6 +16,11 @@ Scope {
             vpn: {
                 routerManagedSsids: []
             },
+            protonManager: {
+                compatibilityToolsDir: "/home/Steam/.local/share/Steam/compatibilitytools.d",
+                umuConfigPath: "/home/Steam/.config/umu-launcher/config.toml",
+                sandboxCompatibilityToolsDir: "/home/Zrabbit/.local/share/Steam/compatibilitytools.d"
+            },
             mouseBattery: {
                 name: "WLMouse Beast X"
             },
@@ -38,6 +43,7 @@ Scope {
                 tray: true,
                 launcher: true,
                 updates: true,
+                protonManager: false,
                 media: true,
                 network: true,
                 vpn: true,

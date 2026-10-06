@@ -22,6 +22,9 @@ Module sizes and the single-row bar height do not change.
 - **Launcher:** configurable app shortcuts that expand rightward from the
   update/launcher icon on hover. Defaults: wallpaper switcher, GTK Look, Qt6ct.
 - **Updates:** `checkupdates` count and manual refresh; runs hourly.
+- **Proton Manager:** optional `󰹂` button after Tray, left of Updates. On-demand
+  GE-Proton/CachyOS checks, verified installation and confirmed cleanup/removal,
+  installed GE selection for umu, and official Arch umu-launcher status.
 - **Media:** active MPRIS player, scrolling track text, and playback toggle.
   Animation runs only when text overflows a visible media box.
 - **OpenAI usage:** optional amber chip between controls and time/date showing
@@ -56,7 +59,7 @@ Module sizes and the single-row bar height do not change.
 ## Configuration
 
 `Config.qml` contains synced defaults: mode `always`, `hoverToggleEnabled: true`,
-and all modules enabled except `mouseBattery` and `openAiUsage`. Put machine-specific settings in optional
+and all modules enabled except `mouseBattery`, `openAiUsage`, and `protonManager`. Put machine-specific settings in optional
 `~/.config/quickshell/bar-local.json`, or
 `$XDG_CONFIG_HOME/quickshell/bar-local.json` if that variable is set. Global
 values override defaults; exact output names in `monitors` override global
@@ -96,6 +99,7 @@ Complete example (replace output names with those from `hyprctl monitors`):
     "tray": true,
     "launcher": true,
     "updates": true,
+    "protonManager": false,
     "media": true,
     "network": true,
     "vpn": true,
@@ -261,6 +265,100 @@ A failed request shows `N/A`, reason, and last update time. Refresh an expired
 login in OpenCode. This is a ChatGPT backend endpoint, not a stable public
 billing API: unexpected schema changes degrade to unavailable state. The SVG
 logo is bundled from Simple Icons v13.21.0 (CC0; OpenAI retains its trademark).
+
+## Proton Manager
+
+Enable `modules.protonManager` globally or per output. One service and popup are
+shared; opening and Refresh check state/upstream on demand, with no background
+polling. `qs -c bar ipc call bar protonManager` opens on the focused enabled
+output; `bar previewProton` remains a compatibility alias.
+
+Global path configuration (not per-monitor):
+
+```json
+{
+  "protonManager": {
+    "compatibilityToolsDir": "/home/Steam/.local/share/Steam/compatibilitytools.d",
+    "umuConfigPath": "/home/Steam/.config/umu-launcher/config.toml",
+    "sandboxCompatibilityToolsDir": "/home/Zrabbit/.local/share/Steam/compatibilitytools.d"
+  }
+}
+```
+
+These shipped paths match the gaming PC's host/sandbox mapping. Override them
+for another layout; without a sandbox, use the same compatibility-tools path
+for host and sandbox. Paths must be absolute and cannot contain `..` or NUL.
+Existing installation/configuration directories are required; the manager does
+not invent missing umu configuration or follow installation-directory symlinks.
+
+Python **3.11+** and standard library provide all management logic. `pacman` and
+`checkupdates` (pacman-contrib) are optional for official Arch `umu-launcher`
+status; missing/failed commands show unavailable. No package installation,
+host package database synchronization, sudo, or AUR management is performed.
+
+Updates targets official GE-Proton **x86_64** and CachyOS Proton **SLR
+x86_64_v3**, requiring the matching published SHA-512 checksum. Confirm the
+release and exact older same-family versions before **Update & clean**.
+Downloads stage on the installation filesystem; archives/links and installation
+metadata are validated before no-replace atomic activation. GE updates umu
+before cleanup. Unknown folders, newer versions, and the selected umu version
+are protected. Steam/umu/Proton/Wine command lines across users and readable
+executable evidence block mutation. Uninspectable executable state for the
+desktop user or installation/config owner also blocks mutation; checks repeat before
+activation/config writes and every removal.
+
+Launcher selection and **Sync latest GE** only write the existing umu config.
+Sync rescans and chooses the newest valid **installed** GE; it does not download
+upstream GE. Wheel navigation alone does not write: click an entry or press
+Enter to commit. The selector and Installed umu marker update after successful
+write. TOML comments/unrelated values and file permissions are preserved; unsafe,
+ambiguous, or unsupported TOML spellings fail without rewriting the file.
+
+Closing the popup or disabling the module does not terminate active work.
+Installation followed by config/cleanup failure reports partial success and
+retains working files; failed umu updates retain all older GE. Interrupted
+staging is hidden from installed inventory and is not automatically deleted.
+Operations and results appear in their corresponding tabs; progress is shared.
+
+Code lives under `proton/`: `Manager.qml` composes tabs, `Palette.qml` names
+module colors, `Service.qml` validates helper events, and `backend.py`,
+`releases.py`, `storage.py` isolate orchestration/network/filesystem concerns.
+
+### Dummy testing without Steam
+
+From `bar/`, run:
+
+```sh
+python3 tests/proton-demo.py
+```
+
+It creates a private `/tmp/opencode/proton-demo-*` directory with dummy
+installations, umu TOML, small archives, checksums, release metadata, and prints
+the **exact demo launch command**. Run that command manually. This separate
+popup uses the real UI/service/transaction code with a fixture adapter: no
+network, package commands, actual `/proc` inspection, or real gaming paths.
+The script copies required QML/Python modules into the fixture's `demo/` config
+root because Quickshell rejects imports outside its selected config. Launch the
+printed temporary path, not `bar/tests/proton-demo` directly. Regenerate fixtures
+after source changes to refresh these copies.
+Escape exits the demo; fixtures remain for inspection. Run the script again
+for a fresh directory. Do not change the real bar-local.json to test fixtures.
+
+Try GE install/cleanup, CachyOS update, GE selection/Sync, and selected-version
+removal blocking. Inspect the printed directory's `umu.toml`, installation
+folders, preserved unknown folder, and `[keep]` table. Edit its `scenario.json`
+and press Refresh to test `blocked`, `badChecksum`, and `packageUnavailable`
+(boolean fields). The adapter refuses non-fixture configuration paths.
+
+Automated checks (all mutations use private temporary fixtures):
+
+```sh
+python3 -m unittest discover -s tests -p 'test_proton_*.py'
+for test in tests/proton-*-checks.mjs; do node "$test" || exit; done
+```
+
+Offscreen viewport checks require `qml6`; isolated service lifecycle checks
+require Quickshell. Neither launches your actual bar.
 
 ## Install
 

@@ -18,10 +18,13 @@ Rectangle {
     required property bool showWorkspaces
     required property bool showLauncher
     required property bool showUpdates
+    required property bool showProtonManager
+    required property bool protonManagerOpen
     required property var workspaceDisplay
     required property var launchers
 
     signal updateRequested
+    signal protonManagerRequested
 
     implicitWidth: workspaceLayout.implicitWidth + 33
     implicitHeight: workspaceLayout.implicitHeight + 4
@@ -48,8 +51,53 @@ Rectangle {
             theme: root.theme
         }
 
+        Text {
+            id: protonIcon
+            visible: root.showProtonManager
+            property bool tooltipVisible: false
+            text: "󰹂"
+            color: protonMouse.containsMouse ? root.theme.launcherHoverColor : root.protonManagerOpen ? root.theme.launcherColor : root.theme.workspaceEmptyColor
+            font.family: root.theme.fontFamily
+            font.pixelSize: root.theme.launcherFontSize
+            font.bold: true
+            onVisibleChanged: {
+                if (!visible) {
+                    protonTooltipDelay.stop();
+                    tooltipVisible = false;
+                }
+            }
+            MouseArea {
+                id: protonMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onEntered: protonTooltipDelay.restart()
+                onExited: {
+                    protonTooltipDelay.stop();
+                    protonIcon.tooltipVisible = false;
+                }
+                onClicked: {
+                    protonTooltipDelay.stop();
+                    protonIcon.tooltipVisible = false;
+                    root.protonManagerRequested();
+                }
+            }
+            Timer {
+                id: protonTooltipDelay
+                interval: 300
+                onTriggered: protonIcon.tooltipVisible = protonMouse.containsMouse && protonIcon.visible
+            }
+            SystemStatTooltip {
+                visible: protonIcon.tooltipVisible
+                anchorItem: protonIcon
+                heading: "Proton Manager"
+                rows: []
+                theme: root.theme
+            }
+        }
+
         Rectangle {
-            visible: root.showTray && root.showWorkspaces
+            visible: (root.showTray || root.showProtonManager) && root.showWorkspaces
             Layout.preferredWidth: 1
             Layout.preferredHeight: root.theme.workspaceFontSize
             Layout.alignment: Qt.AlignVCenter
@@ -113,7 +161,7 @@ Rectangle {
         }
 
         Rectangle {
-            visible: (root.showTray || root.showWorkspaces) && (root.showLauncher || root.showUpdates)
+            visible: (root.showTray || root.showProtonManager || root.showWorkspaces) && (root.showLauncher || root.showUpdates)
             Layout.preferredWidth: 1
             Layout.preferredHeight: root.theme.workspaceFontSize
             Layout.alignment: Qt.AlignVCenter

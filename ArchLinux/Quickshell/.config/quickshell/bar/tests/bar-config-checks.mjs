@@ -17,11 +17,17 @@ const defaults = {
     modules: { network: true, wifiMenu: true, vpn: true, bluetooth: true, calendar: true, weather: true, cpu: true, mouseBattery: false, openAiUsage: false },
     mouseBattery: { name: "WLMouse Beast X" },
     vpn: { routerManagedSsids: [] },
+    protonManager: { compatibilityToolsDir: "/host/tools", umuConfigPath: "/host/umu.toml", sandboxCompatibilityToolsDir: "/sandbox/tools" },
     workspaceDisplay: { minimumCount: 3, itemSpacing: 21, normalLabels: {}, specialLabels: {} },
     launchers: [{ icon: "D", tooltip: "Default", leftCommand: ["default-app"], rightCommand: [] }]
 };
 
 const missing = config.resolveConfig(defaults, "{}");
+assert.equal(missing.protonManager?.compatibilityToolsDir, "/host/tools");
+assert.equal(config.resolveConfig(defaults, '{"protonManager":{"compatibilityToolsDir":"/new/tools"}}').protonManager.compatibilityToolsDir, "/new/tools");
+for (const invalidPath of ["relative", "", "/", "/a/../b", "/bad\0path"])
+    assert.equal(config.resolveConfig(defaults, JSON.stringify({ protonManager: { compatibilityToolsDir: invalidPath } })).protonManager.compatibilityToolsDir, "/host/tools");
+assert.equal(config.resolveConfig(defaults, '{"monitors":{"DP-1":{"protonManager":{"compatibilityToolsDir":"/other"}}}}').monitors["DP-1"].protonManager, undefined);
 assert.equal(config.screenConfig(missing, "unknown").mode, "always");
 assert.equal(config.screenConfig(missing, "unknown").modules.bluetooth, true);
 assert.equal(config.screenConfig(missing, "unknown").edgeSpacing, 14);

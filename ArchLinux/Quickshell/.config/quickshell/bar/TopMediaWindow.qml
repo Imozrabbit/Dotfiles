@@ -14,18 +14,30 @@ PanelWindow { // qmllint disable uncreatable-type
     readonly property var service: root.shared.mprisService
     property bool hoverRevealed: false
     readonly property bool shown: root.mode === "always" || root.hoverRevealed
+    property bool windowExpanded: root.shown
 
     screen: root.modelData
     anchors.top: true
     anchors.left: true
     anchors.right: true
-    implicitHeight: root.shown ? 35 : 2
+    implicitHeight: root.windowExpanded ? 35 : 2
     color: "transparent"
     WlrLayershell.exclusiveZone: root.mode === "always" ? 35 : -1
 
     onModeChanged: {
         hideTimer.stop();
         root.hoverRevealed = false;
+        collapseTimer.stop();
+        root.windowExpanded = root.mode === "always";
+    }
+
+    onShownChanged: {
+        if (root.shown) {
+            collapseTimer.stop();
+            root.windowExpanded = true;
+        } else {
+            collapseTimer.restart();
+        }
     }
 
     HoverHandler {
@@ -43,10 +55,30 @@ PanelWindow { // qmllint disable uncreatable-type
         interval: 80
         onTriggered: root.hoverRevealed = false
     }
+    Timer {
+        id: collapseTimer
+        interval: 20
+        onTriggered: {
+            if (!root.shown)
+                root.windowExpanded = false;
+        }
+    }
 
     Item {
         anchors.fill: parent
-        visible: root.shown
+        visible: root.windowExpanded
+        opacity: root.shown ? 1 : 0
+        Behavior on opacity {
+            enabled: root.mode === "hover"
+            NumberAnimation { duration: root.shown ? 10 : 20; easing.type: Easing.Linear }
+        }
+        transform: Translate {
+            y: root.shown ? 0 : -4
+            Behavior on y {
+                enabled: root.mode === "hover"
+                NumberAnimation { duration: root.shown ? 10 : 20; easing.type: Easing.Linear }
+            }
+        }
         Widgets.Mpris {
             anchors.centerIn: parent
             availableWidth: root.width * 0.4

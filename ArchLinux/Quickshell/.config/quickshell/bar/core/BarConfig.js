@@ -78,6 +78,7 @@ function resolveConfig(defaults, text, previous) {
         launchers: launcherEntries(defaults.launchers || []),
         mouseBattery: Object.assign({}, defaults.mouseBattery),
         vpn: { routerManagedSsids: (defaults.vpn?.routerManagedSsids || []).slice() },
+        protonManager: Object.assign({}, defaults.protonManager || {}),
         modules: Object.assign({}, defaults.modules),
         workspaceDisplay: workspaceSettings(defaults.workspaceDisplay, null),
         monitors: {}
@@ -92,6 +93,14 @@ function resolveConfig(defaults, text, previous) {
         return previous || result;
     const names = Object.keys(defaults.modules);
     applyFields(result, local, names);
+    if (isObject(local.protonManager)) {
+        for (const key of ["compatibilityToolsDir", "umuConfigPath", "sandboxCompatibilityToolsDir"]) {
+            const value = local.protonManager[key];
+            if (typeof value === "string" && value.length <= 4096 && value.startsWith("/")
+                && value !== "/" && !value.includes("\0") && !value.split("/").includes(".."))
+                result.protonManager[key] = value;
+        }
+    }
     if (isObject(local.vpn) && Array.isArray(local.vpn.routerManagedSsids))
         result.vpn.routerManagedSsids = local.vpn.routerManagedSsids.filter((ssid, index, entries) =>
             typeof ssid === "string" && ssid !== "" && ssid.length <= 32 && !ssid.includes("\0") && entries.indexOf(ssid) === index);

@@ -14,10 +14,7 @@ hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("~/.config/shell/script/Swaync/swaync-
 hl.bind(mainMod .. "+ C", hl.dsp.exec_cmd("qs -c calendar ipc call calendar toggle")) -- Toggle Calendar
 
 -- Toggle bottom bar
-hl.bind(
-	mainMod .. "+ SHIFT + S",
-	hl.dsp.exec_cmd("qs -p /home/Zrabbit/.config/quickshell/bar/shell.qml ipc call bar toggle")
-)
+hl.bind(mainMod .. "+ SHIFT + S", hl.dsp.exec_cmd("qs -c bar ipc call bar toggle"))
 
 -- Move focus with mainMod + arrow keys
 hl.bind(mainMod .. "+ H", hl.dsp.focus({ direction = "left" })) -- Move focus to left
