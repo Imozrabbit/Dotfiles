@@ -189,7 +189,7 @@ else
             printf 'pair holidays_fr {\n    storage_a holidays_fr\n    storage_b local\n    collection holidays_fr\n    one_way\n}\n\n'
         fi
         if [ "$personal" -eq 1 ]; then
-            printf 'pair personal {\n    storage_a local\n    storage_b radicale\n    collection personal\n    on_empty skip\n    on_delete skip\n    conflict_resolution cmd sh -c '\''exec "$HOME/.config/quickshell/calendar/parse/conflict-broker.sh" "$1" "$2"'\'' conflict-broker\n}\n'
+            printf 'pair personal {\n    storage_a local\n    storage_b radicale\n    collection personal\n    on_empty sync\n    on_delete skip\n    conflict_resolution cmd sh -c '\''exec "$HOME/.config/quickshell/calendar/parse/conflict-broker.sh" "$1" "$2"'\'' conflict-broker\n}\n'
         fi
     } > "$config_tmp"
     mv -- "$config_tmp" "$config"

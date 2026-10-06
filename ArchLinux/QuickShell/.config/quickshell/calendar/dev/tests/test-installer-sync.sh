@@ -44,6 +44,8 @@ fi
 grep -q 'collection edt_unistra' "$config"
 grep -q 'collection holidays_fr' "$config"
 grep -q 'collection personal' "$config"
+grep -Fxq '    on_empty sync' "$config"
+grep -Fxq '    on_delete skip' "$config"
 test -d "$XDG_STATE_HOME/pimsync/status"
 test -d "$XDG_DATA_HOME/calendars/edt_unistra"
 test -d "$XDG_DATA_HOME/calendars/holidays_fr"
