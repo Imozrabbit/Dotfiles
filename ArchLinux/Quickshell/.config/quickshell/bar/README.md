@@ -80,6 +80,11 @@ Complete example (replace output names with those from `hyprctl monitors`):
   "hoverToggleEnabled": true,
   "vpn": { "routerManagedSsids": [] },
   "mouseBattery": { "name": "WLMouse Beast X" },
+  "protonManager": {
+    "compatibilityToolsDir": "/home/Steam/.local/share/Steam/compatibilitytools.d",
+    "umuConfigPath": "/home/Steam/.config/umu-launcher/config.toml",
+    "sandboxCompatibilityToolsDir": "/home/Zrabbit/.local/share/Steam/compatibilitytools.d"
+  },
   "launchers": [
     {
       "icon": "󰸉",
@@ -274,6 +279,8 @@ package checks run at most once every 24 hours per Quickshell session. **Refresh
 bypasses that cooldown. Restarting Quickshell triggers a new initial check. No
 background polling. `qs -c bar ipc call bar protonManager` opens on the focused
 enabled output; `bar previewProton` remains a compatibility alias.
+Popup margins follow that output's live bar visibility, including hover and pin
+changes while open. IPC opening uses the same per-output state as clicking its icon.
 
 Add this top-level `protonManager` object to `~/.config/quickshell/bar-local.json`
 (or `$XDG_CONFIG_HOME/quickshell/bar-local.json`). Merge it into existing JSON;
@@ -293,6 +300,13 @@ and are global, not per-monitor:
 These shipped paths match the gaming PC's host/sandbox mapping. Override them
 for another layout; without a sandbox, use the same compatibility-tools path
 for host and sandbox. Paths must be absolute and cannot contain `..` or NUL.
+
+- `compatibilityToolsDir`: host folder containing all Proton installations,
+  not an individual `GE-Proton...` folder. Inventory, downloads, and cleanup use it.
+- `umuConfigPath`: existing umu TOML configuration file to update.
+- `sandboxCompatibilityToolsDir`: the same tools folder as seen inside the gaming
+  sandbox; GE selection writes this path plus the selected folder name into umu.
+
 Existing installation/configuration directories are required; the manager does
 not invent missing umu configuration or follow installation-directory symlinks.
 

@@ -80,7 +80,11 @@ Scope {
     LazyLoader {
         id: protonManagerLoader
         active: root.protonService !== null && root.protonService !== undefined
-        Proton.Manager { theme: root.theme; service: root.protonService }
+        Proton.Manager {
+            theme: root.theme
+            service: root.protonService
+            barRevealed: outputBars.instances.find(bar => bar.modelData === root.protonManagerWindow?.screen)?.barShown ?? false
+        }
     }
     LazyLoader {
         id: memoryLoader
@@ -198,11 +202,10 @@ Scope {
         }
     }
 
-    function openProtonManager(screen, revealed) {
+    function openProtonManager(screen) {
         if (!root.protonManagerWindow || !screen || !root.barConfig.forScreen(screen.name).modules.protonManager)
             return;
         root.protonManagerWindow.screen = screen;
-        root.protonManagerWindow.barRevealed = revealed === undefined ? true : revealed;
         root.protonManagerWindow.visible = true;
     }
 

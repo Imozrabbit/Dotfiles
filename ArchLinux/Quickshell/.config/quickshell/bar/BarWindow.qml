@@ -180,7 +180,7 @@ PanelWindow { // qmllint disable uncreatable-type
             showUpdates: root.modules.updates
             showProtonManager: root.modules.protonManager
             protonManagerOpen: root.shared.protonManagerScreen === root.modelData
-            onProtonManagerRequested: root.shared.openProtonManager(root.modelData, root.barShown)
+            onProtonManagerRequested: root.shared.openProtonManager(root.modelData)
             workspaceDisplay: root.configuration.workspaceDisplay
             launchers: root.configuration.launchers
 
