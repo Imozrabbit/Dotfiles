@@ -4,7 +4,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
-import "." as Proton
+import "widgets" as Proton
+import "widgets"
+import "core" as ProtonCore
 
 PanelWindow { // qmllint disable uncreatable-type
     id: root
@@ -14,7 +16,7 @@ PanelWindow { // qmllint disable uncreatable-type
     property int selectedTab: 0
     property string selectedFamily: ""
     property var confirmation: null
-    property Proton.Palette colors: Proton.Palette { theme: root.theme }
+    property ProtonCore.Palette colors: ProtonCore.Palette { theme: root.theme }
     readonly property var blockers: service.snapshot?.blockers ?? []
     readonly property bool canManage: !service.busy && service.snapshot !== null && blockers.length === 0
     visible: false
@@ -38,7 +40,7 @@ PanelWindow { // qmllint disable uncreatable-type
     Connections {
         target: root.service
         function onConfirmationChanged() {
-            if (root.visible && root.service.confirmation) root.confirmation = root.service.confirmation;
+            if (root.visible) root.confirmation = root.service.confirmation;
         }
     }
     Shortcut {

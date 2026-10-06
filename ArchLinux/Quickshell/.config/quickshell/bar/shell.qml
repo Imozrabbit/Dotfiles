@@ -12,6 +12,7 @@ import qs.network.vpn as Vpn
 import qs.network.wifi as Wifi
 import qs.services as Services
 import "proton" as Proton
+import "proton/services" as ProtonServices
 
 Scope {
     id: root
@@ -75,7 +76,7 @@ Scope {
     LazyLoader {
         id: protonLoader
         active: root.uses("protonManager") || (root.protonService?.busy ?? false)
-        Proton.Service { config: root.barConfig.settings.protonManager }
+        ProtonServices.Service { config: root.barConfig.settings.protonManager }
     }
     LazyLoader {
         id: protonManagerLoader
@@ -203,7 +204,10 @@ Scope {
     }
 
     function openProtonManager(screen) {
-        if (!root.protonManagerWindow || !screen || !root.barConfig.forScreen(screen.name).modules.protonManager)
+        if (!root.protonManagerWindow || !screen)
+            return;
+        const config = root.barConfig.forScreen(screen.name);
+        if (config.mode === "off" || !config.modules.protonManager)
             return;
         root.protonManagerWindow.screen = screen;
         root.protonManagerWindow.visible = true;

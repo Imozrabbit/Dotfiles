@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const source = readFileSync(new URL('../../proton/widgets/InstalledTab.qml', import.meta.url), 'utf8');
+const body = source.match(/function toggleVersion\(name\) \{([^}]+)\}/)[1];
+const toggle = new Function('root','name',body), state = {expandedVersion:''};
+toggle(state,'GE-Proton11-7'); assert.equal(state.expandedVersion,'GE-Proton11-7');
+toggle(state,'GE-Proton11-6'); assert.equal(state.expandedVersion,'GE-Proton11-6');
+toggle(state,'GE-Proton11-6'); assert.equal(state.expandedVersion,'');
+for (const text of ['visible: installedEntry.expanded','visible: installedEntry.modelData.umuSelected','root.service.prepareRemove(installedEntry.modelData.name)','root.colors.removeHover','model: root.service.snapshot?.installations']) assert.ok(source.includes(text),text);
+console.log('Proton installed checks passed');

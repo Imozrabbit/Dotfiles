@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { runInNewContext } from "node:vm";
+
+const source = await readFile(new URL("../../services/OpenAiUsage.qml", import.meta.url), "utf8");
+const match = source.match(/function refresh\(([^)]*)\) \{([\s\S]*?)\n    \}/);
+const root = { lastAttemptAt: Date.now(), queryPending: false };
+const queryProcess = { running: false };
+const context = { root, queryProcess, watchdog: { restart() {} } };
+runInNewContext(`function refresh(${match[1]}) {${match[2]}\n}`, context);
+context.refresh(false);
+assert.equal(queryProcess.running, false);
+context.refresh(true);
+assert.equal(queryProcess.running, true);
+root.lastAttemptAt = 123;
+context.refresh(true);
+assert.equal(root.lastAttemptAt, 123, "in-flight clicks must not start another request");
+const widget = await readFile(new URL("../../widgets/OpenAiUsage.qml", import.meta.url), "utf8");
+assert.match(widget, /onTapped:.*refreshRequested\(true\)/);
+assert.match(widget, /refreshRequested\(false\)/);
+console.log("Quota manual refresh checks passed");
