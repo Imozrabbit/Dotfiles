@@ -86,3 +86,17 @@ function applyEvent(state, event) {
     }
     return next;
 }
+
+function compareVersions(left, right) {
+    if (!version(left) || !version(right)) return -1;
+    for (let index = 0; index < Math.max(left.length, right.length); index++) {
+        const a = left[index] ?? 0;
+        const b = right[index] ?? 0;
+        if (a !== b) return a > b ? 1 : -1;
+    }
+    return 0;
+}
+function hasCurrentOrNewer(release, installations) {
+    return object(release) && Array.isArray(installations) && installations.some(item => object(item)
+        && item.family === release.family && compareVersions(item.version, release.version) >= 0);
+}

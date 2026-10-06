@@ -30,7 +30,7 @@ class DemoTests(unittest.TestCase):
         _, result = self.request("install", descriptor)
         self.assertEqual(result["status"], "success", result)
         base = Path(self.config["compatibilityToolsDir"])
-        self.assertTrue((base / "GE-Proton11-8" / "proton").exists())
+        self.assertTrue((base / "GE-Proton11-8-x86_64" / "proton").exists())
         self.assertFalse((base / "GE-Proton11-6").exists())
         self.assertTrue((base / "unknown-folder").exists())
         self.assertIn("value = 42", Path(self.config["umuConfigPath"]).read_text())
@@ -42,7 +42,7 @@ class DemoTests(unittest.TestCase):
         descriptor = next(event["data"] for event in events if event["type"] == "confirmation")
         _, result = self.request("install", descriptor)
         self.assertEqual(result["status"], "error")
-        self.assertFalse((Path(self.config["compatibilityToolsDir"]) / "GE-Proton11-8").exists())
+        self.assertFalse((Path(self.config["compatibilityToolsDir"]) / "GE-Proton11-8-x86_64").exists())
         scenario.write_text('{"blocked":true,"packageUnavailable":true}')
         _, result = self.request("refresh")
         self.assertTrue(result["snapshot"]["blockers"])
@@ -89,7 +89,7 @@ class DemoTests(unittest.TestCase):
             if (service.busy) return;
             if (!service.snapshot || service.snapshot.currentGeVersion !== "GE-Proton11-7"
                 || service.snapshot.package.state !== "notInstalled"
-                || service.snapshot.releases.ge.name !== "GE-Proton11-8") {
+                || service.snapshot.releases.ge.name !== "GE-Proton11-8-x86_64") {
                 console.error("DEMO FAIL fixture helper", JSON.stringify(service.messages)); Qt.exit(1); return;
             }
             console.log("DEMO PASS imports and fixture helper"); Qt.quit();

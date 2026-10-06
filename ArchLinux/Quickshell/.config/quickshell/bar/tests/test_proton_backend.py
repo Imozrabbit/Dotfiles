@@ -124,7 +124,7 @@ class TransactionTests(unittest.TestCase):
         installation(self.base, "GE-Proton11-7")
         installation(self.base, "GE-Proton11-6")
         self.events = []
-        self.release = {"family": "ge", "tag": "GE-Proton11-8", "name": "GE-Proton11-8", "version": [11, 8, 0],
+        self.release = {"family": "ge", "tag": "GE-Proton11-8", "name": "GE-Proton11-8-x86_64", "version": [11, 8, 0],
                         "archiveName": "GE-Proton11-8-x86_64.tar.gz", "archiveUrl": "fixture", "checksumUrl": "fixture"}
         self.dependencies = {"proc_root": self.proc, "latest_release": lambda family: self.release,
                              "download_verified": self.download, "package_status": lambda: {"state": "notInstalled", "installedVersion": None, "availableVersion": "1.3", "messages": []}}
@@ -157,24 +157,24 @@ class TransactionTests(unittest.TestCase):
         descriptor = self.prepare()
         result = self.request("install", descriptor)
         self.assertEqual(result["status"], "success", result)
-        self.assertTrue((self.base / "GE-Proton11-8").exists())
+        self.assertTrue((self.base / "GE-Proton11-8-x86_64").exists())
         self.assertFalse((self.base / "GE-Proton11-7").exists())
         self.assertFalse((self.base / "GE-Proton11-6").exists())
-        self.assertEqual(result["snapshot"]["currentGeVersion"], "GE-Proton11-8")
+        self.assertEqual(result["snapshot"]["currentGeVersion"], "GE-Proton11-8-x86_64")
 
     def test_stale_confirmation_refused(self):
         descriptor = self.prepare()
         installation(self.base, "GE-Proton11-5")
         result = self.request("install", descriptor)
         self.assertEqual(result["status"], "error")
-        self.assertFalse((self.base / "GE-Proton11-8").exists())
+        self.assertFalse((self.base / "GE-Proton11-8-x86_64").exists())
 
     def test_umu_failure_retains_new_and_old_ge(self):
         Path(self.config["umuConfigPath"]).write_text('umu.proton="/sandbox/GE-Proton11-7"\n')
         descriptor = self.prepare()
         result = self.request("install", descriptor)
         self.assertEqual(result["status"], "partial", result)
-        self.assertTrue(all((self.base / name).exists() for name in ["GE-Proton11-6", "GE-Proton11-7", "GE-Proton11-8"]))
+        self.assertTrue(all((self.base / name).exists() for name in ["GE-Proton11-6", "GE-Proton11-7", "GE-Proton11-8-x86_64"]))
 
     def test_selected_ge_never_removed(self):
         result = self.request("prepareRemove", {"name": "GE-Proton11-7"})
@@ -188,10 +188,10 @@ class TransactionTests(unittest.TestCase):
             self.assertEqual(backend.inspect_local(self.config, self.proc)["currentGeVersion"], "GE-Proton11-7")
 
     def test_replaced_existing_target_invalidates_confirmation(self):
-        target = installation(self.base, "GE-Proton11-8")
+        target = installation(self.base, "GE-Proton11-8-x86_64")
         descriptor = self.prepare()
         target.rename(self.base / "retained-original")
-        installation(self.base, "GE-Proton11-8")
+        installation(self.base, "GE-Proton11-8-x86_64")
         self.assertEqual(self.request("install", descriptor)["status"], "error")
         self.assertTrue((self.base / "GE-Proton11-7").exists())
 
@@ -214,7 +214,7 @@ class TransactionTests(unittest.TestCase):
             return result
         self.dependencies["download_verified"] = download
         self.assertEqual(self.request("install", descriptor)["status"], "blocked")
-        self.assertFalse((self.base / "GE-Proton11-8").exists())
+        self.assertFalse((self.base / "GE-Proton11-8-x86_64").exists())
         self.assertTrue((self.base / "GE-Proton11-7").exists())
 
     def test_cleanup_never_deletes_newer_or_unknown(self):
@@ -259,7 +259,20 @@ class TransactionTests(unittest.TestCase):
             result = self.request("install", descriptor)
         self.assertEqual(result["status"], "partial")
         self.assertTrue((self.base / "GE-Proton11-6").exists())
-        self.assertTrue((self.base / "GE-Proton11-8").exists())
+        self.assertTrue((self.base / "GE-Proton11-8-x86_64").exists())
+
+    def test_ge_install_normalizes_canonical_archive_root(self):
+        descriptor = self.prepare()
+        def download(release, directory, progress):
+            source = directory / "source"
+            source.mkdir()
+            installation(source, "GE-Proton11-8")
+            return Path(shutil.make_archive(str(directory / "archive"), "gztar", root_dir=source))
+        self.dependencies["download_verified"] = download
+        result = self.request("install", descriptor)
+        self.assertEqual(result["status"], "success", result)
+        self.assertTrue((self.base / "GE-Proton11-8-x86_64").is_dir())
+        self.assertFalse((self.base / "GE-Proton11-8").exists())
 
     def test_cleanup_failure_preserves_success(self):
         descriptor = self.prepare()
@@ -267,14 +280,61 @@ class TransactionTests(unittest.TestCase):
         with patch.object(backend.storage, "remove_installation", side_effect=PermissionError("denied")):
             result = self.request("install", descriptor)
         self.assertEqual(result["status"], "partial")
-        self.assertEqual(result["snapshot"]["currentGeVersion"], "GE-Proton11-8")
+        self.assertEqual(result["snapshot"]["currentGeVersion"], "GE-Proton11-8-x86_64")
         self.assertTrue((self.base / "GE-Proton11-7").exists())
+
+    def test_wrong_archive_version_rejected_before_activation(self):
+        descriptor = self.prepare()
+        def download(release, directory, progress):
+            source = directory / "source"
+            source.mkdir()
+            installation(source, "GE-Proton11-9-x86_64")
+            return Path(shutil.make_archive(str(directory / "archive"), "gztar", root_dir=source))
+        self.dependencies["download_verified"] = download
+        before = Path(self.config["umuConfigPath"]).read_bytes()
+        result = self.request("install", descriptor)
+        self.assertEqual(result["status"], "error", result)
+        self.assertIn("selected release version", result["messages"][0]["text"])
+        self.assertFalse((self.base / self.release["name"]).exists())
+        self.assertTrue((self.base / "GE-Proton11-7").exists())
+        self.assertEqual(Path(self.config["umuConfigPath"]).read_bytes(), before)
+
+    def test_equal_ge_version_with_canonical_name_not_cleaned(self):
+        installation(self.base, "GE-Proton11-8")
+        result = self.request("install", self.prepare())
+        self.assertEqual(result["status"], "success", result)
+        self.assertTrue((self.base / "GE-Proton11-8").exists())
+        self.assertTrue((self.base / "GE-Proton11-8-x86_64").exists())
+
+    def test_cachyos_archive_install_cleans_only_older_same_family(self):
+        name = "proton-cachyos-11.0-20261005-slr-x86_64_v3"
+        older = "proton-cachyos-20260928-slr-x86_64_v3"
+        newer = "proton-cachyos-11.0-20261006-slr-x86_64_v3"
+        self.release = {**self.release, "family": "cachyos", "name": name,
+                        "tag": "cachyos-11.0-20261005-slr", "version": [20261005, 11, 0],
+                        "archiveName": name + ".tar.xz"}
+        installation(self.base, older)
+        installation(self.base, newer)
+        def download(release, directory, progress):
+            source = directory / "source"
+            source.mkdir()
+            installation(source, release["name"])
+            return Path(shutil.make_archive(str(directory / "archive"), "xztar", root_dir=source))
+        self.dependencies["download_verified"] = download
+        before = Path(self.config["umuConfigPath"]).read_bytes()
+        result = self.request("install", self.prepare(payload={"family": "cachyos"}))
+        self.assertEqual(result["status"], "success", result)
+        self.assertTrue((self.base / name).is_dir())
+        self.assertFalse((self.base / older).exists())
+        self.assertTrue((self.base / newer).exists())
+        self.assertTrue((self.base / "GE-Proton11-7").exists())
+        self.assertEqual(Path(self.config["umuConfigPath"]).read_bytes(), before)
 
     def test_lock_serializes_mutations(self):
         descriptor = self.prepare()
         with backend.storage.operation_lock(self.base):
             self.assertEqual(self.request("install", descriptor)["status"], "error")
-        self.assertFalse((self.base / "GE-Proton11-8").exists())
+        self.assertFalse((self.base / "GE-Proton11-8-x86_64").exists())
 
     def test_cachyos_selected_by_umu_cannot_be_removed(self):
         name = "proton-cachyos-11.0-20261005-slr-x86_64_v3"

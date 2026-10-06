@@ -8,6 +8,7 @@ try {
     const module = new URL('../proton/', import.meta.url);
     for (const name of readdirSync(module).filter(name => name.endsWith('.qml') && name !== 'Service.qml'))
         writeFileSync(join(directory, name), readFileSync(new URL(name, module)));
+    writeFileSync(join(directory, 'State.js'), readFileSync(new URL('State.js', module)));
     let source = readFileSync(new URL('Manager.qml', module), 'utf8');
     source = source.replace(/^import Quickshell.*\n/gm, '').replace('PanelWindow {', 'Window {')
         .replace('required property var theme', 'property var theme: QtObject { property string fontFamily: "monospace"; property color workspaceEmptyColor: "#707072" }')

@@ -23,7 +23,7 @@ def metadata(family="ge"):
 
 class ReleaseTests(unittest.TestCase):
     def test_exact_build_selection(self):
-        self.assertEqual(releases.select_release("ge", metadata())["name"], "GE-Proton11-8")
+        self.assertEqual(releases.select_release("ge", metadata())["name"], "GE-Proton11-8-x86_64")
         self.assertEqual(releases.select_release("cachyos", metadata("cachyos"))["name"], "proton-cachyos-11.0-20261005-slr-x86_64_v3")
 
     def test_missing_ambiguous_checksum_blocks(self):

@@ -320,8 +320,15 @@ def dispatch(request, emit, dependencies=None):
                             archive = download(target, stage, lambda data: event("progress", data))
                             progress("Extracting archive")
                             staged = storage.extract_verified(archive, stage / "extracted")
+                            archive_family, archive_version = storage.version_info(staged.name)
+                            if archive_family != target["family"] or archive_version != target["version"]:
+                                raise ValueError("Archive root does not match selected release version")
                             if staged.name != target["name"]:
-                                raise ValueError("Archive root does not match release")
+                                normalized = staged.parent / target["name"]
+                                if normalized.exists():
+                                    raise ValueError("Normalized archive root already exists")
+                                staged.rename(normalized)
+                                staged = normalized
                             # Revalidate original confirmation after slow download/extraction.
                             refreshed = local()
                             if prepare_confirmation(config, "install", target["family"], refreshed) != expected:

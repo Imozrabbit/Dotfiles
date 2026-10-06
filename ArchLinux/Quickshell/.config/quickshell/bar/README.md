@@ -305,8 +305,13 @@ Updates targets official GE-Proton **x86_64** and CachyOS Proton **SLR
 x86_64_v3**, requiring the matching published SHA-512 checksum. GE folders named
 `GE-Proton<major>-<minor>[-<patch>]` and the same name with `-x86_64` suffix are
 recognized; the canonical compatibility metadata name may omit that suffix.
-Confirm the
-release and exact older same-family versions before **Update & clean**.
+New installs use the full archive stem, including architecture: e.g.
+`GE-Proton11-7-x86_64` or `proton-cachyos-11.0-20261005-slr-x86_64_v3`.
+**Up to date** compares parsed same-family versions, not folder-name equality;
+GE compares major/minor/patch, CachyOS compares build date then major/minor.
+An installed version equal to or newer than the release is up to date.
+GE canonical archive roots with matching versions are normalized to the full
+install name. Confirm the release and exact older same-family versions before **Update & clean**.
 Downloads stage on the installation filesystem; archives/links and installation
 metadata are validated before no-replace atomic activation. GE updates umu
 before cleanup. Unknown folders, newer versions, and the selected umu version

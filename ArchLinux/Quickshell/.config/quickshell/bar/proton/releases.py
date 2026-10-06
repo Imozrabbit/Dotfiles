@@ -49,13 +49,13 @@ def select_release(family, metadata):
     assets = metadata.get("assets")
     if not isinstance(tag, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", tag) or not isinstance(assets, list) or len(assets) > 1000:
         raise ValueError("Invalid release tag/assets")
-    pattern = r"(GE-Proton\d+-\d+(?:-\d+)?)-x86_64\.tar\.gz" if family == "ge" else r"(proton-cachyos-(?:\d+\.\d+-)?\d{8}-slr-x86_64_v3)\.tar\.xz"
+    pattern = r"(GE-Proton\d+-\d+(?:-\d+)?-x86_64)\.tar\.gz" if family == "ge" else r"(proton-cachyos-(?:\d+\.\d+-)?\d{8}-slr-x86_64_v3)\.tar\.xz"
     candidates = [asset for asset in assets if isinstance(asset, dict) and isinstance(asset.get("name"), str) and re.fullmatch(pattern, asset["name"])]
     if len(candidates) != 1:
         raise ValueError("Requested Proton build unavailable or ambiguous")
     asset = candidates[0]
     name = re.fullmatch(pattern, asset["name"]).group(1)
-    if family == "ge" and name != tag:
+    if family == "ge" and name.removesuffix("-x86_64") != tag:
         raise ValueError("Release tag/archive version mismatch")
     archive_name = asset["name"]
     checksum_name = archive_name.removesuffix(".tar.gz").removesuffix(".tar.xz") + ".sha512sum"

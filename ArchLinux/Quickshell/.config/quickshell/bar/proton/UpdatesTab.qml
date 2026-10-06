@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
+import "State.js" as State
 
 ColumnLayout {
     id: root
@@ -23,7 +24,7 @@ ColumnLayout {
             readonly property var release: root.service.snapshot?.releases[modelData.family] ?? null
             readonly property var installed: root.service.snapshot?.installations.filter(item => item.family === modelData.family) ?? []
             readonly property bool selected: root.selectedFamily === modelData.family
-            readonly property bool upToDate: release !== null && installed.some(item => item.name === release.name)
+            readonly property bool upToDate: State.hasCurrentOrNewer(release, installed)
             implicitHeight: familyContent.implicitHeight + 24
             color: familyHover.containsMouse ? root.colors.cardHover : root.colors.card
             border.color: selected ? root.colors.selectedBorder : root.colors.border
