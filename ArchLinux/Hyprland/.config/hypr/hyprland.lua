@@ -35,7 +35,7 @@ require("config.workspaceRules")
 require("config.windowRules")
 
 -- Layout rules
-require("config.layoutRules")
+require("config.layerrules")
 
 -- Layout
 require("config.layouts")
