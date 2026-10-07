@@ -88,6 +88,14 @@ hl.curve("easeOutExpo", { type = "bezier", points = { { 0.16, 1 }, { 0.3, 1 } } 
 -- Animation Specific
 -----------------------------------------------------------------------
 hl.animation({
+	leaf = "layers",
+	enabled = true,
+	speed = 2, -- 200 ms
+	bezier = "default",
+	style = "slide bottom",
+})
+
+hl.animation({
 	leaf = "windows",
 	enabled = true,
 	speed = 3,
