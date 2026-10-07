@@ -31,8 +31,8 @@ require("config.workspaceRules")
 -- App-specific window rules
 require("config.windowRules")
 
--- Layout rules
-require("config.layoutRules")
+-- Layer rules
+require("config.layerrules")
 
 -- Layout
 require("config.layouts")
