@@ -39,7 +39,6 @@ Scope {
     readonly property var networkStats: networkLoader.item
     readonly property var vpnStatus: vpnLoader.item
     readonly property var clock: clockLoader.item
-    property bool wifiBarRevealed: true
     readonly property var wifiMenu: wifiLoader.item
 
     function uses(moduleName) {
@@ -174,15 +173,14 @@ Scope {
         Wifi.WifiMenu {
             standalone: false
             theme: root.theme
-            barRevealed: root.wifiBarRevealed
+            barRevealed: outputBars.instances.find(bar => bar.modelData === root.wifiMenu?.screen)?.barShown ?? false
             onCloseRequested: visible = false
         }
     }
 
-    function openWifi(screen, revealed) {
+    function openWifi(screen) {
         if (!root.barConfig.forScreen(screen.name).modules.wifiMenu || !root.wifiMenu)
             return;
-        root.wifiBarRevealed = revealed;
         root.wifiMenu.screen = screen;
         root.wifiMenu.visible = !root.wifiMenu.visible;
     }

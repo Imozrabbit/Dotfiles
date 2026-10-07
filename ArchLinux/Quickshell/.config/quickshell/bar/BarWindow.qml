@@ -241,7 +241,7 @@ PanelWindow { // qmllint disable uncreatable-type
                 wifiMenuVisible: root.wifiMenu ? root.wifiMenu.visible && root.wifiMenu.screen === root.modelData : false
                 wifiMenuEnabled: root.modules.wifiMenu
                 vpnEnabled: root.modules.vpn
-                onWifiMenuRequested: root.shared.openWifi(root.modelData, root.barShown)
+                onWifiMenuRequested: root.shared.openWifi(root.modelData)
                 signalPercent: root.networkStats?.signalPercent ?? -1
                 barRevealed: root.barShown
                 onDetailsRequested: {
