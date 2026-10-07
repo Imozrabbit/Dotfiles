@@ -3,7 +3,7 @@ set -eu
 
 #-------------------- Package Manager --------------------#
 # Clear package manager caches
-yay -Scc --noconfirm
+yay -Scc
 printf "\033[1;36m%s\033[0m\n" "Package manager caches cleared"
 
 
