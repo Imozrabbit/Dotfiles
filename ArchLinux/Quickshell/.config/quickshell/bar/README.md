@@ -215,7 +215,7 @@ except **`protonManager`**, **`mouseBattery`**, and **`openAiUsage`**.
 | Module | What you get |
 | --- | --- |
 | `workspaces` | Workspace buttons and special workspaces. |
-| `tray` | Application icons and their menus. |
+| `tray` | Application icons shown inline in the left bar box, without a toggle or separate drawer. The box grows as icons appear. Left-click activates the app (or opens its menu for menu-only items); right-click opens a non-empty context menu. Empty menus do not open. |
 | `launcher` | App shortcuts revealed on hover. |
 | `updates` | Available Arch update count; manual refresh. |
 | `protonManager` | GE-Proton/CachyOS installs, confirmed cleanup, and umu selection. [Setup and safety](docs/proton-manager.md). |
@@ -240,6 +240,9 @@ except **`protonManager`**, **`mouseBattery`**, and **`openAiUsage`**.
 
 Hiding a parent also hides dependent modules. Missing devices/tools show
 unavailable data rather than breaking the bar. Module order is fixed.
+
+When no tray icons exist and Proton Manager is disabled, their leading
+separator is hidden. Tray context menus close when the tray or bar hides.
 
 ### Shortcuts and optional settings
 

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Hyprland
+import Quickshell.Services.SystemTray
 
 import qs.core as Core
 import "../core/BarConfig.js" as BarConfig
@@ -10,8 +11,6 @@ Rectangle {
     id: root
 
     required property Core.Theme theme
-    required property var outputScreen
-
     required property int updateCount
     required property bool checking
     required property bool showTray
@@ -33,21 +32,17 @@ Rectangle {
 
     readonly property var normalEntries: BarConfig.normalWorkspaceEntries(root.workspaceDisplay, Hyprland.workspaces.values)
     readonly property var specialEntries: BarConfig.specialWorkspaceEntries(root.workspaceDisplay, Hyprland.workspaces.values, Hyprland.monitors.values, Hyprland.focusedMonitor)
-
-    onShowTrayChanged: {
-        if (!root.showTray && trayDrawer)
-            trayDrawer.trayOpened = false;
-    }
+    // qmllint disable missing-property
+    readonly property bool trayVisible: root.showTray && SystemTray.items.values.length > 0
+    // qmllint enable missing-property
 
     RowLayout {
         id: workspaceLayout
         spacing: root.workspaceDisplay.itemSpacing
         anchors.centerIn: parent
 
-        SystemTrayDrawer {
-            id: trayDrawer
-            visible: root.showTray
-            outputScreen: root.outputScreen
+        SystemTrayItems {
+            visible: root.trayVisible
             theme: root.theme
         }
 
@@ -97,7 +92,7 @@ Rectangle {
         }
 
         Rectangle {
-            visible: (root.showTray || root.showProtonManager) && root.showWorkspaces
+            visible: (root.trayVisible || root.showProtonManager) && root.showWorkspaces
             Layout.preferredWidth: 1
             Layout.preferredHeight: root.theme.workspaceFontSize
             Layout.alignment: Qt.AlignVCenter
@@ -161,7 +156,7 @@ Rectangle {
         }
 
         Rectangle {
-            visible: (root.showTray || root.showProtonManager || root.showWorkspaces) && (root.showLauncher || root.showUpdates)
+            visible: (root.trayVisible || root.showProtonManager || root.showWorkspaces) && (root.showLauncher || root.showUpdates)
             Layout.preferredWidth: 1
             Layout.preferredHeight: root.theme.workspaceFontSize
             Layout.alignment: Qt.AlignVCenter

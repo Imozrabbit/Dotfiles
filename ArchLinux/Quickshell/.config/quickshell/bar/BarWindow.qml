@@ -170,7 +170,6 @@ PanelWindow { // qmllint disable uncreatable-type
             anchors.left: parent.left
             anchors.leftMargin: root.sideMargin
             anchors.verticalCenter: parent.verticalCenter
-            outputScreen: root.modelData
             visible: root.modules.tray || root.modules.workspaces || root.modules.launcher || root.modules.updates || root.modules.protonManager
 
             updateCount: root.updateChecker?.updateCount ?? 0
