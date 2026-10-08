@@ -37,6 +37,7 @@ hl.layer_rule({
 	match = { namespace = "quickshell:expose" },
 	blur = true,
 	dim_around = true,
+	animation = "fade",
 })
 
 -- Make rofi blur and change its animation
@@ -44,7 +45,7 @@ hl.layer_rule({
 	match = { namespace = "rofi" },
 	blur = true,
 	ignore_alpha = 0.1,
-	animation = "fade",
+	animation = "popin",
 })
 
 -- Make GPU & CPU OSD blur
@@ -52,4 +53,10 @@ hl.layer_rule({
 	match = { namespace = "system-osd" },
 	blur = true,
 	ignore_alpha = 0,
+})
+
+-- Set animation for screenshot
+hl.layer_rule({
+	match = { namespace = "selection" },
+	animation = "fade",
 })

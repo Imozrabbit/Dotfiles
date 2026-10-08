@@ -4,6 +4,7 @@ FILEMANAGER = "Thunar"
 BROWSER = "zen"
 BACKUPBROWSER = "brave-origin-nightly"
 NOTES = "obsidian"
+GAME_WORKSPACE = 7
 
 TOUCHPAD = "syna0001:00-06cb:ce67-touchpad"
 TRACKPOINT = "tpps/2-elan-trackpoint"
