@@ -41,7 +41,7 @@ PanelWindow { // qmllint disable uncreatable-type
     property bool pinned: false
     property bool hoverRevealed: false
     property bool windowExpanded: true
-    readonly property bool barShown: root.mode === "always" || root.pinned || root.hoverRevealed
+    readonly property bool barShown: root.mode === "always" || root.pinned || root.hoverRevealed || (root.mode === "hover" && workspaceBox.trayMenuVisible)
 
     screen: root.modelData
     anchors.bottom: true

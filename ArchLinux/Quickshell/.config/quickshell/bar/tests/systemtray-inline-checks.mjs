@@ -4,6 +4,16 @@ import { runInNewContext } from "node:vm";
 
 const source = await readFile(new URL("../widgets/SystemTrayItems.qml", import.meta.url), "utf8");
 const workspaces = await readFile(new URL("../widgets/Workspaces.qml", import.meta.url), "utf8");
+const bar = await readFile(new URL("../BarWindow.qml", import.meta.url), "utf8");
+const barShown = bar.match(/readonly property bool barShown: ([^\n]+)/)?.[1];
+for (const menuVisible of [false, true]) {
+    const root = { mode: "hover", pinned: false, hoverRevealed: false };
+    assert.equal(runInNewContext(barShown, {root, workspaceBox: {trayMenuVisible: menuVisible}}), menuVisible,
+        "Hover bar stays visible for its own tray menu, then hides after dismissal");
+}
+assert.match(source, /readonly property bool menuVisible: trayMenu\.visible/);
+assert.match(workspaces, /readonly property bool trayMenuVisible: trayItems\.menuVisible/);
+assert.match(workspaces, /SystemTrayItems\s*\{\s*id: trayItems/);
 const trayVisible = workspaces.match(/readonly property bool trayVisible: ([^\n]+)/)?.[1];
 assert.ok(trayVisible, "One actual tray-presence condition must drive icons and separators");
 const separators = [...workspaces.matchAll(/visible: ([^\n]+)\n\s+Layout.preferredWidth: 1/g)].map(match => match[1]);

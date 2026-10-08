@@ -35,6 +35,7 @@ Rectangle {
     // qmllint disable missing-property
     readonly property bool trayVisible: root.showTray && SystemTray.items.values.length > 0
     // qmllint enable missing-property
+    readonly property bool trayMenuVisible: trayItems.menuVisible
 
     RowLayout {
         id: workspaceLayout
@@ -42,6 +43,7 @@ Rectangle {
         anchors.centerIn: parent
 
         SystemTrayItems {
+            id: trayItems
             visible: root.trayVisible
             theme: root.theme
         }

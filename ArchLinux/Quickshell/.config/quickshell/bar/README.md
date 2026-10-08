@@ -242,7 +242,9 @@ Hiding a parent also hides dependent modules. Missing devices/tools show
 unavailable data rather than breaking the bar. Module order is fixed.
 
 When no tray icons exist and Proton Manager is disabled, their leading
-separator is hidden. Tray context menus close when the tray or bar hides.
+separator is hidden. An open tray context menu keeps its hover bar visible
+without pinning it or reserving screen space. Normal hiding resumes after
+the menu closes; disabling the tray closes its context menu.
 
 ### Shortcuts and optional settings
 

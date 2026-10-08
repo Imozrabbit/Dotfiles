@@ -12,6 +12,7 @@ RowLayout {
     id: root
 
     required property Core.Theme theme
+    readonly property bool menuVisible: trayMenu.visible
     spacing: 6
 
     onVisibleChanged: {
