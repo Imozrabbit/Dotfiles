@@ -1,4 +1,4 @@
-# Maintenance and second-machine cleanup
+# Maintenance and cleanup
 
 ## Preserve runtime state
 
@@ -58,15 +58,7 @@ systemctl --user status pimsync.service quickshell-calendar-import.path
 First two commands should exit 0 without output. On failure, inspect the diagnostic;
 do not remove state just to obtain a successful result.
 
-## A — current machine
-
-Generated tests/build debris and obsolete rollout notes are cleaned from source
-module. Runtime helpers, source/tests, real calendar data and configuration stay.
-The approved recovery drop-in remains and passed read-only validation. Known copied
-transfer archives/test exports were already absent. No live service restart or
-reconfiguration was needed for cleanup.
-
-## B — ThinkPad
+## Client update and cleanup
 
 Do not reinstall or reset live data as cleanup. Disposable-file cleanup can happen
 before publishing/updating. A later update using [README instructions](../README.md)
@@ -76,8 +68,8 @@ version passes desktop/sync checks. Run diagnostics above after installing it.
 
 The updater owns only its temporary `calendar.update-rollback-<timestamp>-<pid>`
 directory and `installer/update-previous` receipt. Confirmed cleanup removes that
-directory and receipt, including the previous module's `before-readonly-fix-*.tar.gz`
-archive. Downloads/staging/object files are cleaned separately. Unrelated backups
+directory and receipt, including obsolete transfer archives inside the previous
+module. Downloads/staging/object files are cleaned separately. Unrelated backups
 outside the replaced module are not silently deleted.
 
 An interrupted/unconfirmed update blocks another replacement. Use `update.sh
@@ -86,17 +78,16 @@ ready marker and cannot be purged that way. Preserve its module/unit preimages a
 activity records for review. This is code/runtime rollback, not calendar-data or
 remote rollback; no power-loss atomicity is claimed.
 
-Stop any disposable manual fixture, then remove only copied transfer/test files you
-recognize. Each deletion asks confirmation; these are not live calendar files:
+Stop disposable fixtures before removing their files. Inspect copied transfer/test
+files and remove only exact paths you have confirmed are unused. Do not remove
+canonical calendar files or apply broad cleanup patterns to data/config directories.
 
 If a test ICS file is still used by an imported profile, detach that test profile
 through the UI before confirming its deletion. Do not detach real calendars.
 
 ```sh
-rm -i -- "$HOME/calendar-update.tar.gz" "$HOME/calendar-readonly-fix.tar.gz"
-rm -i -- "$HOME/calendar-readonly-test.ics" "$HOME/Downloads/calendar-readonly-test.ics"
-find "$HOME/.config/quickshell/calendar/parse/output" -maxdepth 1 -type f \
-    -name 'before-readonly-fix-*.tar.gz' -ok rm -- '{}' \;
+# Replace this placeholder with an exact, inspected disposable archive path.
+rm -i -- /path/to/disposable-calendar-archive.tar.gz
 ```
 
 Missing-file errors mean there is nothing there to remove. For an older module/
@@ -105,7 +96,7 @@ retaining a newer working copy. Do not use broad `rm -rf` or `git reset` command
 Fixtures under `parse/output/grouped-resolution-*/manual` are disposable only after
 their instances stop; never confuse their fake HOME/data with real stores.
 
-Do not remove installer receipts or runtime systemd units/drop-ins. Do not restore
-the earlier missing recovery guard or bypassed callback: those were defects, not
-the clean production state. No cleanup requires modifying Hyprland settings,
-credentials, Personal collection, or deleting pimsync status.
+Do not remove installer receipts or runtime systemd units/drop-ins. Never remove
+the recovery guard or bypass the conflict callback to force synchronization.
+Cleanup does not require modifying Hyprland settings, credentials, real calendar
+collections, or pimsync status.

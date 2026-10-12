@@ -29,7 +29,7 @@ Local or Remote series. Local journaling does not make remote synchronization at
 
 Data defaults to `~/.local/share/calendars`; sync configuration/credentials and
 recovery state remain outside the module. Installation does not reset existing
-calendar data. [Storage, recovery and machine cleanup](docs/maintenance.md).
+calendar data. [Storage, recovery and cleanup](https://github.com/Imozrabbit/Dotfiles/blob/master/ArchLinux/QuickShell/.config/quickshell/calendar/docs/maintenance.md).
 
 ## Dependencies
 
@@ -44,7 +44,7 @@ calendar data. [Storage, recovery and machine cleanup](docs/maintenance.md).
 
 PC-local tests additionally use Node.js, jq and Python/PySide6. Tests/editor/agent tooling
 are intentionally excluded from Git and client installations. See
-[development checks](docs/development.md#checks).
+[development checks](https://github.com/Imozrabbit/Dotfiles/blob/master/ArchLinux/QuickShell/.config/quickshell/calendar/docs/development.md#checks).
 
 ## Install
 
@@ -57,8 +57,9 @@ sh calendar-install.sh
 
 It downloads GitHub's `master` archive, extracts only this module into
 `~/.config/quickshell/calendar`, and builds both native helpers before replacing an
-existing module. Development tests/tools, prebuilt PC binaries, generated output,
-archives/logs/caches are excluded; native build sources and runtime scripts remain.
+existing module. Development tests/tools, docs, Git policy, prebuilt PC binaries,
+generated output and archives/logs/caches are excluded from deployment; native build
+sources and runtime scripts remain. Docs and `.gitignore` stay tracked in Git.
 Replacement and timestamped backup require your choices. Missing
 packages can be installed with approval; sync sources are selected interactively.
 Supply your own feed URL/CalDAV credentials for selected sources.
@@ -134,4 +135,4 @@ Another replacement is blocked while confirmation/recovery is pending. Ordinary
 failures restore prior code/runtime when safe; uncertain recovery retains files for
 review. Never delete recovery receipts or bypass guards to force an update.
 
-[Development, recurrence contracts and verification limits](docs/development.md).
+[Development, recurrence contracts and verification limits](https://github.com/Imozrabbit/Dotfiles/blob/master/ArchLinux/QuickShell/.config/quickshell/calendar/docs/development.md).

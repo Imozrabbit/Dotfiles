@@ -186,6 +186,8 @@ printf '%s\n' 'Extracting calendar module...'
 # Extract a source-only client module, even from an older archive with dev debris.
 if ! tar -xzf "$staging/calendar.tar.gz" -C "$staging" \
     --exclude="$archive_path/dev" \
+    --exclude="$archive_path/docs" \
+    --exclude="$archive_path/.gitignore" \
     --exclude="$archive_path/parse/test" \
     --exclude="$archive_path/parse/.clangd" \
     --exclude="$archive_path/parse/output" \

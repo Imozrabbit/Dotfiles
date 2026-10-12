@@ -14,9 +14,11 @@ Runtime helper paths remain `parse/convert`, `parse/calendar-sync-helper` and
 `parse/conflict-broker.sh`. Generated objects, test executables and disposable
 fixtures belong in ignored `parse/output/`.
 
-`dev/`, `parse/test/`, `parse/.clangd` and module-local `AGENTS.md` files are PC-local and Git-ignored by maintainer
-choice. Client deployment excludes them, prebuilt helpers and disposable artifacts;
-clients retain `parse/src/`, Makefile, runtime/deployment scripts and documentation.
+`dev/`, `parse/test/`, `parse/.clangd` and module-local `AGENTS.md` files are local
+development files and Git-ignored by maintainer choice. Client deployment excludes
+them, prebuilt helpers and disposable artifacts. `docs/` and `.gitignore` stay in
+Git but are excluded from deployment; clients retain `parse/src/`, Makefile,
+runtime/deployment scripts and README links to online documentation.
 Fresh Git clones/client installations therefore do not contain the tests below.
 Keep the local test directories if you want continued automated development checks.
 
@@ -27,12 +29,13 @@ only the visible range when data/range changes; native libical expands it. Reque
 IDs/signatures reject stale results. No renewal task or background recurrence poll.
 
 Authored rules have exactly `frequency`, `interval`, `startsOn`, `pattern`, `ends`:
+the dates below are synthetic examples, not calendar data.
 
 ```json
 {
   "frequency": "weekly",
   "interval": 2,
-  "startsOn": "2026-10-08",
+  "startsOn": "2030-01-03",
   "pattern": { "weekdays": [0, 2] },
   "ends": { "mode": "count", "count": 4 }
 }
@@ -134,8 +137,8 @@ done'
 ```
 
 Lint uses Qt6Qml's `qmllint` through pkg-config, checking every file independently
-with zero warnings. Override `QMLLINT=/path/to/qt6/qmllint` if needed; legacy
-`/usr/bin/qmllint` on the development host is unsuitable. `make clean` removes
+with zero warnings. Override `QMLLINT=/path/to/qt6/qmllint` if needed; use Qt6 tooling
+rather than a legacy Qt version's executable. `make clean` removes
 runtime binaries too: rebuild both helpers before launching afterward.
 
 Installer fixtures mock downloads/systemd and build actual helpers from source-only
@@ -144,8 +147,8 @@ real credentials. Qt probes do not launch Quickshell. Negative-case diagnostics 
 the nested aggregate-test `Error 1` are intentional; the outer suite must exit 0.
 
 Updater regression also launches a minimal **headless** Quickshell IPC fixture,
-never the desktop calendar. Its short private `/tmp/opencode/qsu.*` runtime avoids
-Unix socket path limits and is cleaned after stopping the instance. It tests actual
+never the desktop calendar. Its short private temporary runtime avoids Unix socket
+path limits and is cleaned after stopping the instance. It tests actual
 CLI inventories, shutdown/reload/readiness, and later confirmation, in addition to
 mocked failure/rollback/data-preservation and real native source-only builds.
 
@@ -162,34 +165,20 @@ binaries alone do not provide it.
 Follow printed launch/toggle commands. Check conflict Local/Remote choices and
 unrelated-conflict isolation; create/edit/count/reminder round trips; timing changes,
 group collapse/expand and whole-series deletion; restart persistence. Stop fixture
-before cleanup. Its short private IPC/Hyprland bridge lives under
-`/tmp/opencode/calendar-stage12-runtime`; it does not change Hyprland configuration.
+before cleanup. Its printed launch commands use a short private IPC/Hyprland bridge;
+it does not change Hyprland configuration.
 Do not provoke uncertain recovery against live data.
 
-## Verification status
+## Validation coverage and limits
 
-Feature's provided two-machine CalDAV checkpoints passed by user testing on
-2026-10-11: Daily/grouped edits, counts, reminders, conflicts, restart, collapse/
-expand, process-scoped viewing timezone and bidirectional deletion without return.
-Pre-commit hardening received reproduced regression fixes and repeated independent
-reviews; final targeted review found no further actionable issues. Native/Node/shell
-suite, six offscreen Qt probes and zero-warning Qt6 lint passed. Verified environment:
-libical 4.0.6, Qt 6.12.0, pimsync 0.5.7 (`pimsync version`).
+Local checks cover native recurrence expansion, persistence, grouped transactions,
+conflict protection, import/cache generation, UI interaction and layout. Installer/
+updater fixtures cover source-only builds, configuration preservation, unsafe paths,
+confirmation cleanup, failed-update restoration and headless Quickshell IPC.
+Concurrency regressions cover broker snapshots and pending-update receipts. Desktop
+checks include whole-series edits/deletion, conflicts, restart persistence and zoom.
 
-All five installer/updater fixtures passed: source-only staged builds,
-configuration/symlink/guard safety, actual generated import/cache commands,
-confirmation cleanup, failed-update restoration and real headless Quickshell IPC.
-Broker-snapshot/pending-receipt lock races reproduced RED→GREEN; targeted re-review
-clean. Final full native/Node/shell suite, six Qt probes and zero-warning lint pass.
-Documentation links and shell/JSON examples were checked. No production install,
-live calendar mutation, commit or push was performed. GitHub delivery requires
-publishing the reviewed changes first; archive tests used current local sources.
-
-User chose manual final desktop smoke; no assistant GUI launch. Recurrence,
-conflicts, edits/deletion and restart checks passed; user also confirmed latest
-Ctrl-wheel zoom fix works. Temporary input diagnostics were removed afterward.
-Its synthesized-event regression was reproduced
-RED→GREEN; full native/Node/shell suite, six Qt probes and lint passed afterward.
-Exhaustive live permutations,
-real OS timezone migration, libical 3.x compilation and real power-loss/fsync-failure
-injection remain unverified. These checks do not establish remote atomicity.
+These checks are not exhaustive. Compatibility with libical 3.x, all live CalDAV
+interleavings, real OS timezone migration and power-loss/fsync-failure injection
+remain unverified. Local journaling and regression results do not establish remote
+atomicity.
