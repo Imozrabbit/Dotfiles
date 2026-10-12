@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import Quickshell
+import Quickshell.Wayland
 import QtQuick
 
 ShellRoot {
@@ -12,6 +13,7 @@ ShellRoot {
         PanelWindow {
             required property var modelData
             screen: modelData
+            WlrLayershell.namespace: "ram-osd"
             visible: (modelData.name === root.targetScreenName)
 
             exclusionMode: ExclusionMode.Ignore

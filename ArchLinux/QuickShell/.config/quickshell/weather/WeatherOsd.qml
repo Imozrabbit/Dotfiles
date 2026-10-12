@@ -11,6 +11,7 @@ Variants {
         property var modelData
         screen: modelData
 
+        WlrLayershell.namespace: "weather"
         WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         exclusionMode: ExclusionMode.Ignore

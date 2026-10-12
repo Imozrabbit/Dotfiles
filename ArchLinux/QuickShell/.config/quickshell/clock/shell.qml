@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import Quickshell
+import Quickshell.Wayland
 import QtQuick
 
 ShellRoot {
@@ -15,6 +16,7 @@ ShellRoot {
             id: window
             required property var modelData
             screen: modelData
+            WlrLayershell.namespace: "clock"
 
             // Only show on the target monitor
             visible: (modelData.name === root.targetScreenName)
