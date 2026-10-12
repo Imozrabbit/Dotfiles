@@ -46,6 +46,8 @@ require("config.gaming.misc")
 require("config.gaming.poe_related")
 require("config.gaming.steam")
 require("config.gaming.battlenet")
+require("config.gaming.jagex")
+
 -- Game specific settings
 local config_home = os.getenv("XDG_CONFIG_HOME") or (os.getenv("HOME") .. "/.config")
 local dir = config_home .. "/hypr/config/gaming/games"
