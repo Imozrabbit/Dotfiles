@@ -26,6 +26,19 @@ for path in "$HOME" "$config_home" "$data_home" "$state_home"; do
         exit 1
     fi
 done
+for path in "$state_home/quickshell-calendar" "$state_dir"; do
+    if [ -L "$path" ] || { [ -e "$path" ] && [ ! -d "$path" ]; }; then
+        printf '%s\n' "Inspect installer state directory $path before continuing." >&2
+        exit 1
+    fi
+done
+for name in managed-dirs sources config-done config-check.log service-done service.log; do
+    path="$state_dir/$name"
+    if [ -L "$path" ] || { [ -e "$path" ] && [ ! -f "$path" ]; }; then
+        printf '%s\n' "Inspect installer state file $path before continuing." >&2
+        exit 1
+    fi
+done
 choose_source() {
     printf '%s [Y/n] ' "$1"
     IFS= read -r answer || { printf '%s\n' 'Source selection needs input.' >&2; exit 1; }
@@ -52,7 +65,7 @@ if [ "$university$holidays$personal" = 000 ]; then
     printf '%s\n' 'Select at least one sync source.' >&2
     exit 1
 fi
-if [ -L "$state_dir" ] || [ -L "$managed" ] || [ -L "$config" ] ||
+if [ -L "$config" ] ||
    { [ "$personal" -eq 1 ] && [ -L "$secret_file" ]; }; then
     printf '%s\n' 'Installer state or pimsync configuration uses a symlink; inspect it before continuing.' >&2
     exit 1
@@ -245,7 +258,37 @@ else
     } > "$unit_tmp"
     mv -- "$unit_tmp" "$unit"
 fi
+recovery_guard_changed=0
+recovery_dropin_dir="$(dirname "$unit")/pimsync.service.d"
+recovery_dropin="$recovery_dropin_dir/calendar-group-recovery.conf"
+if [ -L "$recovery_dropin_dir" ] || [ -L "$recovery_dropin" ]; then
+    printf '%s\n' "Inspect symlink $recovery_dropin before continuing." >&2
+    exit 1
+fi
+mkdir -p -- "$recovery_dropin_dir"
+recovery_tmp=$(mktemp "$recovery_dropin_dir/.calendar-group-recovery.pending.XXXXXXXX")
+printf '[Service]\nEnvironment="XDG_STATE_HOME=%s"\nExecCondition=/bin/sh "%s/.config/quickshell/calendar/parse/conflict-broker.sh" check-recovery\n' "$state_home" "$HOME" > "$recovery_tmp"
+if [ -e "$recovery_dropin" ]; then
+    if ! cmp -s -- "$recovery_tmp" "$recovery_dropin"; then
+        rm -- "$recovery_tmp"
+        printf '%s\n' "Inspect existing $recovery_dropin; installer will not replace it." >&2
+        exit 1
+    fi
+    rm -- "$recovery_tmp"
+else
+    mv -- "$recovery_tmp" "$recovery_dropin"
+    recovery_guard_changed=1
+fi
+verify_recovery_service() {
+    if [ "$personal" -eq 0 ]; then return 0; fi
+    if ! sh "$HOME/.config/quickshell/calendar/parse/conflict-broker.sh" verify-group-guard > "$state_dir/service.log" 2>&1; then
+        printf '%s\n' 'pimsync recovery service configuration is unsafe; inspect it before enabling sync.' >&2
+        tail -n 8 "$state_dir/service.log" >&2
+        return 1
+    fi
+}
 if [ ! -s "$state_dir/service-done" ] ||
+   [ "$recovery_guard_changed" -eq 1 ] ||
    ! systemctl --user is-enabled --quiet pimsync.service >/dev/null 2>&1 ||
    ! systemctl --user is-active --quiet pimsync.service >/dev/null 2>&1; then
     printf '%s\n' 'Enabling pimsync user service...'
@@ -254,6 +297,7 @@ if [ ! -s "$state_dir/service-done" ] ||
         tail -n 8 "$state_dir/service.log" >&2
         exit 1
     fi
+    verify_recovery_service
     if ! systemctl --user enable --now pimsync.service > "$state_dir/service.log" 2>&1; then
         printf '%s\n' 'Could not enable or start pimsync; rerun after fixing the service.' >&2
         tail -n 8 "$state_dir/service.log" >&2
@@ -261,5 +305,6 @@ if [ ! -s "$state_dir/service-done" ] ||
     fi
     printf '%s\n' "$unit" > "$state_dir/service-done"
 else
+    verify_recovery_service
     printf '%s\n' 'pimsync user service already configured.'
 fi

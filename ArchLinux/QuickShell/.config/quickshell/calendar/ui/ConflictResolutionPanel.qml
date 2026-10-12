@@ -12,10 +12,12 @@ Item {
     readonly property var conflict: root.conflictService.currentConflict
     readonly property var local: root.conflict ? root.conflict.local : null
     readonly property var remote: root.conflict ? root.conflict.remote : null
+    readonly property bool groupProtected: root.conflict !== null && root.conflict.kind === "group" && root.conflict.ready !== true
     property string selectedSide: ""
     property string selectedUid: ""
     property string selectedLocalIcs: ""
     property string selectedRemoteIcs: ""
+    property string selectedRevision: ""
     property bool confirmPending: false
 
     readonly property var fields: [
@@ -26,6 +28,10 @@ Item {
         {
             label: "UNTIL",
             key: "end"
+        },
+        {
+            label: "REPEAT",
+            key: "recurrence"
         },
         {
             label: "LOCATION",
@@ -48,6 +54,14 @@ Item {
             return data.reminders && data.reminders.length > 0 ? data.reminders.map(reminder => reminder.minutesBefore + " min before").join(", ") : "None";
         if (key === "allDay")
             return data.allDay ? "All day" : "Timed";
+        if (key === "recurrence") {
+            const rule = data.recurrence;
+            if (!rule)
+                return data.recurrenceSummary || "None";
+            const pattern = rule.frequency === "yearly" ? rule.pattern.dates.map(date => String(date.month).padStart(2, "0") + "-" + String(date.day).padStart(2, "0")).join(", ") : JSON.stringify(rule.pattern);
+            const ending = rule.ends.mode === "count" ? "after " + rule.ends.count + " occurrences" : rule.ends.mode === "date" ? "through " + rule.ends.date : "never ends";
+            return rule.frequency + " / interval " + rule.interval + " · " + pattern + " · from " + rule.startsOn + " · " + ending + (data.timezone ? " · " + data.timezone : "");
+        }
         return String(data[key] ?? "") || "None";
     }
 
@@ -56,10 +70,10 @@ Item {
     }
 
     function confirmChoice() {
-        if (root.selectedSide.length === 0 || root.conflictService.busy || !root.conflictService.stateValid)
+        if (root.groupProtected || root.selectedSide.length === 0 || root.conflictService.busy || !root.conflictService.stateValid)
             return;
         root.confirmPending = true;
-        root.conflictService.choose(root.selectedSide);
+        root.conflictService.choose(root.selectedSide, root.selectedUid, root.selectedRevision);
     }
 
     function cancelChoice() {
@@ -82,6 +96,7 @@ Item {
                 root.selectedUid = uid;
                 root.selectedLocalIcs = localIcs;
                 root.selectedRemoteIcs = remoteIcs;
+                root.selectedRevision = root.conflict ? root.conflict.revision || "" : "";
             }
         }
         function onErrorMessageChanged() {
@@ -181,7 +196,10 @@ Item {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "Choose complete event version. Unknown ICS properties stay unchanged."
+                    text: root.groupProtected ? "Group protected. " + (root.conflict.problem || "Whole-series conflict resolution required.")
+                        : root.conflict && root.conflict.kind === "group" ? "Choose complete series version. All member resources are resolved together; unknown ICS properties stay unchanged."
+                        : "Choose complete event version. Unknown ICS properties stay unchanged."
+                    textFormat: Text.PlainText
                     horizontalAlignment: Text.AlignHCenter
                     color: Theme.textMuted
                     font.pixelSize: 12
@@ -208,22 +226,33 @@ Item {
 
                         delegate: Rectangle {
                             id: versionCard
+                            enabled: !root.groupProtected
                             required property var modelData
                             readonly property bool selected: root.selectedSide === modelData.side
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1
                             Layout.minimumWidth: 0
                             Layout.preferredHeight: cardContent.implicitHeight + 35
-                            color: selected ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14) : cardHover.hovered ? Theme.surfaceRaised : Theme.background
+                            color: cardTap.pressed ? Qt.darker(Theme.surfaceRaised, 1.2)
+                                : selected ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14) : cardHover.hovered ? Theme.surfaceRaised : Theme.background
                             radius: Theme.radius
                             border.width: selected ? 2 : 1
                             border.color: selected ? Theme.accent : cardHover.hovered ? Theme.textMuted : Theme.border
 
                             HoverHandler {
                                 id: cardHover
+                                enabled: versionCard.enabled
+                                cursorShape: Qt.PointingHandCursor
                             }
                             TapHandler {
-                                onTapped: root.selectedSide = versionCard.modelData.side
+                                id: cardTap
+                                onTapped: {
+                                    root.selectedUid = root.conflict.uid;
+                                    root.selectedRevision = root.conflict.revision || "";
+                                    root.selectedLocalIcs = root.conflict.localIcs;
+                                    root.selectedRemoteIcs = root.conflict.remoteIcs;
+                                    root.selectedSide = versionCard.modelData.side;
+                                }
                             }
 
                             ColumnLayout {
@@ -305,6 +334,7 @@ Item {
                     visible: root.conflictService.errorMessage.length > 0
                     text: root.conflictService.errorMessage
                     textFormat: Text.PlainText
+                    horizontalAlignment: Text.AlignHCenter
                     color: Theme.currentTime
                     font.pixelSize: 11
                     wrapMode: Text.Wrap
@@ -327,8 +357,8 @@ Item {
                 Layout.preferredWidth: confirmText.implicitWidth + 28
                 Layout.preferredHeight: 34
                 radius: Theme.radius
-                color: confirmHover.hovered ? Qt.lighter(Theme.accent, 1.12) : Theme.accent
-                opacity: !root.conflictService.busy && root.conflictService.stateValid && root.selectedSide.length > 0 ? 1 : 0.5
+                color: confirmMouse.pressed ? Qt.darker(Theme.accent, 1.2) : confirmHover.hovered ? Qt.lighter(Theme.accent, 1.12) : Theme.accent
+                opacity: !root.groupProtected && !root.conflictService.busy && root.conflictService.stateValid && root.selectedSide.length > 0 ? 1 : 0.5
                 Text {
                     id: confirmText
                     anchors.centerIn: parent
@@ -339,12 +369,14 @@ Item {
                 }
                 HoverHandler {
                     id: confirmHover
-                    enabled: !root.conflictService.busy && root.conflictService.stateValid && root.selectedSide.length > 0
+                    enabled: !root.groupProtected && !root.conflictService.busy && root.conflictService.stateValid && root.selectedSide.length > 0
                     cursorShape: Qt.PointingHandCursor
                 }
                 MouseArea {
+                    id: confirmMouse
                     anchors.fill: parent
-                    enabled: !root.conflictService.busy && root.conflictService.stateValid && root.selectedSide.length > 0
+                    hoverEnabled: true
+                    enabled: !root.groupProtected && !root.conflictService.busy && root.conflictService.stateValid && root.selectedSide.length > 0
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: root.confirmChoice()
                 }
@@ -358,7 +390,7 @@ Item {
                 Layout.preferredWidth: cancelText.implicitWidth + 28
                 Layout.preferredHeight: 34
                 radius: Theme.radius
-                color: cancelHover.hovered ? Theme.surfaceRaised : Theme.background
+                color: cancelMouse.pressed ? Qt.darker(Theme.surfaceRaised, 1.2) : cancelHover.hovered ? Theme.surfaceRaised : Theme.background
                 border.width: 1
                 border.color: Theme.border
                 opacity: root.conflictService.busy ? 0.5 : 1
@@ -376,9 +408,11 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                 }
                 MouseArea {
+                    id: cancelMouse
                     anchors.fill: parent
+                    hoverEnabled: true
                     enabled: !root.conflictService.busy
-                    cursorShape: Qt.PointingHandCursor
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: root.cancelChoice()
                 }
             }

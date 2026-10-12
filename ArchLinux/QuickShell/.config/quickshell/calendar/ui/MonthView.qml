@@ -3,6 +3,7 @@ import QtQuick
 import "../common/CalendarMath.js" as CalendarMath
 import "../common/Theme.js" as Theme
 import "../common/Zoom.js" as Zoom
+import "../services" as Services
 
 Item {
     id: root
@@ -22,8 +23,8 @@ Item {
     property date bufferStart: CalendarMath.weekStart(selectedDate)
     readonly property date bufferEnd: CalendarMath.addDays(bufferStart, bufferWeeks * 7)
     property int bufferWeeks: 53
-    readonly property var rangeEvents: calendarService.eventsInRange(bufferStart, bufferEnd)
-    readonly property var rangeHolidays: calendarService.holidaysInRange(bufferStart, bufferEnd)
+    readonly property var rangeEvents: occurrenceRange.events
+    readonly property var rangeHolidays: occurrenceRange.holidays
     readonly property var weeks: buildWeeks()
     readonly property real dayWidth: width / 7
     readonly property var monthColors: ["#60a5fa", "#818cf8", "#a78bfa", "#e879f9", "#f472b6", "#fb7185", "#fb923c", "#fbbf24", "#a3e635", "#4ade80", "#2dd4bf", "#22d3ee"]
@@ -31,6 +32,22 @@ Item {
     property bool extendingBuffer: false
     property real pendingPositionOffset: 0
     readonly property int maxBufferWeeks: 104
+
+    Services.OccurrenceRangeStore {
+        id: occurrenceRange
+        calendarService: root.calendarService
+        rangeStartMs: root.bufferStart.getTime()
+        rangeEndMs: root.bufferEnd.getTime()
+    }
+    Text {
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+        z: 100
+        text: occurrenceRange.errorMessage
+        visible: text.length > 0
+        textFormat: Text.PlainText
+        color: Theme.currentTime
+    }
 
     function clearSelection() {
         root.selectedEventUid = "";
@@ -354,24 +371,11 @@ Item {
         }
         onHeightChanged: root.updateWeekHeight()
 
-        WheelHandler {
-            target: null
-            acceptedModifiers: Qt.ControlModifier
-
-            onWheel: wheel => {
-                const delta = wheel.angleDelta.y !== 0 ? wheel.angleDelta.y : wheel.pixelDelta.y;
-                const direction = Zoom.wheelDirection(true, delta);
-                if (direction > 0)
-                    root.zoomIn();
-                else if (direction < 0)
-                    root.zoomOut();
-            }
-        }
-
         MouseArea {
             anchors.fill: parent
-            z: 1000
+            z: 1
             acceptedButtons: Qt.NoButton
+            cursorShape: undefined // Let underlying cards supply their cursors.
 
             onWheel: wheel => {
                 const delta = wheel.angleDelta.y !== 0 ? wheel.angleDelta.y : wheel.pixelDelta.y;
@@ -494,7 +498,7 @@ Item {
                             property color eventColor: modelData.color
                             readonly property var sourceEvent: modelData.sourceEvent ?? modelData
                             readonly property bool selected: root.selectedEventUid === sourceEvent.uid
-                            readonly property bool conflicted: root.calendarService.conflictService.isConflicted(sourceEvent.uid)
+                            readonly property bool conflicted: root.calendarService.conflictService.isConflicted(sourceEvent)
                             readonly property color selectionColor: Qt.lighter(eventColor, 1.18)
 
                             x: 6
@@ -533,12 +537,19 @@ Item {
                                 z: 1
 
                                 Text {
-                                    anchors.centerIn: parent
-                                    anchors.verticalCenterOffset: 1
+                                    id: conflictMark
+                                    x: (parent.width - conflictMetrics.tightBoundingRect.width) / 2 - conflictMetrics.tightBoundingRect.x
+                                    y: (parent.height - conflictMetrics.tightBoundingRect.height) / 2 - conflictMetrics.tightBoundingRect.y - baselineOffset
                                     text: "!"
                                     color: Theme.background
                                     font.pixelSize: 9
                                     font.weight: Font.Bold
+
+                                    TextMetrics {
+                                        id: conflictMetrics
+                                        font: conflictMark.font
+                                        text: conflictMark.text
+                                    }
                                 }
                             }
 

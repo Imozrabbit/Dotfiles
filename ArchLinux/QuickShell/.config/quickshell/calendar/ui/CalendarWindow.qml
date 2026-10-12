@@ -28,10 +28,11 @@ PanelWindow { //qmllint disable uncreatable-type
     property bool revealed: false
     property bool managerOpen: false
     property bool conflictOpen: false
+    readonly property ShellScreen displayScreen: root.screen
 
     visible: root.surfaceVisible
     anchors.top: true
-    implicitWidth: Math.min(1020, Math.round((root.screen ? root.screen.width : 1020) * 0.75))
+    implicitWidth: Math.min(1020, Math.round((root.displayScreen ? root.displayScreen.width : 1020) * 0.75))
     implicitHeight: 780
     exclusionMode: ExclusionMode.Ignore
     aboveWindows: true
@@ -116,23 +117,28 @@ PanelWindow { //qmllint disable uncreatable-type
         implicitWidth: buttonWidth
         implicitHeight: 30
         radius: Theme.radius
-        color: textOnly ? "transparent" : selected || hover.hovered ? Theme.surfaceRaised : Theme.surface
+        color: textOnly ? "transparent" : navTap.pressed ? Qt.darker(Theme.surfaceRaised, 1.2)
+            : selected || hover.hovered ? Theme.surfaceRaised : Theme.surface
         border.width: textOnly ? 0 : 1
         border.color: selected ? Theme.accent : Theme.border
 
         Text {
             anchors.centerIn: parent
             text: button.label
-            color: button.textOnly ? button.alert ? hover.hovered ? Qt.lighter(Theme.currentTime, 1.2) : Theme.currentTime : button.selected ? Theme.accent : hover.hovered ? Theme.text : Theme.textMuted : Theme.text
+            color: navTap.pressed ? Qt.darker(button.alert ? Theme.currentTime : button.selected ? Theme.accent : Theme.text, 1.2)
+                : button.textOnly ? button.alert ? hover.hovered ? Qt.lighter(Theme.currentTime, 1.2) : Theme.currentTime : button.selected ? Theme.accent : hover.hovered ? Theme.text : Theme.textMuted : Theme.text
             font.pixelSize: button.label === "" ? 19 : button.label === "" ? 16 : parent.label === "Today" ? 15 : 13
             font.weight: parent.label === "<" || parent.label === ">" ? Font.Bold : Font.Medium
         }
 
         HoverHandler {
             id: hover
+            enabled: button.enabled
+            cursorShape: Qt.PointingHandCursor
         }
 
         TapHandler {
+            id: navTap
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             onTapped: (eventPoint, tapButton) => {
                 if (tapButton === Qt.RightButton)
@@ -239,10 +245,10 @@ PanelWindow { //qmllint disable uncreatable-type
     function showEventDetails(eventData) {
         if (eventData && root.selectedEvent === null && root.editorRequest === null && !detailsCloseTimer.running) {
             const currentEvent = root.calendarService.events.find(event => event.uid === eventData.uid);
-            if (root.calendarService.conflictService.isConflicted(currentEvent?.sourceUid || eventData.uid))
+            if (root.calendarService.conflictService.isConflicted(currentEvent ?? eventData))
                 root.openConflicts();
             else
-                root.selectedEvent = currentEvent ?? eventData;
+                root.selectedEvent = JSON.parse(JSON.stringify(currentEvent ?? eventData));
         }
     }
 
@@ -283,9 +289,12 @@ PanelWindow { //qmllint disable uncreatable-type
     function openEdit(eventData) {
         if (!eventData || eventData.readOnly)
             return;
+        const master = root.calendarService.events.find(event => event.uid === (eventData.masterUid || eventData.uid));
+        if (!master || master.readOnly)
+            return;
         root.editorRequest = {
             mode: "edit",
-            eventData,
+            eventData: master,
             defaults: null
         };
     }
@@ -299,7 +308,8 @@ PanelWindow { //qmllint disable uncreatable-type
     }
 
     function editorSaved(eventData) {
-        root.selectedEvent = eventData;
+        // Qt var signals marshal nested arrays into list wrappers, not JS arrays.
+        root.selectedEvent = JSON.parse(JSON.stringify(eventData));
         root.editorRequest = null;
     }
 
@@ -417,6 +427,9 @@ PanelWindow { //qmllint disable uncreatable-type
 
     ClippingRectangle {
         id: panel
+
+        opacity: 0.9
+        layer.enabled: true
 
         width: parent.width
         height: parent.height
@@ -643,7 +656,7 @@ PanelWindow { //qmllint disable uncreatable-type
                                 Layout.alignment: Qt.AlignVCenter
                                 text: calendarEntry.modelData.name
                                 textFormat: Text.PlainText
-                                color: Theme.textMuted
+                                color: rowMouse.pressed ? Qt.darker(Theme.textMuted, 1.2) : Theme.textMuted
                                 opacity: calendarEntry.modelData.visible || rowMouse.containsMouse ? 1 : 0.5
                                 font.pixelSize: 11
                             }

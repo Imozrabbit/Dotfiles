@@ -1,0 +1,27 @@
+# Keep this module's policy publishable despite the parent repository's rule.
+!/.gitignore
+
+# Client helpers are built locally; generated output never belongs in Git.
+/parse/calendar-sync-helper
+/parse/convert
+/parse/output/
+
+# Main-machine-only tests and editor tooling.
+/dev/
+/parse/test/
+/parse/.clangd
+AGENTS.md
+
+# Disposable module-local fixtures, archives, logs and caches.
+/.installer*-test.*/
+/.updater-test.*/
+/.update-bootstrap-test.*/
+*.tar.gz
+*.log
+*.bak
+*.backup*
+.cache/
+__pycache__/
+*.pyc
+*.qmlc
+*.jsc

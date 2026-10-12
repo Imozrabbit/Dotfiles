@@ -1,3 +1,5 @@
+.import "Recurrence.js" as Recurrence
+
 function failure(field, message) {
     return { ok: false, field, message }
 }
@@ -125,9 +127,23 @@ function validateEvent(eventData, calendars, uid) {
     if (!reminderResult.ok)
         return reminderResult
 
+    let recurrence
+    if (eventData.recurrence !== undefined && eventData.recurrence !== null) {
+        const validation = Recurrence.canonicalRule(eventData.recurrence)
+        if (!validation.ok)
+            return validation
+        recurrence = validation.rule
+    }
+    if (eventData.timezone !== undefined
+            && (typeof eventData.timezone !== "string" || eventData.timezone.length === 0))
+        return failure("timezone", "Saved timezone is invalid")
+    if (recurrence && eventData.allDay !== true && !eventData.timezone)
+        return failure("timezone", "Timed recurrence requires a saved timezone")
+
     const candidate = Object.assign({}, eventData, {
         uid,
-        reminders: reminderResult.reminders
+        reminders: reminderResult.reminders,
+        recurrence
     })
     const normalized = normalizeEvent(candidate, calendars)
     if (normalized)
@@ -155,6 +171,10 @@ function canonicalRaw(event, source, preserved) {
         raw.readOnly = preserved.readOnly
     if (preserved && Object.prototype.hasOwnProperty.call(preserved, "color"))
         raw.color = preserved.color
+    if (event.timezone !== undefined)
+        raw.timezone = event.timezone
+    if (event.recurrence)
+        raw.recurrence = event.recurrence
     return raw
 }
 
@@ -162,7 +182,7 @@ function storageFailure(message) {
     return failure("storage", message)
 }
 
-function canonicalLocalEvents(value, calendars, reservedUids, expectedCalendarId) {
+function canonicalLocalEvents(value, calendars, reservedUids, expectedCalendarId, extended) {
     if (!Array.isArray(value))
         return storageFailure("Local calendar events must be a list")
 
@@ -171,6 +191,10 @@ function canonicalLocalEvents(value, calendars, reservedUids, expectedCalendarId
         "start", "end", "allDay", "reminders"
     ]
     const allowed = new Set(required)
+    if (extended !== false) {
+        allowed.add("timezone")
+        allowed.add("recurrence")
+    }
     const seen = new Set()
     const reserved = new Set(Array.isArray(reservedUids) ? reservedUids : [])
     const rawEvents = []
@@ -183,6 +207,8 @@ function canonicalLocalEvents(value, calendars, reservedUids, expectedCalendarId
             return storageFailure("Local calendar event schema is invalid")
         if (source.calendarId !== expectedCalendarId)
             return storageFailure("Local calendar contains an event for another calendar")
+        if (Object.prototype.hasOwnProperty.call(source, "recurrence") && !source.recurrence)
+            return storageFailure("Stored recurrence must be a rule, not null")
         if (typeof source.uid !== "string" || source.uid.length === 0
                 || seen.has(source.uid) || reserved.has(source.uid))
             return storageFailure("Local calendar event UIDs must be unique")
@@ -227,10 +253,10 @@ function parseLocalStore(text, calendars, calendarId, reservedUids) {
             || Object.keys(document).length !== 2
             || !Object.prototype.hasOwnProperty.call(document, "version")
             || !Object.prototype.hasOwnProperty.call(document, "events")
-            || document.version !== 1 || !Array.isArray(document.events))
+            || ![1, 2].includes(document.version) || !Array.isArray(document.events))
         return storageFailure("Local calendar schema is unsupported")
 
-    return canonicalLocalEvents(document.events, calendars, reservedUids, calendarId)
+    return canonicalLocalEvents(document.events, calendars, reservedUids, calendarId, document.version === 2)
 }
 
 function parseSyncedStore(text, calendars, expectedCalendarId) {
@@ -246,7 +272,7 @@ function parseSyncedStore(text, calendars, expectedCalendarId) {
     }
 
     if (!document || typeof document !== "object" || Array.isArray(document)
-            || Object.keys(document).length !== 3 || document.version !== 2
+            || Object.keys(document).length !== 3 || ![2, 3, 4].includes(document.version)
             || !Array.isArray(document.events) || !Array.isArray(document.warnings))
         return storageFailure("Synced calendar schema is unsupported")
 
@@ -255,14 +281,54 @@ function parseSyncedStore(text, calendars, expectedCalendarId) {
         "location", "start", "end", "allDay", "reminders"
     ]
     const allowed = new Set(required)
+    if (document.version >= 3) {
+        allowed.add("ical")
+        allowed.add("readOnly")
+        allowed.add("recurrence")
+        allowed.add("timezone")
+    }
+    if (document.version === 4)
+        allowed.add("seriesGroup")
     const seen = new Set()
     const rawEvents = []
     for (const source of document.events) {
         if (!source || typeof source !== "object" || Array.isArray(source)
-                || Object.keys(source).length !== required.length
                 || Object.keys(source).some(key => !allowed.has(key))
                 || required.some(key => !Object.prototype.hasOwnProperty.call(source, key)))
             return storageFailure("Synced calendar event schema is invalid")
+        if ((source.ical !== undefined && (typeof source.ical !== "string"
+                || source.ical.length === 0 || source.ical.length > 16 * 1024 * 1024
+                || source.readOnly !== true || source.recurrence !== undefined || source.timezone !== undefined))
+                || (source.readOnly !== undefined && (source.readOnly !== true
+                    || (source.ical === undefined && source.seriesGroup === undefined))))
+            return storageFailure("Synced calendar recurrence metadata is invalid")
+        if (source.recurrence !== undefined && (!source.recurrence
+                || !Recurrence.canonicalRule(source.recurrence).ok))
+            return storageFailure("Synced calendar authored recurrence is invalid")
+        if (source.seriesGroup !== undefined) {
+            const group = source.seriesGroup
+            const dates = source.recurrence && source.recurrence.pattern && source.recurrence.pattern.dates
+            if (!group || typeof group !== "object" || Array.isArray(group)
+                    || Object.keys(group).length !== 2 || group.version !== 1
+                    || !Array.isArray(group.members) || group.members.length < 1 || group.members.length > 366
+                    || !source.recurrence || source.recurrence.frequency !== "yearly"
+                    || !Array.isArray(dates) || dates.length !== group.members.length
+                    || source.ical !== undefined
+                    || source.uid !== expectedCalendarId + ":" + source.sourceUid
+                    || !/^[A-Za-z0-9@_.:-]{1,256}$/.test(source.sourceUid)
+                    || !/^[a-f0-9]{64}$/.test(source.revision))
+                return storageFailure("Synced calendar group metadata is invalid")
+            const memberUids = new Set()
+            for (const member of group.members) {
+                if (!member || typeof member !== "object" || Array.isArray(member)
+                        || Object.keys(member).length !== 2
+                        || typeof member.uid !== "string" || typeof member.revision !== "string"
+                        || !/^[a-f0-9]{64}@quickshell-group$/.test(member.uid)
+                        || !/^[a-f0-9]{64}$/.test(member.revision) || memberUids.has(member.uid))
+                    return storageFailure("Synced calendar group membership is invalid")
+                memberUids.add(member.uid)
+            }
+        }
         if (source.calendarId !== expectedCalendarId
                 || typeof source.uid !== "string"
                 || !source.uid.startsWith(expectedCalendarId + ":")
@@ -276,7 +342,8 @@ function parseSyncedStore(text, calendars, expectedCalendarId) {
         if (!validation.ok)
             return storageFailure("Invalid synced event " + source.uid + ": " + validation.message)
         seen.add(source.uid)
-        rawEvents.push(Object.assign({}, source, { readOnly: false }))
+        rawEvents.push(Object.assign({}, source, { readOnly: source.readOnly === true },
+            source.recurrence ? { recurrence: validation.event.recurrence } : {}))
     }
     return { ok: true, rawEvents, warnings: document.warnings.slice() }
 }
@@ -297,7 +364,7 @@ function parseImportedStore(text, expectedCalendarId) {
             || Object.keys(document).length !== 2
             || !Object.prototype.hasOwnProperty.call(document, "version")
             || !Object.prototype.hasOwnProperty.call(document, "events")
-            || document.version !== 1 || !Array.isArray(document.events))
+            || ![1, 2].includes(document.version) || !Array.isArray(document.events))
         return storageFailure("Imported calendar schema is unsupported")
 
     const required = [
@@ -305,15 +372,23 @@ function parseImportedStore(text, expectedCalendarId) {
         "start", "end", "allDay", "reminders"
     ]
     const allowed = new Set(required)
+    if (document.version === 2) {
+        allowed.add("ical")
+        allowed.add("readOnly")
+    }
     const seen = new Set()
     const rawEvents = []
 
     for (const source of document.events) {
         if (!source || typeof source !== "object" || Array.isArray(source)
-                || Object.keys(source).length !== required.length
                 || Object.keys(source).some(key => !allowed.has(key))
                 || required.some(key => !Object.prototype.hasOwnProperty.call(source, key)))
             return storageFailure("Imported calendar event schema is invalid")
+        if ((source.ical !== undefined && (typeof source.ical !== "string"
+                || source.ical.length === 0 || source.ical.length > 16 * 1024 * 1024
+                || source.readOnly !== true))
+                || (source.readOnly !== undefined && source.readOnly !== true))
+            return storageFailure("Imported calendar recurrence metadata is invalid")
         if (source.calendarId !== expectedCalendarId
                 || typeof source.uid !== "string"
                 || !source.uid.startsWith(expectedCalendarId + ":")
@@ -368,7 +443,8 @@ function serializeLocalStore(rawEvents, calendars, calendarId, reservedUids) {
     return {
         ok: true,
         rawEvents: result.rawEvents,
-        text: JSON.stringify({ version: 1, events: result.rawEvents }, null, 2) + "\n"
+        text: JSON.stringify({ version: result.rawEvents.some(event => event.timezone !== undefined || event.recurrence) ? 2 : 1,
+            events: result.rawEvents }, null, 2) + "\n"
     }
 }
 

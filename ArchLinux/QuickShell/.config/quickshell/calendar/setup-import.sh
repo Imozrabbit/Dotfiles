@@ -2,6 +2,13 @@
 set -eu
 umask 077
 
+update=0
+case "$#" in
+    0) ;;
+    1) case "$1" in --update) update=1 ;; *) printf '%s\n' 'Usage: setup-import.sh [--update]' >&2; exit 1 ;; esac ;;
+    *) printf '%s\n' 'Usage: setup-import.sh [--update]' >&2; exit 1 ;;
+esac
+
 # -----------------------------------------------------------------------------------------
 # Stage 3: Refresh imported calendars when pimsync changes their ICS files
 # -----------------------------------------------------------------------------------------
@@ -21,7 +28,20 @@ for path in "$HOME" "$data_home" "$config_home" "$state_home"; do
         exit 1
     fi
 done
-if [ ! -s "$state_dir/sources" ] || [ -L "$state_dir/sources" ]; then
+for path in "$state_home/quickshell-calendar" "$state_dir"; do
+    if [ -L "$path" ] || { [ -e "$path" ] && [ ! -d "$path" ]; }; then
+        printf '%s\n' "Inspect installer state directory $path before continuing." >&2
+        exit 1
+    fi
+done
+for name in sources import-done import.log; do
+    path="$state_dir/$name"
+    if [ -L "$path" ] || { [ -e "$path" ] && [ ! -f "$path" ]; }; then
+        printf '%s\n' "Inspect installer state file $path before continuing." >&2
+        exit 1
+    fi
+done
+if [ ! -s "$state_dir/sources" ]; then
     printf '%s\n' 'Complete pimsync setup before installing calendar import units.' >&2
     exit 1
 fi
@@ -31,6 +51,10 @@ for flag in "$university" "$holidays" "$personal"; do
 done
 if [ "$university$holidays$personal" = 000 ]; then
     printf '%s\n' 'No sync sources are selected.' >&2
+    exit 1
+fi
+if [ "$update" -eq 1 ] && [ ! -s "$state_dir/import-done" ]; then
+    printf '%s\n' 'Complete calendar import setup before updating import unit definitions.' >&2
     exit 1
 fi
 if [ -L "$service" ] || [ -L "$watcher" ]; then
@@ -75,19 +99,21 @@ if { [ -e "$service" ] && ! cmp -s "$service_new" "$service"; } ||
     printf '%s ' 'Calendar import units already exist with different settings. Replace them? [y/N]'
     IFS= read -r answer || answer=''
     case "$answer" in y|Y|yes|YES) ;; *) printf '%s\n' 'Existing calendar import units unchanged.' >&2; exit 1 ;; esac
-    printf '%s ' 'Keep timestamped backups of existing import units? [y/N]'
-    IFS= read -r answer || answer=''
-    case "$answer" in
-        y|Y|yes|YES)
-            suffix=$(date +%Y%m%d-%H%M%S)-$$
-            for existing in "$service" "$watcher"; do
-                if [ -e "$existing" ]; then
-                    printf '%s\n' "Saving $existing before replacement..."
-                    cp -p -- "$existing" "$existing.backup-$suffix"
-                fi
-            done
-            ;;
-    esac
+    if [ "$update" -eq 0 ]; then
+        printf '%s ' 'Keep timestamped backups of existing import units? [y/N]'
+        IFS= read -r answer || answer=''
+        case "$answer" in
+            y|Y|yes|YES)
+                suffix=$(date +%Y%m%d-%H%M%S)-$$
+                for existing in "$service" "$watcher"; do
+                    if [ -e "$existing" ]; then
+                        printf '%s\n' "Saving $existing before replacement..."
+                        cp -p -- "$existing" "$existing.backup-$suffix"
+                    fi
+                done
+                ;;
+        esac
+    fi
 fi
 
 units_changed=0
@@ -100,6 +126,20 @@ if [ ! -e "$watcher" ] || ! cmp -s "$watcher_new" "$watcher"; then
     printf '%s\n' 'Installing calendar import path watcher...'
     mv -- "$watcher_new" "$watcher"
     units_changed=1
+fi
+
+if [ "$update" -eq 1 ]; then
+    if [ "$units_changed" -eq 1 ]; then
+        if ! systemctl --user daemon-reload > "$staging/reload.log" 2>&1; then
+            printf '%s\n' 'Calendar import definitions changed, but user service reload failed.' >&2
+            tail -n 8 "$staging/reload.log" >&2
+            exit 1
+        fi
+        printf '%s\n' 'Calendar import unit definitions updated; service activation unchanged.'
+    else
+        printf '%s\n' 'Calendar import unit definitions unchanged; service activation unchanged.'
+    fi
+    exit 0
 fi
 
 if [ "$units_changed" -eq 1 ] || [ ! -s "$state_dir/import-done" ] ||

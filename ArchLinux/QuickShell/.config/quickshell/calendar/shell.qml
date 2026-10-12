@@ -5,12 +5,12 @@ import "ui"
 
 ShellRoot {
     CalendarService {
-        id: calendarService
+        id: calendarBackend
     }
 
     CalendarWindow {
         id: calendarWindow
-        calendarService: calendarService
+        calendarService: calendarBackend
     }
 
     IpcHandler {

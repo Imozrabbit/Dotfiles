@@ -1,104 +1,137 @@
 # Calendar
 
-Calendar is a desktop timetable built with Quickshell. It shows events in week,
-month, and two-week agenda views. You can add events to local calendars, import
-read-only ICS feeds, and review sync conflicts by choosing the complete Local or
-Remote version. Holiday labels appear alongside events.
+Desktop calendar for Quickshell and Hyprland, with Week, Month and 14-day Agenda
+views. Supports editable local calendars, read-only ICS imports, CalDAV sync through
+pimsync, reminders, holiday labels and whole-event Local/Remote conflict review.
+
+## Recurring events
+
+Local and Personal calendars support Daily, Weekly with multiple weekdays, Monthly
+dates or ordinal weekdays, and Yearly month/date pairs. Each supports an interval
+and Never, inclusive Until, or total Count ending. Missing dates and nonexistent DST
+start times are skipped; duplicate matches count once.
+
+Timed events retain their creation timezone and duration; views use local time.
+All-day events occupy one date. Editing/deletion applies to the whole series.
+Imported exceptions and foreign rules that cannot be edited losslessly stay
+read-only. Incomplete or conflicting synced groups stay protected until reviewed.
 
 ## How it works
 
-`shell.qml` connects `CalendarService.qml` to the window and exposes IPC target
-`calendar`, function `toggle`. Views render service-owned data; they do not
-parse ICS or talk to remote calendars.
+`shell.qml` connects storage services to the window and exposes `calendar.toggle`.
+Local events are JSON; imports are converted from ICS; synced ICS files are canonical
+and their JSON cache is rebuildable. Native C++/libical helpers expand only requested
+ranges. QML renders occurrences, rather than implementing recurrence arithmetic.
 
-Calendar profiles live in `profiles.json`. Local profiles save editable events
-as JSON. Imported profiles display JSON generated from an ICS file or folder.
-The separate `holidays_fr.json` feed supplies holiday labels. Synced profiles
-use one ICS file per event as canonical data; their `.sync.json` file is a
-rebuildable cache. `pimsync` performs remote synchronization, while
-`parse/conflict-broker.sh` coordinates synced mutations and conflict resolution.
+Yearly date pairs may span several standard ICS resources but appear as one series.
+The broker pauses sync and journals grouped writes; conflicts choose a complete
+Local or Remote series. Local journaling does not make remote synchronization atomic.
 
-Storage paths:
+Data defaults to `~/.local/share/calendars`; sync configuration/credentials and
+recovery state remain outside the module. Installation does not reset existing
+calendar data. [Storage, recovery and machine cleanup](docs/maintenance.md).
 
-- `${XDG_DATA_HOME:-$HOME/.local/share}/calendars/profiles.json`: profile registry.
-- `${XDG_DATA_HOME:-$HOME/.local/share}/calendars/<id>.json`: local/imported data.
-- `${XDG_DATA_HOME:-$HOME/.local/share}/calendars/<id>/<sha256(uid)>.ics`: canonical synced events.
-- `${XDG_DATA_HOME:-$HOME/.local/share}/calendars/<id>.sync.json`: derived synced cache.
-- `${XDG_STATE_HOME:-$HOME/.local/state}/quickshell-calendar/conflicts.json`: conflict choices.
+## Dependencies
 
-Calendar startup prepares the data directory with mode `0700`. Native helper
-writes use mode `0600`. Quickshell `FileView` files inherit process `umask` but
-remain inside the private data directory. Detaching a profile removes its
-registry entry; event files stay on disk. Replacing an imported profile
-requires explicitly editing that same profile.
+| Purpose | Required |
+| --- | --- |
+| Desktop | Quickshell, Hyprland, Qt 6 |
+| Native helpers | libical, Qt6Core, C++17 compiler, Make, pkg-config |
+| Installer | curl, tar, systemd, standard POSIX/coreutils tools |
+| Sync/import services | pimsync, systemd user services, util-linux `flock` |
+| Updater | jq, systemd `busctl`, existing desktop-session environment |
+| Fonts | Atkinson Hyperlegible Next, JetBrainsMono Nerd Font |
 
-## Install on Arch Linux
+PC-local tests additionally use Node.js, jq and Python/PySide6. Tests/editor/agent tooling
+are intentionally excluded from Git and client installations. See
+[development checks](docs/development.md#checks).
 
-Download the installer separately, inspect it, then run it:
+## Install
+
+Download and inspect the installer, then run it:
 
 ```sh
 curl -fsSLo calendar-install.sh 'https://raw.githubusercontent.com/Imozrabbit/Dotfiles/master/ArchLinux/QuickShell/.config/quickshell/calendar/install.sh'
 sh calendar-install.sh
 ```
 
-The installer downloads the public GitHub archive and extracts only this
-calendar directory to `~/.config/quickshell/calendar`. It builds both native
-helpers locally; the installed directory contains no `.git`. Missing packages
-can be installed with your approval. Select sync sources interactively (all
-three selected by default). Supply your own university feed URL and Radicale
-credentials if selected. Credentials stay outside the installed module.
+It downloads GitHub's `master` archive, extracts only this module into
+`~/.config/quickshell/calendar`, and builds both native helpers before replacing an
+existing module. Development tests/tools, prebuilt PC binaries, generated output,
+archives/logs/caches are excluded; native build sources and runtime scripts remain.
+Replacement and timestamped backup require your choices. Missing
+packages can be installed with approval; sync sources are selected interactively.
+Supply your own feed URL/CalDAV credentials for selected sources.
 
-An existing calendar module requires replacement approval and a separate
-backup choice. Existing calendar data is never overwritten: on first setup,
-non-empty sync directories that the installer did not create require manual
-review. Re-running the installer recognizes completed steps and can resume
-after a failed service setup. It installs `pimsync.service` and
-`quickshell-calendar-import.{path,service}` as systemd user units. New
-`pimsync.service` units retry failures after 30 seconds. The import service
-converts existing ICS files at login and during installation; the path unit
-refreshes JSON after ICS directory changes. Check services with
-`systemctl --user status pimsync.service quickshell-calendar-import.path`.
+Setup installs user sync/import services and a recovery startup guard. Existing
+custom configuration and non-empty unmanaged directories require review rather
+than silent replacement. Failed setup can be rerun; receipts track completed steps.
+No `.git` checkout is needed in the installed module.
 
-## Run and verify
+## Run
 
-Build the native converter and sync helper, then run C++, shell, and Node tests:
+For a source checkout, first build both helpers:
 
 ```sh
-make -C parse test
-qmllint shell.qml common/*.js services/*.qml ui/*.qml
+make -C parse convert calendar-sync-helper
 quickshell -c "$HOME/.config/quickshell/calendar"
 ```
 
-Use your calendar toggle shortcut, or call IPC target `calendar.toggle`. For hyprland setup:
+Toggle the running window:
 
 ```sh
-# Autostart
-hl.exec_cmd("qs -c calendar -d")
-# Toggle + bind
-hl.bind(mainMod .. "+ C", hl.dsp.exec_cmd("qs -c calendar ipc call calendar toggle")) -- Toggle Calendar
+quickshell -c "$HOME/.config/quickshell/calendar" ipc call calendar toggle
 ```
 
-Tests live under `parse/test/` and `dev/tests/`; they do not run with the desktop
-shell. `make -C parse clean` removes generated binaries and objects, so rebuild
-before launching the calendar afterward.
+Use these commands in your existing startup/keybind configuration. The installer
+does not edit Hyprland settings. Single-click selects; double-click opens details or
+conflict review. Ctrl-wheel adjusts zoom in each view; ordinary wheel scrolls.
 
-Build requires a C++17 compiler, Make, `pkg-config`, libical, and Qt6Core.
-Tests additionally use Node.js, `jq`, and common shell utilities. Installer
-regression tests run with `sh dev/tests/test-installer.sh`,
-`sh dev/tests/test-installer-sync.sh`, and `sh dev/tests/test-installer-import.sh`.
-Runtime synced calendars require configured `pimsync.service`, Hyprland, and
-Quickshell.
+## Update
 
-## Limits and audit
+**PC:** publish reviewed changes to GitHub `master` first. Uncommitted/unpushed work
+is not available to the updater. Git checkouts/symlinked modules are not updater
+targets; maintain the source checkout normally.
 
-Recurring ICS events are omitted from the synced cache with a warning.
-Conflict review chooses a complete event version, not a per-field merge.
-Synced mutations rebuild their entire JSON cache; explicit ICS imports wait
-2 seconds for source stability. These costs were retained for data safety and
-simplicity. A crash between the separate registry and imported-cache commits
-can require manual recovery; real CalDAV interaction was not covered by the
-isolated smoke test.
+**ThinkPad / standalone installation:** from a desktop-session terminal:
 
-The [full audit](dev/AUDIT.md) records correctness/data-integrity fixes,
-security and plain-text checks, runtime-overhead decisions, redundancy cuts,
-and regression results. Its deferred test-harness cleanup has not been applied.
+```sh
+sh "$HOME/.config/quickshell/calendar/update.sh"
+```
+
+For an older installation without `update.sh`, bootstrap after publication:
+
+```sh
+sh -eu -c 'work=$(mktemp -d "${XDG_RUNTIME_DIR:?Run from your desktop session}/calendar-bootstrap.XXXXXXXX")
+cleanup() { rm -rf -- "$work"; }
+trap cleanup EXIT
+trap "exit 129" HUP
+trap "exit 130" INT
+trap "exit 143" TERM
+curl -fsSLo "$work/update.sh" https://raw.githubusercontent.com/Imozrabbit/Dotfiles/master/ArchLinux/QuickShell/.config/quickshell/calendar/update.sh
+sh "$work/update.sh"'
+```
+
+Updater fetches current installer, builds the complete module in staging and keeps
+a temporary rollback copy. Source/credential setup is skipped. Only calendar's
+running instance and relevant services are paused/restarted; disabled/inactive units
+are not enabled. A running import watcher gets a one-shot cache refresh. Compatible
+manual service definitions are preserved; changed import definitions need approval.
+Pending recovery or unsafe/custom guard settings stop the update.
+
+Open calendar and verify it, then answer **yes** to permanent rollback cleanup.
+Previous module (including its old transfer archives), temporary downloads and
+object files are removed. Local edits inside the module are replaced; event stores,
+credentials and pimsync status remain outside it and are not replaced.
+
+If not ready to confirm, answer no; verify later and run:
+
+```sh
+sh "$HOME/.config/quickshell/calendar/update.sh" --confirm
+```
+
+Another replacement is blocked while confirmation/recovery is pending. Ordinary
+failures restore prior code/runtime when safe; uncertain recovery retains files for
+review. Never delete recovery receipts or bypass guards to force an update.
+
+[Development, recurrence contracts and verification limits](docs/development.md).

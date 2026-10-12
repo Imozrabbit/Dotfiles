@@ -4,6 +4,7 @@ import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import "../common/CalendarMath.js" as CalendarMath
 import "../common/Theme.js" as Theme
+import "../common/Recurrence.js" as Recurrence
 
 Rectangle {
     id: root
@@ -16,6 +17,7 @@ Rectangle {
     property string titleText: ""
     property string calendarId: ""
     property bool allDay: false
+    property string timingMode: "Timed"
     property string startDateText: ""
     property string endDateText: ""
     property string startTimeText: "09:00"
@@ -25,11 +27,47 @@ Rectangle {
     property string errorField: ""
     property string errorMessage: ""
     property string expandedField: ""
+    property string repeatFrequency: "Never"
+    readonly property bool repeatUsesTimeOnly: root.repeatFrequency !== "Never"
+    readonly property bool repeatDraftValid: root.validateRepeatDraft()
+    property string repeatIntervalText: "1"
+    property string repeatEnd: "Never"
+    property string repeatStartDateText: ""
+    property string repeatUntilDateText: ""
+    property string repeatCountText: "1"
+    readonly property bool repeatUntilBeforeStart: {
+        if (!root.repeatUsesTimeOnly || root.repeatEnd !== "Until date")
+            return false;
+        const start = root.parseDate(root.repeatStartDateText);
+        const end = root.parseDate(root.repeatUntilDateText);
+        if (!start || !end)
+            return false;
+        if (root.repeatFrequency === "Monthly")
+            start.setDate(1);
+        else if (root.repeatFrequency === "Yearly")
+            start.setMonth(0, 1);
+        return end.getTime() < start.getTime();
+    }
+    property var repeatWeekdays: []
+    property var repeatMonthDays: []
+    property string repeatMonthPattern: "Month dates"
+    property var repeatMonthPositions: []
+    property int repeatMonthPosition: 1
+    property int repeatMonthWeekday: 0
+    readonly property var monthPositionLabels: ["First", "Second", "Third", "Fourth", "Fifth", "Last"]
+    readonly property var weekdayLabels: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    property var repeatYearDates: []
+    property int repeatYearMonth: 0
+    property int repeatYearDay: 1
     property var reminderDrafts: []
     property bool customReminderVisible: false
     property string customReminderText: ""
     property bool savePending: false
     property bool saveCommitted: false
+    property string savedTimezone: ""
+    property string loadedTiming: ""
+    readonly property int formSpacing: 5
+    readonly property int sectionSpacing: 4
     readonly property int pickerCenterYear: new Date().getFullYear()
     readonly property var yearValues: buildRange(pickerCenterYear - 100, pickerCenterYear + 100)
     readonly property var monthValues: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -128,6 +166,102 @@ Rectangle {
         font.weight: Font.DemiBold
     }
 
+    component RepeatDateRow: RowLayout {
+        id: dateRow
+
+        required property string target
+        property bool showMonth: true
+        property bool showDay: true
+        property bool invalid: false
+        property alias yearControl: yearPicker
+
+        Layout.fillWidth: true
+        spacing: 4
+
+        InlineWheelField {
+            id: yearPicker
+
+            Layout.fillWidth: true
+            Layout.preferredWidth: 100
+            label: "YEAR"
+            model: root.yearValues
+            currentIndex: Math.max(0, Math.min(root.yearValues.length - 1, root.datePart(dateRow.target, "year") - (root.pickerCenterYear - 100)))
+            displayText: String(root.datePart(dateRow.target, "year"))
+            expanded: root.expandedField === dateRow.target + "Year"
+            invalid: dateRow.invalid
+            onExpansionRequested: root.toggleWheel(dateRow.target + "Year")
+            onCollapseRequested: root.expandedField = ""
+            onSelectionRequested: (index, value) => root.setDatePart(dateRow.target, "year", value)
+        }
+        InlineWheelField {
+            visible: dateRow.showMonth
+            Layout.fillWidth: true
+            Layout.preferredWidth: 140
+            label: "MONTH"
+            model: root.monthValues
+            currentIndex: root.datePart(dateRow.target, "month")
+            displayText: root.monthValues[root.datePart(dateRow.target, "month")]
+            expanded: root.expandedField === dateRow.target + "Month"
+            invalid: dateRow.invalid
+            onExpansionRequested: root.toggleWheel(dateRow.target + "Month")
+            onCollapseRequested: root.expandedField = ""
+            onSelectionRequested: (index, value) => root.setDatePart(dateRow.target, "month", index)
+        }
+        InlineWheelField {
+            visible: dateRow.showDay
+            Layout.fillWidth: true
+            Layout.preferredWidth: 100
+            label: "DAY"
+            model: root.dayValues(dateRow.target)
+            currentIndex: root.datePart(dateRow.target, "day") - 1
+            displayText: String(root.datePart(dateRow.target, "day")).padStart(2, "0")
+            expanded: root.expandedField === dateRow.target + "Day"
+            invalid: dateRow.invalid
+            padNumbers: true
+            onExpansionRequested: root.toggleWheel(dateRow.target + "Day")
+            onCollapseRequested: root.expandedField = ""
+            onSelectionRequested: (index, value) => root.setDatePart(dateRow.target, "day", value)
+        }
+    }
+
+    component ErrorText: Text {
+        Layout.fillWidth: true
+        Layout.leftMargin: 5
+        Layout.rightMargin: 5
+        horizontalAlignment: Text.AlignHCenter
+        textFormat: Text.PlainText
+        color: Theme.currentTime
+        font.pixelSize: 11
+        wrapMode: Text.WordWrap
+    }
+
+    component DayToggle: Controls.Button {
+        id: dayToggle
+
+        Layout.fillWidth: true
+        Layout.preferredWidth: 1
+        Layout.preferredHeight: 34
+        checkable: true
+        HoverHandler {
+            enabled: dayToggle.enabled
+            cursorShape: Qt.PointingHandCursor
+        }
+        contentItem: Text {
+            text: dayToggle.text
+            color: dayToggle.checked ? Theme.background : Theme.text
+            font.pixelSize: 11
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
+        background: Rectangle {
+            radius: Theme.radius
+            color: dayToggle.down ? Qt.darker(dayToggle.checked ? Theme.accent : Theme.surfaceRaised, 1.2)
+                : dayToggle.checked ? Theme.accent : dayToggle.hovered ? Theme.surfaceRaised : Theme.background
+            border.width: dayToggle.checked ? 0 : 1
+            border.color: Theme.border
+        }
+    }
+
     component FormField: Controls.TextField {
         id: textfield
         property bool invalid: false
@@ -192,6 +326,10 @@ Rectangle {
     }
 
     function targetDateText(target) {
+        if (target === "repeatStart")
+            return root.repeatStartDateText;
+        if (target === "repeatUntil")
+            return root.repeatUntilDateText;
         return target === "start" ? root.startDateText : root.endDateText;
     }
 
@@ -232,6 +370,10 @@ Rectangle {
         const text = root.dateText(new Date(year, month, day));
         if (target === "start")
             root.startDateText = text;
+        else if (target === "repeatStart")
+            root.repeatStartDateText = text;
+        else if (target === "repeatUntil")
+            root.repeatUntilDateText = text;
         else
             root.endDateText = text;
     }
@@ -341,6 +483,72 @@ Rectangle {
         reminderPreset.forceActiveFocus();
     }
 
+    function toggleRepeatWeekday(day) {
+        if (!Number.isInteger(day) || day < 0 || day > 6)
+            return;
+        root.repeatWeekdays = root.repeatWeekdays.includes(day) ? root.repeatWeekdays.filter(value => value !== day) : root.repeatWeekdays.concat([day]).sort((left, right) => left - right);
+    }
+
+    function toggleRepeatMonthDay(day) {
+        if (!Number.isInteger(day) || day < 1 || day > 31)
+            return;
+        root.repeatMonthDays = root.repeatMonthDays.includes(day) ? root.repeatMonthDays.filter(value => value !== day) : root.repeatMonthDays.concat([day]).sort((left, right) => left - right);
+    }
+
+    function addRepeatYearDate() {
+        const month = root.repeatYearMonth + 1;
+        const day = root.repeatYearDay;
+        if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(day) || day < 1 || day > CalendarMath.daysInMonth(2000, month - 1))
+            return;
+        if (root.repeatYearDates.some(value => value.month === month && value.day === day))
+            return;
+        root.repeatYearDates = root.repeatYearDates.concat([{ month, day }]).sort((left, right) => left.month - right.month || left.day - right.day);
+    }
+
+    function addRepeatMonthPosition() {
+        const position = root.repeatMonthPosition;
+        const weekday = root.repeatMonthWeekday;
+        if (!Number.isInteger(position) || (position !== -1 && (position < 1 || position > 5)) || !Number.isInteger(weekday) || weekday < 0 || weekday > 6)
+            return;
+        if (root.repeatMonthPositions.some(value => value.position === position && value.weekday === weekday))
+            return;
+        root.repeatMonthPositions = root.repeatMonthPositions.concat([{ position, weekday }]);
+    }
+
+    function removeRepeatMonthPosition(index) {
+        root.repeatMonthPositions = root.repeatMonthPositions.filter((value, position) => position !== index);
+    }
+
+    function removeRepeatYearDate(index) {
+        root.repeatYearDates = root.repeatYearDates.filter((value, position) => position !== index);
+    }
+
+    function updateTimingMode() {
+        if (root.allDay) {
+            root.timingMode = "All-day";
+            return;
+        }
+        const start = root.parseDate(root.startDateText);
+        const end = root.parseDate(root.endDateText);
+        if (start)
+            start.setDate(start.getDate() + 1);
+        root.timingMode = start && end && start.getTime() === end.getTime() ? "Overnight" : "Timed";
+    }
+
+    function selectTimingMode(value) {
+        const previous = root.timingMode;
+        root.allDay = value === "All-day";
+        if (!root.repeatUsesTimeOnly && (value === "Overnight" || (value === "Timed" && previous === "Overnight"))) {
+            const end = root.parseDate(root.startDateText);
+            if (end) {
+                if (value === "Overnight")
+                    end.setDate(end.getDate() + 1);
+                root.endDateText = root.dateText(end);
+            }
+        }
+        root.timingMode = value;
+    }
+
     function loadDraft() {
         const editing = root.mode === "edit" && root.eventData;
         const source = editing ? root.eventData : root.defaults;
@@ -354,16 +562,75 @@ Rectangle {
                     minutesBefore: reminder.minutesBefore
                 })) : [];
         root.allDay = source.allDay === true;
+        root.savedTimezone = editing ? source.timezone || "" : "";
         root.calendarId = editing ? source.calendarId : root.writableCalendars.length > 0 ? root.writableCalendars[0].id : "";
 
         const start = new Date(source.startMs);
         const end = new Date(source.endMs);
+        root.repeatWeekdays = [(start.getDay() + 6) % 7];
+        root.repeatMonthDays = [start.getDate()];
+        root.repeatMonthPosition = Math.floor((start.getDate() - 1) / 7) + 1;
+        root.repeatMonthWeekday = (start.getDay() + 6) % 7;
+        root.repeatMonthPositions = [{ position: root.repeatMonthPosition, weekday: root.repeatMonthWeekday }];
+        root.repeatYearMonth = start.getMonth();
+        root.repeatYearDay = start.getDate();
+        root.repeatYearDates = [{ month: start.getMonth() + 1, day: start.getDate() }];
         root.startDateText = root.dateText(start);
+        root.repeatStartDateText = root.startDateText;
+        root.repeatUntilDateText = root.startDateText;
         root.startTimeText = root.timeText(start);
         if (root.allDay)
             end.setDate(end.getDate() - 1);
         root.endDateText = root.dateText(end);
         root.endTimeText = root.timeText(end);
+        root.updateTimingMode();
+        root.repeatFrequency = "Never";
+        if (editing && source.recurrence)
+            root.loadRepeatRule(source.recurrence);
+        root.loadedTiming = root.timingSignature();
+    }
+
+    function timingSignature() {
+        return JSON.stringify([root.allDay, root.timingMode, root.startDateText, root.endDateText, root.startTimeText, root.endTimeText]);
+    }
+
+    function loadRepeatRule(rule) {
+        root.repeatFrequency = rule.frequency[0].toUpperCase() + rule.frequency.slice(1);
+        root.repeatIntervalText = String(rule.interval);
+        root.repeatStartDateText = rule.startsOn;
+        root.repeatEnd = rule.ends.mode === "count" ? "After N occurrences" : rule.ends.mode === "date" ? "Until date" : "Never";
+        if (rule.ends.mode === "date")
+            root.repeatUntilDateText = rule.ends.date;
+        if (rule.ends.mode === "count")
+            root.repeatCountText = String(rule.ends.count);
+        if (rule.frequency === "weekly")
+            root.repeatWeekdays = rule.pattern.weekdays.slice();
+        if (rule.frequency === "monthly") {
+            root.repeatMonthPattern = rule.pattern.mode === "dates" ? "Month dates" : "Weekday positions";
+            if (rule.pattern.mode === "dates")
+                root.repeatMonthDays = rule.pattern.days.slice();
+            else
+                root.repeatMonthPositions = rule.pattern.positions.map(item => ({ position: item.ordinal, weekday: item.weekday }));
+        }
+        if (rule.frequency === "yearly")
+            root.repeatYearDates = rule.pattern.dates.map(item => ({ month: item.month, day: item.day }));
+    }
+
+    function recurrenceDraft() {
+        const frequency = root.repeatFrequency.toLowerCase();
+        let pattern = {};
+        if (frequency === "weekly")
+            pattern = { weekdays: root.repeatWeekdays.slice() };
+        else if (frequency === "monthly")
+            pattern = root.repeatMonthPattern === "Month dates" ? { mode: "dates", days: root.repeatMonthDays.slice() }
+                : { mode: "positions", positions: root.repeatMonthPositions.map(item => ({ ordinal: item.position, weekday: item.weekday })) };
+        else if (frequency === "yearly")
+            pattern = { dates: root.repeatYearDates.map(item => ({ month: item.month, day: item.day })) };
+        const ends = root.repeatEnd === "Until date" ? { mode: "date", date: root.repeatUntilDateText }
+            : root.repeatEnd === "After N occurrences" ? { mode: "count", count: Number(root.repeatCountText) } : { mode: "never" };
+        const result = Recurrence.canonicalRule({ frequency, interval: Number(root.repeatIntervalText),
+            startsOn: root.repeatStartDateText, pattern, ends });
+        return result.ok ? result.rule : null;
     }
 
     function focusField(field) {
@@ -391,8 +658,36 @@ Rectangle {
         event.accepted = true;
     }
 
+    function validRepeatNumber(text) {
+        return /^\d+$/.test(text) && Number(text) > 0 && Number(text) <= 2147483647;
+    }
+
+    function validateRepeatDraft() {
+        if (!root.repeatUsesTimeOnly)
+            return true;
+        if (!root.parseDate(root.repeatStartDateText) || !root.validRepeatNumber(root.repeatIntervalText))
+            return false;
+        if (root.repeatEnd === "Until date" && (!root.parseDate(root.repeatUntilDateText) || root.repeatUntilBeforeStart))
+            return false;
+        if (root.repeatEnd === "After N occurrences" && !root.validRepeatNumber(root.repeatCountText))
+            return false;
+        if (root.repeatFrequency === "Weekly")
+            return root.repeatWeekdays.length > 0;
+        if (root.repeatFrequency === "Monthly")
+            return root.repeatMonthPattern === "Month dates" ? root.repeatMonthDays.length > 0 : root.repeatMonthPositions.length > 0;
+        if (root.repeatFrequency === "Yearly")
+            return root.repeatYearDates.length > 0;
+        return true;
+    }
+
     function save() {
         if (root.savePending || root.saveCommitted)
+            return;
+        if (root.repeatUntilBeforeStart) {
+            root.setError("repeatUntil", "Repeat end cannot be earlier than repeat start.", repeatUntilDateRow.yearControl);
+            return;
+        }
+        if (!root.repeatDraftValid)
             return;
         root.errorField = "";
         root.errorMessage = "";
@@ -401,7 +696,7 @@ Rectangle {
             root.setError("start", "Enter start date as YYYY-MM-DD", startDateField);
             return;
         }
-        const endDate = root.parseDate(root.endDateText);
+        const endDate = root.parseDate(root.repeatUsesTimeOnly ? root.startDateText : root.endDateText);
         if (!endDate) {
             root.setError("end", "Enter end date as YYYY-MM-DD", endDateField);
             return;
@@ -409,13 +704,15 @@ Rectangle {
 
         let start;
         let end;
+        if (root.repeatUsesTimeOnly && root.timingMode === "Overnight")
+            endDate.setDate(endDate.getDate() + 1);
         if (root.allDay) {
             endDate.setDate(endDate.getDate() + 1);
             start = root.dateText(startDate);
             end = root.dateText(endDate);
         } else {
             const startValue = root.parseDateTime(root.startDateText, root.startTimeText);
-            const endValue = root.parseDateTime(root.endDateText, root.endTimeText);
+            const endValue = root.parseDateTime(root.dateText(endDate), root.endTimeText);
             if (!startValue) {
                 root.setError("start", "Enter start time as HH:mm", startHourField);
                 return;
@@ -426,6 +723,10 @@ Rectangle {
             }
             start = startValue.toISOString();
             end = endValue.toISOString();
+            if (root.mode === "edit" && root.eventData.recurrence && root.timingSignature() === root.loadedTiming) {
+                start = new Date(root.eventData.startMs).toISOString();
+                end = new Date(root.eventData.endMs).toISOString();
+            }
         }
 
         const data = {
@@ -441,6 +742,11 @@ Rectangle {
                         minutesBefore: reminder.minutesBefore
                     }))
         };
+        data.recurrence = root.repeatUsesTimeOnly ? root.recurrenceDraft() : null;
+        if (root.repeatUsesTimeOnly && !data.recurrence)
+            return;
+        if (!root.allDay)
+            data.timezone = root.savedTimezone || root.calendarService.systemTimezone || undefined;
         const result = root.mode === "edit" ? root.calendarService.updateEvent(root.eventData.uid, data) : root.calendarService.createEvent(data);
         if (!result.ok) {
             root.setError(result.field, result.message, null);
@@ -458,8 +764,22 @@ Rectangle {
         root.forceActiveFocus();
     }
     onAllDayChanged: {
+        if (root.allDay)
+            root.timingMode = "All-day";
         if (root.allDay && (root.expandedField.endsWith("Hour") || root.expandedField.endsWith("Minute")))
             root.expandedField = "";
+    }
+    onStartDateTextChanged: {
+        if (!root.repeatUsesTimeOnly)
+            root.updateTimingMode();
+    }
+    onEndDateTextChanged: {
+        if (!root.repeatUsesTimeOnly)
+            root.updateTimingMode();
+    }
+    onRepeatFrequencyChanged: {
+        if (!root.repeatUsesTimeOnly)
+            root.updateTimingMode();
     }
 
     MouseArea {
@@ -511,7 +831,7 @@ Rectangle {
             x: 20
             y: 20
             width: Math.max(0, formFlickable.width - 40)
-            spacing: 5
+            spacing: root.formSpacing
 
             FieldLabel {
                 text: "TITLE"
@@ -525,13 +845,18 @@ Rectangle {
 
             Item {
                 Layout.preferredWidth: 1
-                Layout.preferredHeight: 4
+                Layout.preferredHeight: root.sectionSpacing
             }
             FieldLabel {
                 text: "CALENDAR"
             }
             Controls.ComboBox {
                 id: calendarCombo
+
+                HoverHandler {
+                    enabled: calendarCombo.enabled
+                    cursorShape: Qt.PointingHandCursor
+                }
 
                 Layout.fillWidth: true
                 Layout.preferredHeight: 34
@@ -595,10 +920,13 @@ Rectangle {
                     background: Rectangle {
                         property bool hovered: calendarOptionHover.hovered
                         radius: Math.max(0, Theme.radius - 2)
-                        color: hovered || calendarOption.highlighted || calendarOption.index === calendarCombo.currentIndex ? Theme.surfaceRaised : "transparent"
+                        color: calendarOption.down ? Qt.darker(Theme.surfaceRaised, 1.2)
+                            : hovered || calendarOption.highlighted || calendarOption.index === calendarCombo.currentIndex ? Theme.surfaceRaised : "transparent"
                     }
                     HoverHandler {
                         id: calendarOptionHover
+                        enabled: calendarOption.enabled
+                        cursorShape: Qt.PointingHandCursor
                     }
                 }
                 popup: Controls.Popup {
@@ -624,7 +952,7 @@ Rectangle {
                 }
                 background: Rectangle {
                     radius: Theme.radius
-                    color: Theme.background
+                    color: calendarCombo.pressed ? Qt.darker(Theme.surfaceRaised, 1.2) : Theme.background
                     border.width: 1
                     border.color: root.errorField === "calendarId" ? Theme.currentTime : Theme.border
                 }
@@ -632,64 +960,90 @@ Rectangle {
 
             Item {
                 Layout.preferredWidth: 1
-                Layout.preferredHeight: 4
+                Layout.preferredHeight: root.sectionSpacing
             }
 
             FieldLabel {
-                text: "ALL-DAY"
+                text: "REPEAT"
             }
+            InlineWheelField {
+                id: repeatPicker
 
-            Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 25
-                Rectangle {
-                    id: allDayToggle
+                label: ""
+                chevronText: ""
+                chevronPixelSize: 17
+                model: ["Never", "Daily", "Weekly", "Monthly", "Yearly"]
+                currentIndex: model.indexOf(root.repeatFrequency)
+                displayText: root.repeatFrequency
+                expanded: root.expandedField === "repeat"
+                onExpansionRequested: root.toggleWheel("repeat")
+                onCollapseRequested: root.expandedField = ""
+                onSelectionRequested: (index, value) => root.repeatFrequency = value
+            }
+            Item {
+                Layout.preferredWidth: 1
+                Layout.preferredHeight: root.sectionSpacing
+            }
+            FieldLabel {
+                text: "TIMING"
+            }
+            RowLayout {
+                id: timingSelector
 
-                    anchors.left: parent.left
-                    anchors.leftMargin: 1
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 42
-                    height: 22
-                    radius: 11
-                    color: root.allDay ? Theme.accent : Theme.border
+                Layout.fillWidth: true
+                spacing: 4
 
-                    Rectangle {
-                        width: 18
-                        height: 18
-                        radius: 9
-                        y: 2
-                        x: root.allDay ? parent.width - width - 2 : 2
-                        color: Theme.text
+                Repeater {
+                    model: ["Timed", "All-day", "Overnight"]
 
-                        Behavior on x {
-                            NumberAnimation {
-                                duration: 120
-                            }
-                        }
-                    }
+                    delegate: DayToggle {
+                        required property string modelData
 
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.allDay = !root.allDay
+                        text: modelData
+                        autoExclusive: true
+                        checked: root.timingMode === modelData
+                        onClicked: root.selectTimingMode(modelData)
                     }
                 }
             }
 
+            ColumnLayout {
+                id: repeatStartSection
+
+                visible: root.repeatUsesTimeOnly
+                Layout.fillWidth: true
+                Layout.topMargin: root.sectionSpacing
+                spacing: root.formSpacing
+
+                FieldLabel {
+                    text: "REPEAT STARTS"
+                }
+                RepeatDateRow {
+                    target: "repeatStart"
+                    showMonth: root.repeatFrequency !== "Yearly"
+                    showDay: root.repeatFrequency !== "Monthly" && root.repeatFrequency !== "Yearly"
+                }
+            }
+
             Item {
+                visible: !root.repeatUsesTimeOnly || !root.allDay
                 Layout.preferredWidth: 1
-                Layout.preferredHeight: 4
+                Layout.preferredHeight: root.sectionSpacing
             }
 
             FieldLabel {
+                visible: !root.repeatUsesTimeOnly || !root.allDay
                 text: "START"
             }
             RowLayout {
+                visible: !root.repeatUsesTimeOnly || !root.allDay
                 Layout.fillWidth: true
                 spacing: 4
 
                 InlineWheelField {
                     id: startDateField
+                    visible: !root.repeatUsesTimeOnly
                     Layout.alignment: Qt.AlignVCenter
                     Layout.fillWidth: true
                     Layout.preferredWidth: root.allDay ? 100 : 75
@@ -710,6 +1064,7 @@ Rectangle {
                     Layout.preferredWidth: root.allDay ? 140 : 106
                     label: "MONTH"
                     model: root.monthValues
+                    visible: !root.repeatUsesTimeOnly
                     currentIndex: root.datePart("start", "month")
                     displayText: root.monthValues[root.datePart("start", "month")]
                     expanded: root.expandedField === "startMonth"
@@ -725,6 +1080,7 @@ Rectangle {
                     Layout.preferredWidth: root.allDay ? 100 : 54
                     label: "DAY"
                     model: root.dayValues("start")
+                    visible: !root.repeatUsesTimeOnly
                     currentIndex: root.datePart("start", "day") - 1
                     displayText: String(root.datePart("start", "day")).padStart(2, "0")
                     expanded: root.expandedField === "startDay"
@@ -780,19 +1136,23 @@ Rectangle {
             }
 
             Item {
+                visible: !root.repeatUsesTimeOnly || !root.allDay
                 Layout.preferredWidth: 1
-                Layout.preferredHeight: 2
+                Layout.preferredHeight: root.sectionSpacing
             }
 
             FieldLabel {
+                visible: !root.repeatUsesTimeOnly || !root.allDay
                 text: root.allDay ? "END (INCLUSIVE)" : "END"
             }
             RowLayout {
+                visible: !root.repeatUsesTimeOnly || !root.allDay
                 Layout.fillWidth: true
                 spacing: 4
 
                 InlineWheelField {
                     id: endDateField
+                    visible: !root.repeatUsesTimeOnly
                     Layout.alignment: Qt.AlignVCenter
                     Layout.fillWidth: true
                     Layout.preferredWidth: root.allDay ? 100 : 75
@@ -813,6 +1173,7 @@ Rectangle {
                     Layout.preferredWidth: root.allDay ? 140 : 106
                     label: "MONTH"
                     model: root.monthValues
+                    visible: !root.repeatUsesTimeOnly
                     currentIndex: root.datePart("end", "month")
                     displayText: root.monthValues[root.datePart("end", "month")]
                     expanded: root.expandedField === "endMonth"
@@ -828,6 +1189,7 @@ Rectangle {
                     Layout.preferredWidth: root.allDay ? 100 : 54
                     label: "DAY"
                     model: root.dayValues("end")
+                    visible: !root.repeatUsesTimeOnly
                     currentIndex: root.datePart("end", "day") - 1
                     displayText: String(root.datePart("end", "day")).padStart(2, "0")
                     expanded: root.expandedField === "endDay"
@@ -884,7 +1246,374 @@ Rectangle {
 
             Item {
                 Layout.preferredWidth: 1
-                Layout.preferredHeight: 4
+                Layout.preferredHeight: root.sectionSpacing
+            }
+            RowLayout {
+                visible: root.repeatFrequency !== "Never"
+                Layout.fillWidth: true
+                Layout.leftMargin: 5
+                spacing: 8
+
+                Text {
+                    text: "Every"
+                    color: Theme.text
+                    font.pixelSize: 12
+                }
+                FormField {
+                    id: repeatIntervalField
+
+                    Layout.fillWidth: false
+                    Layout.preferredWidth: 70
+                    text: root.repeatIntervalText
+                    horizontalAlignment: TextInput.AlignHCenter
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: IntValidator {
+                        bottom: 1
+                    }
+                    invalid: !acceptableInput
+                    onTextEdited: root.repeatIntervalText = text
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: ({
+                            Daily: "day",
+                            Weekly: "week",
+                            Monthly: "month",
+                            Yearly: "year"
+                        })[root.repeatFrequency] + (Number(root.repeatIntervalText) === 1 ? "" : "s")
+                    color: Theme.text
+                    font.pixelSize: 12
+                }
+            }
+            ErrorText {
+                visible: root.repeatFrequency !== "Never" && !repeatIntervalField.acceptableInput
+                text: "Enter a positive whole-number interval."
+            }
+            Item {
+                visible: root.repeatFrequency === "Weekly"
+                Layout.preferredHeight: root.sectionSpacing
+            }
+            ColumnLayout {
+                visible: root.repeatFrequency === "Weekly"
+                Layout.fillWidth: true
+                spacing: root.formSpacing
+
+                FieldLabel {
+                    text: "ON DAYS"
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    Repeater {
+                        model: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+                        delegate: DayToggle {
+                            required property int index
+                            required property string modelData
+
+                            text: modelData
+                            checked: root.repeatWeekdays.includes(index)
+                            onClicked: root.toggleRepeatWeekday(index)
+                        }
+                    }
+                }
+                ErrorText {
+                    visible: root.repeatWeekdays.length === 0
+                    text: "Choose at least one weekday."
+                    wrapMode: Text.NoWrap
+                }
+            }
+            Item {
+                visible: root.repeatFrequency === "Monthly"
+                Layout.preferredHeight: root.sectionSpacing
+            }
+            FieldLabel {
+                visible: root.repeatFrequency === "Monthly"
+                text: "REPEAT ON"
+            }
+            InlineWheelField {
+                id: repeatMonthPatternPicker
+
+                visible: root.repeatFrequency === "Monthly"
+                Layout.fillWidth: true
+                label: ""
+                chevronText: ""
+                chevronPixelSize: 17
+                model: ["Month dates", "Weekday positions"]
+                currentIndex: model.indexOf(root.repeatMonthPattern)
+                displayText: root.repeatMonthPattern
+                expanded: root.expandedField === "repeatMonthPattern"
+                onExpansionRequested: root.toggleWheel("repeatMonthPattern")
+                onCollapseRequested: root.expandedField = ""
+                onSelectionRequested: (index, value) => root.repeatMonthPattern = value
+            }
+            Item {
+                visible: root.repeatFrequency === "Monthly" && root.repeatMonthPattern === "Month dates"
+                Layout.preferredHeight: root.sectionSpacing
+            }
+            ColumnLayout {
+                id: monthlyRepeatDates
+
+                visible: root.repeatFrequency === "Monthly" && root.repeatMonthPattern === "Month dates"
+                Layout.fillWidth: true
+                spacing: root.formSpacing
+
+                FieldLabel {
+                    text: "ON MONTH DATES"
+                }
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 7
+                    rowSpacing: 4
+                    columnSpacing: 4
+
+                    Repeater {
+                        model: root.buildRange(1, 31)
+
+                        delegate: DayToggle {
+                            required property int modelData
+
+                            text: String(modelData)
+                            checked: root.repeatMonthDays.includes(modelData)
+                            onClicked: root.toggleRepeatMonthDay(modelData)
+                        }
+                    }
+                }
+                ErrorText {
+                    visible: root.repeatMonthDays.length === 0
+                    text: "Choose at least one month date."
+                }
+            }
+            Item {
+                visible: root.repeatFrequency === "Monthly" && root.repeatMonthPattern === "Weekday positions"
+                Layout.preferredHeight: root.sectionSpacing
+            }
+            ColumnLayout {
+                id: monthlyRepeatPositions
+
+                visible: root.repeatFrequency === "Monthly" && root.repeatMonthPattern === "Weekday positions"
+                Layout.fillWidth: true
+                spacing: root.formSpacing
+
+                FieldLabel {
+                    text: "ON WEEKDAY POSITIONS"
+                }
+                Repeater {
+                    model: root.repeatMonthPositions
+
+                    delegate: RowLayout {
+                        id: monthPositionRow
+
+                        required property int index
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        spacing: 4
+
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 5
+                            text: root.monthPositionLabels[monthPositionRow.modelData.position === -1 ? 5 : monthPositionRow.modelData.position - 1] + " " + root.weekdayLabels[monthPositionRow.modelData.weekday]
+                            color: Theme.text
+                            font.pixelSize: 12
+                        }
+                        ActionButton {
+                            label: "Remove"
+                            onClicked: root.removeRepeatMonthPosition(monthPositionRow.index)
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    InlineWheelField {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 100
+                        label: "POSITION"
+                        model: root.monthPositionLabels
+                        currentIndex: root.repeatMonthPosition === -1 ? 5 : root.repeatMonthPosition - 1
+                        displayText: root.monthPositionLabels[currentIndex]
+                        expanded: root.expandedField === "repeatMonthPosition"
+                        onExpansionRequested: root.toggleWheel("repeatMonthPosition")
+                        onCollapseRequested: root.expandedField = ""
+                        onSelectionRequested: (index, value) => root.repeatMonthPosition = index === 5 ? -1 : index + 1
+                    }
+                    InlineWheelField {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 140
+                        label: "WEEKDAY"
+                        model: root.weekdayLabels
+                        currentIndex: root.repeatMonthWeekday
+                        displayText: root.weekdayLabels[root.repeatMonthWeekday]
+                        expanded: root.expandedField === "repeatMonthWeekday"
+                        onExpansionRequested: root.toggleWheel("repeatMonthWeekday")
+                        onCollapseRequested: root.expandedField = ""
+                        onSelectionRequested: (index, value) => root.repeatMonthWeekday = index
+                    }
+                    ActionButton {
+                        Layout.alignment: Qt.AlignBottom
+                        label: "Add"
+                        enabled: !root.repeatMonthPositions.some(value => value.position === root.repeatMonthPosition && value.weekday === root.repeatMonthWeekday)
+                        onClicked: root.addRepeatMonthPosition()
+                    }
+                }
+                ErrorText {
+                    visible: root.repeatMonthPositions.length === 0
+                    text: "Choose at least one weekday position."
+                }
+            }
+            Item {
+                visible: root.repeatFrequency === "Yearly"
+                Layout.preferredHeight: root.sectionSpacing
+            }
+            ColumnLayout {
+                id: yearlyRepeatDates
+
+                visible: root.repeatFrequency === "Yearly"
+                Layout.fillWidth: true
+                spacing: root.formSpacing
+
+                FieldLabel {
+                    text: "ON MONTH / DATE PAIRS"
+                }
+                Repeater {
+                    model: root.repeatYearDates
+
+                    delegate: RowLayout {
+                        id: yearDateRow
+
+                        required property int index
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        spacing: 4
+
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 5
+                            text: root.monthValues[yearDateRow.modelData.month - 1] + " " + yearDateRow.modelData.day
+                            color: Theme.text
+                            font.pixelSize: 12
+                        }
+                        ActionButton {
+                            label: "Remove"
+                            onClicked: root.removeRepeatYearDate(yearDateRow.index)
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    InlineWheelField {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 140
+                        label: "MONTH"
+                        model: root.monthValues
+                        currentIndex: root.repeatYearMonth
+                        displayText: root.monthValues[root.repeatYearMonth]
+                        expanded: root.expandedField === "repeatYearMonth"
+                        onExpansionRequested: root.toggleWheel("repeatYearMonth")
+                        onCollapseRequested: root.expandedField = ""
+                        onSelectionRequested: (index, value) => {
+                            root.repeatYearMonth = index;
+                            root.repeatYearDay = Math.min(root.repeatYearDay, CalendarMath.daysInMonth(2000, index));
+                        }
+                    }
+                    InlineWheelField {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 70
+                        label: "DAY"
+                        model: root.dayModels[CalendarMath.daysInMonth(2000, root.repeatYearMonth) - 28]
+                        currentIndex: root.repeatYearDay - 1
+                        displayText: String(root.repeatYearDay).padStart(2, "0")
+                        expanded: root.expandedField === "repeatYearDay"
+                        padNumbers: true
+                        onExpansionRequested: root.toggleWheel("repeatYearDay")
+                        onCollapseRequested: root.expandedField = ""
+                        onSelectionRequested: (index, value) => root.repeatYearDay = value
+                    }
+                    ActionButton {
+                        Layout.alignment: Qt.AlignBottom
+                        label: "Add"
+                        enabled: !root.repeatYearDates.some(value => value.month === root.repeatYearMonth + 1 && value.day === root.repeatYearDay)
+                        onClicked: root.addRepeatYearDate()
+                    }
+                }
+                ErrorText {
+                    visible: root.repeatYearDates.length === 0
+                    text: "Choose at least one month/date pair."
+                }
+            }
+            Item {
+                visible: root.repeatUsesTimeOnly
+                Layout.preferredHeight: root.sectionSpacing
+            }
+            FieldLabel {
+                visible: root.repeatUsesTimeOnly
+                text: "REPEAT ENDS"
+            }
+            InlineWheelField {
+                visible: root.repeatUsesTimeOnly
+                Layout.fillWidth: true
+                label: ""
+                chevronText: ""
+                chevronPixelSize: 17
+                model: ["Never", "Until date", "After N occurrences"]
+                currentIndex: model.indexOf(root.repeatEnd)
+                displayText: root.repeatEnd
+                expanded: root.expandedField === "repeatEnd"
+                onExpansionRequested: root.toggleWheel("repeatEnd")
+                onCollapseRequested: root.expandedField = ""
+                onSelectionRequested: (index, value) => root.repeatEnd = value
+            }
+            RepeatDateRow {
+                id: repeatUntilDateRow
+
+                visible: root.repeatUsesTimeOnly && root.repeatEnd === "Until date"
+                target: "repeatUntil"
+                invalid: root.repeatUntilBeforeStart
+            }
+            ErrorText {
+                visible: root.repeatUntilBeforeStart
+                text: "Repeat end cannot be earlier than repeat start."
+            }
+            RowLayout {
+                visible: root.repeatUsesTimeOnly && root.repeatEnd === "After N occurrences"
+                Layout.fillWidth: true
+                spacing: 8
+
+                FormField {
+                    id: repeatCountField
+
+                    Layout.fillWidth: false
+                    Layout.preferredWidth: 70
+                    text: root.repeatCountText
+                    horizontalAlignment: TextInput.AlignHCenter
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: IntValidator {
+                        bottom: 1
+                    }
+                    invalid: !acceptableInput
+                    onTextEdited: root.repeatCountText = text
+                }
+                Text {
+                    text: Number(root.repeatCountText) === 1 ? "occurrence" : "occurrences"
+                    color: Theme.text
+                    font.pixelSize: 12
+                }
+            }
+
+            ErrorText {
+                visible: root.repeatUsesTimeOnly && root.repeatEnd === "After N occurrences" && !repeatCountField.acceptableInput
+                text: "Enter a positive whole-number occurrence count."
+            }
+
+            Item {
+                Layout.preferredWidth: 1
+                Layout.preferredHeight: root.sectionSpacing
             }
             FieldLabel {
                 text: "REMINDERS"
@@ -927,7 +1656,7 @@ Rectangle {
                         Layout.preferredWidth: 66
                         Layout.preferredHeight: 30
                         radius: Theme.radius
-                        color: removeReminderHover.hovered ? Theme.surfaceRaised : Theme.background
+                        color: removeReminderMouse.pressed ? Qt.darker(Theme.surfaceRaised, 1.2) : removeReminderHover.hovered ? Theme.surfaceRaised : Theme.background
                         border.width: 1
                         border.color: Theme.border
 
@@ -945,8 +1674,10 @@ Rectangle {
                         }
 
                         MouseArea {
+                            id: removeReminderMouse
                             anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
+                            hoverEnabled: true
+                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: root.removeReminder(reminderType.index)
                         }
                     }
@@ -955,6 +1686,11 @@ Rectangle {
 
             Controls.ComboBox {
                 id: reminderPreset
+
+                HoverHandler {
+                    enabled: reminderPreset.enabled
+                    cursorShape: Qt.PointingHandCursor
+                }
 
                 Layout.fillWidth: true
                 Layout.preferredHeight: 34
@@ -1009,10 +1745,13 @@ Rectangle {
                     background: Rectangle {
                         property bool hovered: reminderOptionHover.hovered
                         radius: Math.max(0, Theme.radius - 2)
-                        color: hovered || reminderOption.highlighted || reminderOption.index === reminderPreset.currentIndex ? Theme.surfaceRaised : "transparent"
+                        color: reminderOption.down ? Qt.darker(Theme.surfaceRaised, 1.2)
+                            : hovered || reminderOption.highlighted || reminderOption.index === reminderPreset.currentIndex ? Theme.surfaceRaised : "transparent"
                     }
                     HoverHandler {
                         id: reminderOptionHover
+                        enabled: reminderOption.enabled
+                        cursorShape: Qt.PointingHandCursor
                     }
                 }
                 popup: Controls.Popup {
@@ -1038,7 +1777,7 @@ Rectangle {
                 }
                 background: Rectangle {
                     radius: Theme.radius
-                    color: Theme.background
+                    color: reminderPreset.pressed ? Qt.darker(Theme.surfaceRaised, 1.2) : Theme.background
                     border.width: 1
                     border.color: root.errorField === "reminders" ? Theme.currentTime : Theme.border
                 }
@@ -1083,7 +1822,7 @@ Rectangle {
                     Layout.preferredWidth: 62
                     Layout.preferredHeight: 34
                     radius: Theme.radius
-                    color: Theme.accent
+                    color: addReminderMouse.pressed ? Qt.darker(Theme.accent, 1.2) : Theme.accent
 
                     Text {
                         anchors.centerIn: parent
@@ -1094,27 +1833,25 @@ Rectangle {
                     }
 
                     MouseArea {
+                        id: addReminderMouse
                         anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
+                        hoverEnabled: true
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                         onClicked: root.addCustomReminder()
                     }
                 }
             }
 
-            Text {
+            ErrorText {
                 visible: root.errorField === "reminders"
-                Layout.fillWidth: true
-                Layout.leftMargin: 5
                 text: root.errorMessage
                 textFormat: Text.PlainText
-                color: Theme.currentTime
-                font.pixelSize: 11
                 wrapMode: Text.Wrap
             }
 
             Item {
                 Layout.preferredWidth: 1
-                Layout.preferredHeight: 4
+                Layout.preferredHeight: root.sectionSpacing
             }
             FieldLabel {
                 text: "LOCATION"
@@ -1127,7 +1864,7 @@ Rectangle {
 
             Item {
                 Layout.preferredWidth: 1
-                Layout.preferredHeight: 4
+                Layout.preferredHeight: root.sectionSpacing
             }
             FieldLabel {
                 text: "DESCRIPTION"
@@ -1154,15 +1891,12 @@ Rectangle {
                 }
             }
 
-            Text {
-                visible: root.errorMessage.length > 0 && root.errorField !== "reminders"
-                Layout.fillWidth: true
-                horizontalAlignment: Text.AlignHCenter
+            ErrorText {
+                visible: root.errorMessage.length > 0 && root.errorField !== "reminders" && root.errorField !== "repeatUntil"
                 topPadding: 9
                 bottomPadding: 9
                 text: root.errorMessage
                 textFormat: Text.PlainText
-                color: Theme.currentTime
                 font.pixelSize: 12
                 wrapMode: Text.Wrap
             }
@@ -1182,7 +1916,7 @@ Rectangle {
             anchors.leftMargin: 17
             label: root.savePending ? "Saving..." : (root.mode === "edit" ? "Save" : "Create")
             primary: true
-            enabled: !root.savePending && !root.saveCommitted
+            enabled: !root.savePending && !root.saveCommitted && root.repeatDraftValid
             onClicked: root.save()
         }
 

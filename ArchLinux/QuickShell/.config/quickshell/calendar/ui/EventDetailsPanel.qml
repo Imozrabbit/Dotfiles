@@ -12,6 +12,8 @@ Rectangle {
     readonly property var details: eventData ? CalendarMath.eventDetails(eventData, calendarService.calendars) : null
     readonly property color eventColor: details ? details.color : Theme.accent
     readonly property bool writable: eventData && eventData.readOnly !== true
+    readonly property string repeatSummary: root.repeatLabel()
+    readonly property int labelSpacing: 5
     property bool confirmingDelete: false
     property bool deletePending: false
     property bool deleteCommitted: false
@@ -55,6 +57,19 @@ Rectangle {
 
     function sameDay(left, right) {
         return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
+    }
+
+    function repeatLabel() {
+        if (root.eventData && root.eventData.readOnly === true && typeof root.eventData.recurrenceSummary === "string")
+            return root.eventData.recurrenceSummary;
+        const rule = root.eventData && root.eventData.recurrence;
+        if (!rule || !Number.isSafeInteger(rule.interval) || rule.interval < 1)
+            return "";
+        const index = ["daily", "weekly", "monthly", "yearly"].indexOf(rule.frequency);
+        if (index < 0)
+            return "";
+        return rule.interval === 1 ? ["Daily", "Weekly", "Monthly", "Yearly"][index]
+            : "Every " + rule.interval + " " + ["days", "weeks", "months", "years"][index];
     }
 
     function timeLabel() {
@@ -128,7 +143,7 @@ Rectangle {
             width: 20
             height: 20
             radius: 16
-            color: closeHover.hovered ? Theme.surfaceRaised : Theme.surface
+            color: closeMouse.pressed ? Qt.darker(Theme.surfaceRaised, 1.2) : closeHover.hovered ? Theme.surfaceRaised : Theme.surface
             border.width: 0
             border.color: Theme.border
 
@@ -145,10 +160,12 @@ Rectangle {
             }
 
             MouseArea {
+                id: closeMouse
                 anchors.fill: parent
+                hoverEnabled: true
                 acceptedButtons: Qt.LeftButton
                 preventStealing: true
-                cursorShape: Qt.PointingHandCursor
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: root.closeRequested()
             }
         }
@@ -185,16 +202,43 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
+                Layout.topMargin: root.labelSpacing - detailsColumn.spacing
                 text: root.timeLabel()
                 color: Theme.text
                 font.pixelSize: 13
                 wrapMode: Text.Wrap
             }
 
+            ColumnLayout {
+                id: repeatSection
+
+                visible: root.repeatSummary.length > 0
+                Layout.fillWidth: true
+                spacing: root.labelSpacing
+
+                Text {
+                    text: "REPEAT"
+                    color: Theme.textMuted
+                    font.pixelSize: 9
+                    font.letterSpacing: 1.2
+                    font.weight: Font.DemiBold
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: root.repeatSummary
+                    textFormat: Text.PlainText
+                    color: Theme.text
+                    font.pixelSize: 13
+                    wrapMode: Text.Wrap
+                }
+            }
+
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
-                Layout.topMargin: 3 - detailsColumn.spacing
+                Layout.topMargin: -detailsColumn.spacing
+                Layout.alignment: Qt.AlignTop
                 color: Theme.border
             }
 
@@ -208,6 +252,7 @@ Rectangle {
 
             RowLayout {
                 Layout.fillWidth: true
+                Layout.topMargin: root.labelSpacing - detailsColumn.spacing
                 spacing: 8
 
                 Rectangle {
@@ -233,7 +278,8 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
-                Layout.topMargin: 3 - detailsColumn.spacing
+                Layout.topMargin: -detailsColumn.spacing
+                Layout.alignment: Qt.AlignTop
                 color: Theme.border
             }
 
@@ -247,6 +293,7 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
+                Layout.topMargin: root.labelSpacing - detailsColumn.spacing
                 text: root.details ? root.details.location : "No location"
                 textFormat: Text.PlainText
                 color: Theme.text
@@ -257,7 +304,8 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
-                Layout.topMargin: 3 - detailsColumn.spacing
+                Layout.topMargin: -detailsColumn.spacing
+                Layout.alignment: Qt.AlignTop
                 color: Theme.border
             }
 
@@ -271,6 +319,7 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
+                Layout.topMargin: root.labelSpacing - detailsColumn.spacing
                 text: root.details ? root.details.description : "No description"
                 textFormat: Text.PlainText
                 color: Theme.text
@@ -281,7 +330,8 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
-                Layout.topMargin: 3 - detailsColumn.spacing
+                Layout.topMargin: -detailsColumn.spacing
+                Layout.alignment: Qt.AlignTop
                 color: Theme.border
             }
 
@@ -298,9 +348,11 @@ Rectangle {
 
                 delegate: Text {
                     required property string modelData
+                    required property int index
 
                     Layout.fillWidth: true
                     Layout.leftMargin: 2
+                    Layout.topMargin: index === 0 ? root.labelSpacing - detailsColumn.spacing : 0
                     text: "- " + modelData
                     textFormat: Text.PlainText
                     color: Theme.text
@@ -312,6 +364,7 @@ Rectangle {
             Text {
                 visible: root.details && root.details.reminders.length === 0
                 Layout.fillWidth: true
+                Layout.topMargin: root.labelSpacing - detailsColumn.spacing
                 text: "No reminders"
                 color: Theme.textMuted
                 font.pixelSize: 13
@@ -320,7 +373,8 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
-                Layout.topMargin: 3 - detailsColumn.spacing
+                Layout.topMargin: -detailsColumn.spacing
+                Layout.alignment: Qt.AlignTop
                 color: Theme.border
             }
 
@@ -373,7 +427,7 @@ Rectangle {
                 spacing: 8
 
                 ActionButton {
-                    label: "Edit"
+                    label: root.eventData && root.eventData.recurrence ? "Edit series" : "Edit"
                     primary: true
                     onClicked: root.editRequested(root.eventData)
                 }
@@ -383,7 +437,7 @@ Rectangle {
                 }
 
                 ActionButton {
-                    label: "Delete"
+                    label: root.eventData && root.eventData.recurrence ? "Delete series" : "Delete"
                     destructive: true
                     onClicked: {
                         root.actionError = "";
@@ -399,11 +453,11 @@ Rectangle {
                 spacing: 8
 
                 ActionButton {
-                    label: root.deleteCommitted ? "Deletion saved" : "Delete permanently"
+                    label: root.deleteCommitted ? "Deletion saved" : root.eventData && root.eventData.recurrence ? "Delete entire series" : "Delete permanently"
                     destructive: true
                     enabled: !root.deleteCommitted && !root.deletePending
                     onClicked: {
-                        const result = root.calendarService.deleteEvent(root.eventData.uid, root.eventData.revision);
+                        const result = root.calendarService.deleteEvent(root.eventData.masterUid || root.eventData.uid, root.eventData.revision);
                         if (result.ok)
                             if (result.pending)
                                 root.deletePending = true;

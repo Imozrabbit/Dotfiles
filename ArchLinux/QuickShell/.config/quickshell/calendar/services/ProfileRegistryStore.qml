@@ -108,7 +108,6 @@ QtObject {
     }
 
     property Process directoryProcess: Process {
-        id: directoryProcess
         command: ["install", "-d", "-m", "700", "--", root.directoryPath]
         // qmllint disable signal-handler-parameters
         onExited: (exitCode, exitStatus) => {

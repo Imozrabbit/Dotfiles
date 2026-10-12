@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import "../common/CalendarMath.js" as CalendarMath
 import "../common/Theme.js" as Theme
 import "../common/Zoom.js" as Zoom
+import "../services" as Services
 
 Item {
     id: root
@@ -25,6 +26,22 @@ Item {
     readonly property date currentWeekStart: CalendarMath.weekStart(root.now)
     readonly property bool showingCurrentWeek: currentWeekStart.getTime() === root.weekStart.getTime()
     readonly property int currentDayIndex: root.now.getDay() === 0 ? 6 : root.now.getDay() - 1
+
+    Services.OccurrenceRangeStore {
+        id: occurrenceRange
+        calendarService: root.calendarService
+        rangeStartMs: root.weekStart.getTime()
+        rangeEndMs: CalendarMath.addDays(root.weekStart, 7).getTime()
+    }
+    Text {
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+        z: 100
+        text: occurrenceRange.errorMessage
+        visible: text.length > 0
+        textFormat: Text.PlainText
+        color: Theme.currentTime
+    }
 
     function clearSelection() {
         root.selectedEventUid = "";
@@ -63,9 +80,8 @@ Item {
 
     function buildDays() {
         const result = [];
-        const rangeEnd = CalendarMath.addDays(root.weekStart, 7);
-        const events = root.calendarService.eventsInRange(root.weekStart, rangeEnd);
-        const holidays = root.calendarService.holidaysInRange(root.weekStart, rangeEnd);
+        const events = occurrenceRange.events;
+        const holidays = occurrenceRange.holidays;
 
         for (let index = 0; index < 7; ++index) {
             const date = CalendarMath.addDays(root.weekStart, index);
@@ -262,7 +278,7 @@ Item {
                             compact: true
                             eventData: modelData
                             selected: root.selectedEventUid === (modelData.sourceEvent ?? modelData).uid
-                            conflicted: root.calendarService.conflictService.isConflicted((modelData.sourceEvent ?? modelData).uid)
+                            conflicted: root.calendarService.conflictService.isConflicted(modelData.sourceEvent ?? modelData)
                             onSelectionRequested: event => root.selectEvent(event)
                             onActivated: event => root.eventActivated(event)
                         }
@@ -286,8 +302,9 @@ Item {
 
             MouseArea {
                 anchors.fill: parent
-                z: 1000
+                z: 1
                 acceptedButtons: Qt.NoButton
+                cursorShape: undefined // Let underlying cards supply their cursors.
 
                 onWheel: wheel => {
                     const delta = wheel.angleDelta.y !== 0 ? wheel.angleDelta.y : wheel.pixelDelta.y;
@@ -393,7 +410,7 @@ Item {
                                 height: durationPixels > 4 ? durationPixels - 4 : durationPixels
                                 eventData: modelData
                                 selected: root.selectedEventUid === (modelData.sourceEvent ?? modelData).uid
-                                conflicted: root.calendarService.conflictService.isConflicted((modelData.sourceEvent ?? modelData).uid)
+                                conflicted: root.calendarService.conflictService.isConflicted(modelData.sourceEvent ?? modelData)
                                 onSelectionRequested: event => root.selectEvent(event)
                                 onActivated: event => root.eventActivated(event)
                             }

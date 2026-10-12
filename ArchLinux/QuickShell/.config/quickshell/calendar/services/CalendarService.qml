@@ -15,8 +15,11 @@ QtObject {
     property var pendingImport: null
     property var importResult: null
     property var pendingEventMutation: null
+    property var pendingLocalMutation: null
+    property string systemTimezone: ""
     property int syncReloadAttempts: 0
     readonly property string syncBrokerPath: Quickshell.env("HOME") + "/.config/quickshell/calendar/parse/conflict-broker.sh"
+    readonly property string nativeHelperPath: Quickshell.env("HOME") + "/.config/quickshell/calendar/parse/calendar-sync-helper"
     signal eventMutationFinished(var result)
     readonly property var calendars: root.registry.profiles.map(profile => {
         const store = root.storeForId(profile.id);
@@ -113,8 +116,14 @@ QtObject {
         const present = Boolean(event);
         const normalized = event ? EventMutation.normalizeEvent(event, root.calendars) : null;
         const expected = pending.result.event;
-        const reflected = normalized && expected && ["title", "description", "location", "allDay", "startMs", "endMs"].every(key => normalized[key] === expected[key]) && JSON.stringify(normalized.reminders) === JSON.stringify(expected.reminders);
-        if (pending.operation === "delete" ? present : !reflected) {
+        const memberUids = pending.memberUids || [];
+        const retainedMember = pending.store.rawEvents.some(candidate => memberUids.includes(candidate.sourceUid));
+        const grouped = expected && expected.recurrence && expected.recurrence.frequency === "yearly" && expected.recurrence.pattern.dates.length > 1;
+        const groupReflected = !retainedMember && (grouped ? event && event.seriesGroup && event.seriesGroup.members.length === expected.recurrence.pattern.dates.length : !event || !event.seriesGroup);
+        const reflected = normalized && expected && ["title", "description", "location", "allDay", "startMs", "endMs"].every(key => normalized[key] === expected[key]) && JSON.stringify(normalized.reminders) === JSON.stringify(expected.reminders)
+            && JSON.stringify(normalized.recurrence || null) === JSON.stringify(expected.recurrence || null)
+            && (!expected.recurrence || expected.allDay || normalized.timezone === expected.timezone);
+        if (pending.operation === "delete" ? present || retainedMember : !reflected || !groupReflected) {
             if (root.syncReloadAttempts++ < 50)
                 return;
             root.syncReloadTimer.stop();
@@ -137,7 +146,7 @@ QtObject {
     }
 
     function syncedMutation(operation, uid, eventData) {
-        if (syncProcess.running)
+        if (root.pendingLocalMutation || root.pendingEventMutation || syncProcess.running)
             return {
                 ok: false,
                 field: "storage",
@@ -151,7 +160,8 @@ QtObject {
             };
 
         const current = uid ? root.rawEvents.find(event => event.uid === uid) : null;
-        if (current && root.conflictService.isConflicted(current.sourceUid || uid))
+        if (current && (root.conflictService.isConflicted(current.sourceUid || uid)
+                || current.seriesGroup && current.seriesGroup.members.some(member => root.conflictService.isConflicted(member.uid))))
             return {
                 ok: false,
                 field: "event",
@@ -174,6 +184,7 @@ QtObject {
             return candidate;
 
         const event = candidate.event || current;
+        const grouped = Boolean(current && current.seriesGroup) || Boolean(event.recurrence && event.recurrence.frequency === "yearly" && event.recurrence.pattern.dates.length > 1);
         const store = root.storeForId(event ? event.calendarId : current.calendarId);
         if (!store || store.profile.type !== "synced")
             return root.storageUnavailable();
@@ -183,6 +194,7 @@ QtObject {
             store,
             sourceUid: event.sourceUid || event.uid.replace(store.profile.id + ":", ""),
             cacheUid: event.uid,
+            memberUids: current && current.seriesGroup ? current.seriesGroup.members.map(member => member.uid) : [],
             result: operation === "delete" ? {
                 ok: true,
                 uid: candidate.uid
@@ -191,7 +203,7 @@ QtObject {
                 event
             }
         };
-        syncProcess.command = [root.syncBrokerPath, "mutate", root.syncDirectoryForId(store.profile.id), store.filePath, store.profile.id, operation];
+        syncProcess.command = [root.syncBrokerPath, grouped ? "mutate-group" : "mutate", root.syncDirectoryForId(store.profile.id), store.filePath, store.profile.id, operation];
         syncProcess.running = true;
         const request = operation === "delete" ? {
             uid: event.sourceUid || uid.replace(store.profile.id + ":", ""),
@@ -207,13 +219,19 @@ QtObject {
         };
     }
 
-    function createEvent(eventData) {
+    function createEvent(eventData, normalized) {
+        if (root.pendingLocalMutation || root.pendingEventMutation)
+            return { ok: false, field: "storage", message: "Another calendar change is running" };
         const store = root.storeForId(eventData.calendarId);
+        if (store && store.profile.type === "synced" && eventData.recurrence && !normalized)
+            return root.prepareLocalMutation("create", "", eventData);
         if (store && store.profile.type === "synced")
             return root.syncedMutation("create", "", eventData);
         if (!store || store.profile.type !== "local")
             return root.storageUnavailable();
-        const result = EventMutation.createEvent(root.rawEvents, root.calendars, eventData, root.availableUid());
+        if (eventData.recurrence && !normalized)
+            return root.prepareLocalMutation("create", "", eventData);
+        const result = EventMutation.createEvent(root.rawEvents, root.calendars, eventData, normalized ? eventData.uid : root.availableUid());
         if (!result.ok)
             return result;
         const saved = root.persistStore(store, result.rawEvents);
@@ -225,13 +243,19 @@ QtObject {
         };
     }
 
-    function updateEvent(uid, eventData) {
+    function updateEvent(uid, eventData, normalized) {
+        if (root.pendingLocalMutation || root.pendingEventMutation)
+            return { ok: false, field: "storage", message: "Another calendar change is running" };
         const current = root.rawEvents.find(event => event.uid === uid);
         const oldStore = current ? root.storeForId(current.calendarId) : null;
+        if (oldStore && oldStore.profile.type === "synced" && (eventData.recurrence || (eventData.recurrence === undefined && current.recurrence)) && !normalized)
+            return root.prepareLocalMutation("update", uid, eventData);
         if (oldStore && oldStore.profile.type === "synced")
             return root.syncedMutation("update", uid, eventData);
         if (!oldStore || oldStore.profile.type !== "local")
             return root.storageUnavailable();
+        if ((eventData.recurrence || (eventData.recurrence === undefined && current.recurrence)) && !normalized)
+            return root.prepareLocalMutation("update", uid, eventData);
         const result = EventMutation.updateEvent(root.rawEvents, root.calendars, uid, eventData);
         if (!result.ok)
             return result;
@@ -261,6 +285,8 @@ QtObject {
     }
 
     function deleteEvent(uid, revision) {
+        if (root.pendingLocalMutation || root.pendingEventMutation)
+            return { ok: false, field: "storage", message: "Another calendar change is running" };
         const current = root.rawEvents.find(event => event.uid === uid);
         const store = current ? root.storeForId(current.calendarId) : null;
         if (store && store.profile.type === "synced")
@@ -285,6 +311,78 @@ QtObject {
         const startMs = start instanceof Date ? start.getTime() : Number(start);
         const endMs = end instanceof Date ? end.getTime() : Number(end);
         return CalendarMath.filterEventsInRange(root.events, root.calendars, startMs, endMs);
+    }
+
+    function prepareLocalMutation(operation, uid, eventData) {
+        if (root.pendingLocalMutation || root.pendingEventMutation)
+            return { ok: false, field: "storage", message: "Another calendar change is running" };
+        const data = Object.assign({}, eventData);
+        if (data.allDay !== true && !data.timezone) {
+            const current = root.rawEvents.find(event => event.uid === uid);
+            data.timezone = current && current.timezone || root.systemTimezone;
+        }
+        const candidate = operation === "create" ? EventMutation.createEvent(root.rawEvents, root.calendars, data, root.availableUid())
+            : EventMutation.updateEvent(root.rawEvents, root.calendars, uid, data);
+        if (!candidate.ok)
+            return candidate;
+        root.pendingLocalMutation = { operation, uid: candidate.event.uid, revision: eventData.revision, snapshot: JSON.stringify(root.rawEvents) };
+        normalizeProcess.command = [root.nativeHelperPath, "normalize"];
+        normalizeProcess.running = true;
+        normalizeProcess.write(JSON.stringify(candidate.event) + "\n");
+        return { ok: true, pending: true };
+    }
+
+    function finishLocalNormalization(exitCode, text, detail) {
+        const pending = root.pendingLocalMutation;
+        if (!pending)
+            return;
+        root.pendingLocalMutation = null;
+        if (exitCode !== 0 || pending.snapshot !== JSON.stringify(root.rawEvents)) {
+            root.eventMutationFinished({ ok: false, field: "storage", message: exitCode !== 0 ? detail || "Could not prepare repeating event"
+                : "Calendar changed while preparing event; reopen it" });
+            return;
+        }
+        let event;
+        try {
+            event = JSON.parse(text);
+        } catch (error) {
+            root.eventMutationFinished({ ok: false, field: "storage", message: "Repeating event helper returned invalid data" });
+            return;
+        }
+        if (!event || event.uid !== pending.uid) {
+            root.eventMutationFinished({ ok: false, field: "storage", message: "Repeating event identity changed unexpectedly" });
+            return;
+        }
+        if (pending.revision !== undefined)
+            event.revision = pending.revision;
+        const result = pending.operation === "create" ? root.createEvent(event, true) : root.updateEvent(pending.uid, event, true);
+        if (!result.pending)
+            root.eventMutationFinished(result);
+    }
+
+    property Process timezoneProcess: Process {
+        command: [root.nativeHelperPath, "system-timezone"]
+        running: true
+        stdout: StdioCollector { id: timezoneOutput }
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0)
+                return;
+            try {
+                const result = JSON.parse(timezoneOutput.text);
+                if (typeof result.timezone === "string" && result.timezone.length > 0)
+                    root.systemTimezone = result.timezone;
+            } catch (error) {
+                console.error("Could not read configured calendar timezone");
+            }
+        }
+    }
+
+    property Process normalizeProcess: Process {
+        id: normalizeProcess
+        stdinEnabled: true
+        stdout: StdioCollector { id: normalizedOutput }
+        stderr: StdioCollector { id: normalizationError }
+        onExited: (exitCode, exitStatus) => root.finishLocalNormalization(exitCode, normalizedOutput.text, normalizationError.text.trim())
     }
 
     function holidaysInRange(start, end) {
@@ -403,6 +501,9 @@ QtObject {
     property Process importCommitProcess: Process {
         id: importCommitProcess
         command: []
+        stderr: StdioCollector {
+            id: importCommitDiagnostics
+        }
         // qmllint disable signal-handler-parameters
         onExited: (exitCode, exitStatus) => {
             const pending = root.pendingImport;
@@ -417,10 +518,12 @@ QtObject {
                 name: pending.previousProfile.name,
                 color: pending.previousProfile.color
             }) : root.registry.removeProfile(pending.draft.id);
+            const detail = importCommitDiagnostics.text.trim();
             root.cleanupImport({
                 ok: false,
                 field: "storage",
-                message: "Could not commit imported calendar" + (rollback.ok ? "" : "; could not restore imported calendar metadata: " + rollback.message)
+                message: "Could not commit imported calendar" + (detail.length > 0 ? ": " + detail : "")
+                    + (rollback.ok ? "" : "; could not restore imported calendar metadata: " + rollback.message)
             });
         }
         // qmllint enable signal-handler-parameters

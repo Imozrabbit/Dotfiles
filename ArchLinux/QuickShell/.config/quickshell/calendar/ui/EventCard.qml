@@ -88,12 +88,19 @@ Rectangle {
         z: 1
 
         Text {
-            anchors.centerIn: parent
-            anchors.verticalCenterOffset: 1
+            id: conflictMark
+            x: (parent.width - conflictMetrics.tightBoundingRect.width) / 2 - conflictMetrics.tightBoundingRect.x
+            y: (parent.height - conflictMetrics.tightBoundingRect.height) / 2 - conflictMetrics.tightBoundingRect.y - baselineOffset
             text: "!"
             color: Theme.background
             font.pixelSize: 10
             font.weight: Font.Bold
+
+            TextMetrics {
+                id: conflictMetrics
+                font: conflictMark.font
+                text: conflictMark.text
+            }
         }
     }
 

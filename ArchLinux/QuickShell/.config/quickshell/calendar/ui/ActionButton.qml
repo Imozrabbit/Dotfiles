@@ -14,7 +14,8 @@ Rectangle {
     implicitWidth: Math.max(root.minimumWidth, buttonLabel.implicitWidth + 28)
     implicitHeight: 34
     radius: Theme.radius
-    color: root.primary ? buttonHover.hovered ? Qt.lighter(Theme.accent, 1.12) : Theme.accent : buttonHover.hovered ? Theme.surfaceRaised : Theme.background
+    color: buttonMouse.pressed ? Qt.darker(root.primary ? Theme.accent : Theme.surfaceRaised, 1.2)
+        : root.primary ? buttonHover.hovered ? Qt.lighter(Theme.accent, 1.12) : Theme.accent : buttonHover.hovered ? Theme.surfaceRaised : Theme.background
     border.width: root.primary ? 0 : 1
     border.color: root.destructive ? Theme.currentTime : Theme.border
 
@@ -35,7 +36,9 @@ Rectangle {
     }
 
     MouseArea {
+        id: buttonMouse
         anchors.fill: parent
+        hoverEnabled: true
         cursorShape: root.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: root.clicked()
     }

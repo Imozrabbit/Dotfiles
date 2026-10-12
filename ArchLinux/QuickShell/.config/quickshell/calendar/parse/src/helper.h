@@ -12,6 +12,15 @@ struct Event {
     std::string endTime;
     bool allDay = false;
     std::vector<int> reminders;
+    // Per-UID source calendar for external recurrence/timezone fidelity.
+    std::string ical;
+    // Verified ordinary authored rule; retained ICS still participates in revision.
+    std::string recurrence;
+    std::string timezone;
+    // Validated logical grouped cache metadata; never serialized as a single ICS.
+    std::string seriesGroup;
+    std::string groupRevision;
+    bool readOnly = false;
 };
 
 struct ParseResult {
@@ -25,3 +34,6 @@ bool writeEventFile(const std::string &path, const Event &event, std::string &er
 bool writeAtomicallyFile(const std::string &path, const std::string &contents, std::string &error);
 bool writeEventFilePreserving(const std::string &path, const Event &event,
                               const std::string &existing, std::string &error);
+// Pure merge only. Caller must validate ownership/stale state before committing.
+bool mergeEventSource(const std::string &existing, const std::string &serialized,
+                      std::string &result, std::string &error);

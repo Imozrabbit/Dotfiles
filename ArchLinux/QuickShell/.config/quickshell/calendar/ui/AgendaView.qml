@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import "../common/CalendarMath.js" as CalendarMath
 import "../common/Theme.js" as Theme
 import "../common/Zoom.js" as Zoom
+import "../services" as Services
 
 Item {
     id: root
@@ -20,9 +21,25 @@ Item {
     readonly property real zoomScale: zoomPercent / 100
     readonly property date rangeStart: CalendarMath.dayStart(selectedDate)
     readonly property date rangeEnd: CalendarMath.addDays(rangeStart, 14)
-    readonly property var rangeEvents: calendarService.eventsInRange(rangeStart, rangeEnd)
-    readonly property var rangeHolidays: calendarService.holidaysInRange(rangeStart, rangeEnd)
+    readonly property var rangeEvents: occurrenceRange.events
+    readonly property var rangeHolidays: occurrenceRange.holidays
     readonly property var days: buildDays()
+
+    Services.OccurrenceRangeStore {
+        id: occurrenceRange
+        calendarService: root.calendarService
+        rangeStartMs: root.rangeStart.getTime()
+        rangeEndMs: root.rangeEnd.getTime()
+    }
+    Text {
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+        z: 100
+        text: occurrenceRange.errorMessage
+        visible: text.length > 0
+        textFormat: Text.PlainText
+        color: Theme.currentTime
+    }
 
     function clearSelection() {
         root.selectedEventUid = "";
@@ -98,8 +115,9 @@ Item {
 
         MouseArea {
             anchors.fill: parent
-            z: 1000
+            z: 1
             acceptedButtons: Qt.NoButton
+            cursorShape: undefined // Let underlying cards supply their cursors.
 
             onWheel: wheel => {
                 const delta = wheel.angleDelta.y !== 0 ? wheel.angleDelta.y : wheel.pixelDelta.y;
@@ -247,7 +265,7 @@ Item {
 
                                 property color eventColor: modelData.color
                                 readonly property bool selected: root.selectedEventUid === modelData.uid
-                                readonly property bool conflicted: root.calendarService.conflictService.isConflicted(modelData.uid)
+                                readonly property bool conflicted: root.calendarService.conflictService.isConflicted(modelData)
                                 readonly property color selectionColor: Qt.lighter(eventColor, 1.18)
 
                                 Layout.fillWidth: true
@@ -305,12 +323,19 @@ Item {
                                     z: 1
 
                                     Text {
-                                        anchors.centerIn: parent
-                                        anchors.verticalCenterOffset: 1
+                                        id: conflictMark
+                                        x: (parent.width - conflictMetrics.tightBoundingRect.width) / 2 - conflictMetrics.tightBoundingRect.x
+                                        y: (parent.height - conflictMetrics.tightBoundingRect.height) / 2 - conflictMetrics.tightBoundingRect.y - baselineOffset
                                         text: "!"
                                         color: Theme.background
                                         font.pixelSize: 10 * root.zoomScale
                                         font.weight: Font.Bold
+
+                                        TextMetrics {
+                                            id: conflictMetrics
+                                            font: conflictMark.font
+                                            text: conflictMark.text
+                                        }
                                     }
                                 }
 

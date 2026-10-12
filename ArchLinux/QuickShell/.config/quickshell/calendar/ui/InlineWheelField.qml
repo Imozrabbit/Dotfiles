@@ -16,6 +16,8 @@ Item {
     property bool invalid: false
     property bool padNumbers: false
     property bool trimModelEnds: true
+    property string chevronText: "v"
+    property int chevronPixelSize: 9
     readonly property int labelHeight: root.label.length > 0 ? 14 : 0
     readonly property int collapsedHeight: 34
     readonly property int availableRowsAbove: Math.max(0, currentIndex)
@@ -57,7 +59,7 @@ Item {
         width: parent.width
         height: root.collapsedHeight
         radius: Theme.radius
-        color: Theme.background
+        color: fieldMouse.pressed || chevronMouse.pressed ? Qt.darker(Theme.surfaceRaised, 1.2) : Theme.background
         border.width: 1
         border.color: root.invalid ? Theme.currentTime : Theme.border
 
@@ -106,27 +108,31 @@ Item {
             anchors.right: parent.right
             anchors.rightMargin: 9
             anchors.verticalCenter: parent.verticalCenter
-            text: "v"
+            text: root.chevronText
             color: Theme.textMuted
             font.family: Theme.font
-            font.pixelSize: 9
+            font.pixelSize: root.chevronPixelSize
             font.weight: Font.DemiBold
         }
 
         MouseArea {
+            id: fieldMouse
             visible: !root.editable
             anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: root.expansionRequested()
         }
 
         MouseArea {
+            id: chevronMouse
             visible: root.editable
             anchors.top: parent.top
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             width: 28
-            cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: root.expansionRequested()
         }
     }
@@ -134,7 +140,8 @@ Item {
     Controls.Popup {
         id: wheelPopup
 
-        parent: Controls.Overlay.overlay
+        // Keep popup attached to the field when PanelWindow recreates its window.
+        parent: root
         z: 1000
         width: root.width
         height: root.visibleRowCount * root.collapsedHeight
@@ -185,7 +192,7 @@ Item {
         id: wheelComponent
 
         Controls.Tumbler {
-            id: wheel
+            id: valueWheel
 
             property bool ready: false
 
@@ -194,15 +201,13 @@ Item {
             visibleItemCount: 5
             wrap: false
 
-            MouseArea {
-                anchors.fill: parent
-                z: 2
-                acceptedButtons: Qt.NoButton
+            WheelHandler {
+                target: null
 
                 onWheel: event => {
                     const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.pixelDelta.y;
                     if (delta !== 0)
-                        wheel.currentIndex = Math.max(0, Math.min(root.model.length - 1, wheel.currentIndex + (delta < 0 ? 1 : -1)));
+                        valueWheel.currentIndex = Math.max(0, Math.min(root.model.length - 1, valueWheel.currentIndex + (delta < 0 ? 1 : -1)));
                     event.accepted = true;
                 }
             }
@@ -225,7 +230,7 @@ Item {
                 required property var modelData
 
                 text: root.padNumbers && typeof modelData === "number" ? String(modelData).padStart(2, "0") : String(modelData)
-                color: Math.abs(Controls.Tumbler.displacement) < 0.5 ? Theme.text : Theme.textMuted
+                color: wheelEntryTap.pressed ? Qt.darker(Theme.text, 1.2) : Math.abs(Controls.Tumbler.displacement) < 0.5 ? Theme.text : Theme.textMuted
                 opacity: Math.max(0.35, 1 - Math.abs(Controls.Tumbler.displacement) * 0.24)
                 font.family: typeof modelData === "number" ? Theme.fontMono : Theme.font
                 font.pixelSize: 12
@@ -233,9 +238,13 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
 
+                HoverHandler {
+                    cursorShape: Qt.PointingHandCursor
+                }
                 TapHandler {
+                    id: wheelEntryTap
                     onTapped: {
-                        wheel.currentIndex = wheelEntry.index;
+                        valueWheel.currentIndex = wheelEntry.index;
                         root.collapseRequested();
                     }
                 }

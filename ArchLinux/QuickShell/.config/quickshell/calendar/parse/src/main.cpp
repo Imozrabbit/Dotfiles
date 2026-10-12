@@ -103,16 +103,25 @@ bool parseFiles(const std::vector<FileStamp> &files, std::vector<Event> &events,
     events.clear();
     std::set<std::string> uids;
     for (const FileStamp &fileInfo : files) {
+        if (fileInfo.size > 16 * 1024 * 1024) {
+            error = fileInfo.path.string() + ": iCalendar input exceeds size limit";
+            return false;
+        }
         std::ifstream file(fileInfo.path, std::ios::binary);
         if (!file) {
             error = fileInfo.path.string() + ": could not open file";
             return false;
         }
 
-        const std::string source((std::istreambuf_iterator<char>(file)),
-                                 std::istreambuf_iterator<char>());
+        std::string source(static_cast<size_t>(fileInfo.size) + 1, '\0');
+        file.read(source.data(), static_cast<std::streamsize>(source.size()));
+        source.resize(static_cast<size_t>(file.gcount()));
         if (file.bad()) {
             error = fileInfo.path.string() + ": could not read file";
+            return false;
+        }
+        if (source.size() != fileInfo.size) {
+            error = fileInfo.path.string() + ": file changed during conversion";
             return false;
         }
 

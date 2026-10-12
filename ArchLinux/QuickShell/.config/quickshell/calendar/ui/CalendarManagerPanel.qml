@@ -389,7 +389,7 @@ Item {
                 visible: root.typeText === "imported"
                 Layout.fillWidth: true
                 Layout.preferredHeight: 34
-                color: Theme.background
+                color: sourceSelectorMouse.pressed ? Qt.darker(Theme.surfaceRaised, 1.2) : Theme.background
                 radius: Theme.radius
                 border.width: 1
                 border.color: Theme.border
@@ -415,8 +415,11 @@ Item {
                     font.pixelSize: 17
                 }
                 MouseArea {
+                    id: sourceSelectorMouse
                     anchors.fill: parent
                     enabled: !root.importPending
+                    hoverEnabled: true
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: root.pickerOpen = !root.pickerOpen
                 }
             }
@@ -469,7 +472,7 @@ Item {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 28
-                        color: Theme.surfaceRaised
+                        color: sourceParentMouse.pressed ? Qt.darker(Theme.surfaceRaised, 1.2) : Theme.surfaceRaised
                         radius: Theme.radius
                         Text {
                             anchors.fill: parent
@@ -481,7 +484,10 @@ Item {
                             verticalAlignment: Text.AlignVCenter
                         }
                         MouseArea {
+                            id: sourceParentMouse
                             anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: root.navigatePicker(root.pickerParent())
                         }
                     }
@@ -501,7 +507,7 @@ Item {
                             width: sourceEntries.width
                             height: 28
                             radius: Theme.radius
-                            color: entryHover.hovered ? Theme.surfaceRaised : "transparent"
+                            color: entryMouse.pressed ? Qt.darker(Theme.surfaceRaised, 1.2) : entryHover.hovered ? Theme.surfaceRaised : "transparent"
                             Text {
                                 anchors.fill: parent
                                 anchors.leftMargin: 9
@@ -515,9 +521,14 @@ Item {
                             }
                             HoverHandler {
                                 id: entryHover
+                                enabled: entry.enabled
+                                cursorShape: Qt.PointingHandCursor
                             }
                             MouseArea {
+                                id: entryMouse
                                 anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                 onClicked: {
                                     if (entry.fileIsDir) {
                                         root.pickerPath = entry.filePath;
@@ -587,7 +598,7 @@ Item {
         Layout.preferredWidth: 28
         Layout.preferredHeight: 28
         radius: Theme.radius
-        color: glyphHover.hovered ? Theme.surfaceRaised : "transparent"
+        color: glyphMouse.pressed ? Qt.darker(Theme.surfaceRaised, 1.2) : glyphHover.hovered ? Theme.surfaceRaised : "transparent"
 
         Text {
             anchors.fill: parent
@@ -600,11 +611,14 @@ Item {
         }
         HoverHandler {
             id: glyphHover
+            enabled: glyphButton.enabled
             cursorShape: Qt.PointingHandCursor
         }
         MouseArea {
+            id: glyphMouse
             anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: glyphButton.clicked()
         }
     }
