@@ -5,6 +5,28 @@ set -euo pipefail
 HOST_HOME="/home/Zrabbit"
 REAL_HOME="/home/Zrabbit"
 FAKE_HOME="/home/Steam"
+APPIMAGE="${FAKE_HOME}/Applications/WowUp-CF.AppImage"
+
+# Mount outside the sandbox, where fusermount can use its setuid privilege.
+coproc FUSE_MOUNT { exec env -u APPIMAGE_EXTRACT_AND_RUN "${APPIMAGE}" --appimage-mount; }
+mount_pid=$FUSE_MOUNT_PID
+
+cleanup() {
+    kill "$mount_pid" 2>/dev/null || true
+    wait "$mount_pid" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if ! IFS= read -r MOUNT_DIR <&"${FUSE_MOUNT[0]}"; then
+    printf 'Failed to obtain the AppImage mount path\n' >&2
+    exit 1
+fi
+if [[ ! -x "${MOUNT_DIR}/AppRun" ]]; then
+    printf 'AppImage mount is missing AppRun: %s\n' "${MOUNT_DIR}" >&2
+    exit 1
+fi
 
 args=(
     --die-with-parent
@@ -21,7 +43,11 @@ args=(
     --ro-bind-try "$HOST_HOME/.local/share/themes" "$REAL_HOME/.local/share/themes"
 
     --setenv HOME "$REAL_HOME"
-    --setenv APPIMAGE_EXTRACT_AND_RUN 1
+    --unsetenv APPIMAGE_EXTRACT_AND_RUN
+    --setenv APPDIR /app
+    --setenv APPIMAGE "${REAL_HOME}/Applications/WowUp-CF.AppImage"
+    --setenv ARGV0 "${REAL_HOME}/Applications/WowUp-CF.AppImage"
+    --setenv OWD "${REAL_HOME}"
     --setenv XDG_CONFIG_HOME "$REAL_HOME/.config"
     --setenv XDG_DATA_HOME "$REAL_HOME/.local/share"
     --setenv XDG_CACHE_HOME "$REAL_HOME/.cache"
@@ -29,6 +55,7 @@ args=(
 
     --tmpfs /tmp
     --tmpfs /tmp/.X11-unix
+    --ro-bind "${MOUNT_DIR}" /app
 )
 
 for dir in /sys /etc /usr /var /opt; do
@@ -53,5 +80,4 @@ if [[ "${XAUTHORITY:-}" == /tmp/* ]]; then
     args+=(--ro-bind-try "${XAUTHORITY}" "${XAUTHORITY}")
 fi
 
-exec bwrap "${args[@]}" -- \
-    /home/Zrabbit/Applications/WowUp-CF.AppImage "$@"
+bwrap "${args[@]}" -- /app/AppRun "$@"

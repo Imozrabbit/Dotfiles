@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+HOST_HOME="/home/Zrabbit"
+REAL_HOME="/home/Zrabbit"
+FAKE_HOME="/home/Steam"
+APPIMAGE="${FAKE_HOME}/Applications/JagexLauncher.AppImage"
+
+if [[ ! -x "$APPIMAGE" ]]; then
+    printf 'Jagex AppImage missing or not executable: %s\n' "$APPIMAGE" >&2
+    exit 1
+fi
+
+# Mount on the host. fusermount cannot gain its required privileges inside bwrap.
+coproc FUSE_MOUNT { exec env -u APPIMAGE_EXTRACT_AND_RUN "$APPIMAGE" --appimage-mount; }
+mount_pid=$FUSE_MOUNT_PID
+
+cleanup() {
+    kill "$mount_pid" 2>/dev/null || true
+    wait "$mount_pid" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if ! IFS= read -r MOUNT_DIR <&"${FUSE_MOUNT[0]}"; then
+    printf 'Failed to obtain the Jagex AppImage mount path\n' >&2
+    exit 1
+fi
+if [[ ! -x "${MOUNT_DIR}/AppRun" ]]; then
+    printf 'Jagex AppImage mount lacks AppRun: %s\n' "$MOUNT_DIR" >&2
+    exit 1
+fi
+
+args=(
+    --die-with-parent
+    --dev-bind /dev /dev
+    --proc /proc
+    --bind /run /run
+
+    # Preserve the same fake home used by the other gaming launchers.
+    --bind "$FAKE_HOME" "$REAL_HOME"
+    --symlink Zrabbit /home/Steam
+    --chdir "$REAL_HOME"
+
+    --ro-bind-try "$HOST_HOME/.config" "$REAL_HOME/.hostConfig"
+    --ro-bind-try "$HOST_HOME/.local/share/themes" "$REAL_HOME/.local/share/themes"
+
+    --setenv HOME "$REAL_HOME"
+    --setenv APPDIR /app
+    --setenv APPIMAGE "$REAL_HOME/Applications/JagexLauncher.AppImage"
+    --setenv ARGV0 "$REAL_HOME/Applications/JagexLauncher.AppImage"
+    --setenv OWD "$REAL_HOME"
+
+    # Jagex may start RuneLite as another AppImage *inside* the sandbox.
+    # It cannot mount via FUSE there, so let that child use extraction.
+    --setenv APPIMAGE_EXTRACT_AND_RUN 1
+
+    --setenv XDG_CONFIG_HOME "$REAL_HOME/.config"
+    --setenv XDG_DATA_HOME "$REAL_HOME/.local/share"
+    --setenv XDG_DATA_DIRS "/tmp/host-icons/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+    --setenv XDG_CACHE_HOME "$REAL_HOME/.cache"
+    --setenv XDG_STATE_HOME "$REAL_HOME/.local/state"
+
+    --tmpfs /tmp
+    --tmpfs /tmp/.X11-unix
+    --ro-bind-try "$HOST_HOME/.local/share/icons" /tmp/host-icons/share/icons
+    --ro-bind "$MOUNT_DIR" /app
+)
+
+for dir in /sys /etc /usr /var /opt; do
+    args+=(--ro-bind "$dir" "$dir")
+done
+
+args+=(
+    --symlink usr/bin /bin
+    --symlink usr/bin /sbin
+    --symlink usr/lib /lib
+    --symlink usr/lib /lib64
+)
+
+if [[ "${DISPLAY:-}" == :* ]]; then
+    display_nr="${DISPLAY/#:/}"
+    display_nr="${display_nr/%.*}"
+    local_socket="/tmp/.X11-unix/X${display_nr}"
+    args+=(--ro-bind-try "$local_socket" "$local_socket")
+fi
+
+if [[ "${XAUTHORITY:-}" == /tmp/* ]]; then
+    args+=(--ro-bind-try "$XAUTHORITY" "$XAUTHORITY")
+fi
+
+bwrap "${args[@]}" -- /app/AppRun "$@"
