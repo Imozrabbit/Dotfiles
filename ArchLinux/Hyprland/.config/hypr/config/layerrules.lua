@@ -48,6 +48,12 @@ hl.layer_rule({
 	animation = "fade",
 })
 
+-- Set screenshot's animation
+hl.layer_rule({
+	match = { namespace = "selection" },
+	animation = "fade",
+})
+
 -- Make rofi blur and change its animation
 hl.layer_rule({
 	match = { namespace = "rofi" },
@@ -56,9 +62,18 @@ hl.layer_rule({
 	animation = "popin",
 })
 
--- Make GPU & CPU OSD blur
+-- Make GPU & CPU OSD blur and always on screen
 hl.layer_rule({
 	match = { namespace = "system-osd" },
 	blur = true,
 	ignore_alpha = 0,
+	above_lock = 1,
+})
+
+-- Make the rest of the third monitor items always on screen
+hl.layer_rule({
+	match = {
+		namespace = "^(weather|clock|ram-osd)$",
+	},
+	above_lock = 1,
 })
