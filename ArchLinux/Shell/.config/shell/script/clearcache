@@ -138,6 +138,7 @@ rm -rf -- \
 	"$base/RustyPathOfBuilding1/Update" \
 	"$base/RustyPathOfBuilding2/Update"
 printf "\033[1;36m%s\033[0m\n" "POB's updater leftovers cleared"
+
 # Clear awakened poe trade cache and update leftovers
 awakened_poe_trade_dir="$HOME/.config/awakened-poe-trade"
 rm -rf \
@@ -173,6 +174,27 @@ if ! pgrep -u "$UID" -f 'WowB\.exe' >/dev/null; then
     printf "\033[1;36m%s\033[0m\n" "World of Warcraft Forever's cache and logs cleared"
 else
     printf "\033[1;36m%s\033[0m\n" "World of Warcraft Forever is currently running"
+fi
+
+# Jagex Launcher & RuneLite
+if pgrep -u "$(id -u)" -fi 'jagex|runelite|old.school.runescape|hdos' >/dev/null; then
+    printf "\033[1;36m%s\033[0m\n" "Skipping Jagex/RuneLite cleanup: application is running"
+else
+    jagex="/home/Steam/.config/Jagex Launcher"
+    # Jagex Launcher: Electron caches
+    rm -rf -- \
+        "$jagex/Cache" \
+        "$jagex/Code Cache" \
+        "$jagex/GPUCache" \
+        "$jagex/Partitions/auth/Cache" \
+        "$jagex/Partitions/auth/Code Cache" \
+        "$jagex/Partitions/auth/GPUCache"
+    # RuneLite: logs older than 14 days
+    runelite_logs="/home/Steam/.runelite/logs"
+    if [[ -d "$runelite_logs" ]]; then
+        find "$runelite_logs" -type f -mtime +13 -delete
+    fi
+    printf "\033[1;36m%s\033[0m\n" "Jagex and RuneLite's caches and logs cleared"
 fi
 
 
