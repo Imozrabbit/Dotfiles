@@ -1,4 +1,3 @@
--- Valheim, Project Zomboid
 hl.window_rule({
 	name = "Force World of Warcraft to be opaque and to appear on workspace 7",
 	match = {
