@@ -1,2 +1,0 @@
-CompileFlags:
-  Add: [-std=c++17, -fPIC, -I/usr/include/qt6/QtCore, -I/usr/include/qt6, -DQT_CORE_LIB]
