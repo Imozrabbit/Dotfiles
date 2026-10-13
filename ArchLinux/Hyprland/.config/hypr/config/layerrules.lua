@@ -8,6 +8,16 @@ hl.layer_rule({
 	animation = "slide bottom",
 })
 
+-- Add blur and transparency to calendar module
+hl.layer_rule({
+	match = {
+		namespace = "quickshell-calendar",
+	},
+	animation = "slide",
+	blur = true,
+	ignore_alpha = 0.5,
+})
+
 -- Add blur for swaync the notification center
 hl.layer_rule({
 	match = { namespace = "swaync-control-center" },
