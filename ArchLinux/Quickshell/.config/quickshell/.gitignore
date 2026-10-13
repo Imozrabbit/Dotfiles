@@ -1,0 +1,4 @@
+# thinkpad local-only calendar; do not merge this policy/removal into master.
+/calendar/
+/.calendar-install.*/
+/calendar.update-rollback-*/
