@@ -14,7 +14,7 @@ update_state_home=${XDG_STATE_HOME:-$HOME/.local/state}
 update_pending=$installer_state/update-previous
 
 update_recovery_check() {
-    sh "$target/parse/conflict-broker.sh" check-recovery || return 1
+    sh "${update_module_path:-$target}/parse/conflict-broker.sh" check-recovery || return 1
     for directory in "$update_data_home/calendars/"*; do
         if [ -e "$directory/.calendar-series-transaction.json" ] || [ -L "$directory/.calendar-series-transaction.json" ]; then
             printf '%s\n' "Calendar transaction needs recovery: $directory" >&2
@@ -42,15 +42,20 @@ update_instance_json() {
     NO_COLOR=1 quickshell list --path "$target" --json "$@" > "$instance_file" || return 1
     # Quickshell prints text instead of [] for a selected config with no instances.
     printf 'No running instances for "%s"\nUse --all to list all instances.\n' "$update_shell" > "$staging/empty-instances.txt"
+    if ! cmp -s "$instance_file" "$staging/empty-instances.txt"; then
+        printf 'No running instances for "%s"\nUse --all to list all instances.\n' "$target/shell.qml" > "$staging/empty-instances.txt"
+    fi
     if cmp -s "$instance_file" "$staging/empty-instances.txt"; then printf '[]\n' > "$instance_file"; fi
 }
 
 update_instances() {
     update_shell=$(realpath -e -- "$target/shell.qml") || return 1
     update_instance_json "$staging/instances.json" || return 1
-    jq -e --arg path "$update_shell" '
+    # Quickshell can retain the lexical launch path through a linked parent.
+    jq -e --arg path "$update_shell" --arg alias "$target/shell.qml" '
         type == "array" and length <= 1 and all(.[];
-            .config_path == $path and (.pid | type == "number" and . > 0 and floor == .))
+            (.config_path == $path or .config_path == $alias) and
+            (.pid | type == "number" and . > 0 and floor == .))
     ' "$staging/instances.json" >/dev/null || return 1
     update_instance_json "$staging/all-instances.json" --any-display || return 1
     jq -e --slurpfile current "$staging/instances.json" '. == $current[0]' "$staging/all-instances.json" >/dev/null || return 1
@@ -109,8 +114,10 @@ update_prepare() {
 }
 
 update_pause() {
-    update_rollback=$config_dir/calendar.update-rollback-$(date +%Y%m%d-%H%M%S)-$$
-    mkdir -- "$update_rollback"
+    rollback_candidate=$update_config_real/calendar.update-rollback-$(date +%Y%m%d-%H%M%S)-$$
+    update_git_path_check "$rollback_candidate" || return 1
+    mkdir -- "$rollback_candidate" || return 1
+    update_rollback=$rollback_candidate
     printf '%s\n' "$target" > "$update_rollback/target"
     mkdir "$update_rollback/units"
     for relative in $update_units; do
@@ -130,6 +137,7 @@ update_pause() {
     for unit in $update_loaded; do systemctl --user stop "$unit" || return 1; done
     if [ -n "$update_pid" ]; then update_stop_instance "$update_pid" || return 1; fi
     update_recovery_check || return 1
+    update_target_check || return 1
 }
 
 update_refresh_units() {
@@ -183,8 +191,8 @@ update_remove_previous() {
         return 1
     fi
     IFS= read -r rollback < "$update_pending" || return 1
-    case "$rollback" in "$config_dir"/calendar.update-rollback-*) ;; *) return 1 ;; esac
-    if [ "$(dirname "$rollback")" != "$config_dir" ] || [ -L "$rollback" ] || [ ! -d "$rollback" ] ||
+    case "$rollback" in "$update_config_real"/calendar.update-rollback-*) ;; *) return 1 ;; esac
+    if [ "$(dirname "$rollback")" != "$update_config_real" ] || [ -L "$rollback" ] || [ ! -d "$rollback" ] ||
         [ -L "$rollback/target" ] || [ ! -f "$rollback/target" ] || [ "$(cat "$rollback/target")" != "$target" ]; then
         printf '%s\n' 'Rollback ownership is invalid; nothing removed.' >&2
         return 1
@@ -194,6 +202,8 @@ update_remove_previous() {
         return 1
     fi
     update_recovery_check || return 1
+    update_target_check || return 1
+    update_git_path_check "$rollback" || return 1
     rm -rf -- "$rollback" || return 1
     rm -- "$update_pending" || return 1
     printf '%s\n' 'Confirmed update: previous module and rollback files removed.'
@@ -218,19 +228,24 @@ update_finish() {
 
 update_cleanup() {
     if [ "$update_complete" -eq 1 ]; then return; fi
+    if ! update_storage_check || ! update_git_path_check "$staging" ||
+       { [ -n "$update_rollback" ] && ! update_git_path_check "$update_rollback"; }; then
+        printf '%s\n' 'Update cleanup safety check failed; preserve staging/rollback and inspect Git tracking and parent links before recovery.' >&2
+        return
+    fi
     if [ -n "$previous" ] && [ -d "$previous" ]; then
         # Stop replacement processes before restoring code and unit definitions.
         rollback_safe=1
         for unit in $update_loaded; do systemctl --user stop "$unit" || rollback_safe=0; done
-        if [ -n "$update_pid" ] && [ -f "$target/shell.qml" ]; then
+        if [ -n "$update_pid" ] && [ -f "$update_module_path/shell.qml" ]; then
             if update_instances; then
                 pid=$(jq -r '.[0].pid // empty' "$staging/instances.json")
                 if [ -n "$pid" ]; then update_stop_instance "$pid" || rollback_safe=0; fi
             else rollback_safe=0; fi
         fi
         if [ "$rollback_safe" -eq 1 ]; then
-            if [ -e "$target" ] || [ -L "$target" ]; then mv -- "$target" "$staging/failed-module" || rollback_safe=0; fi
-            if [ "$rollback_safe" -eq 1 ] && mv -- "$previous" "$target"; then
+            if [ -e "$update_module_path" ] || [ -L "$update_module_path" ]; then mv -- "$update_module_path" "$staging/failed-module" || rollback_safe=0; fi
+            if [ "$rollback_safe" -eq 1 ] && mv -- "$previous" "$update_module_path"; then
                 for relative in $update_units; do
                     if [ -f "$update_rollback/units/$relative.missing" ]; then
                         rm -f -- "$update_unit_dir/$relative" || rollback_safe=0

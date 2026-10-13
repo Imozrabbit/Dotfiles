@@ -91,10 +91,31 @@ conflict review. Ctrl-wheel adjusts zoom in each view; ordinary wheel scrolls.
 ## Update
 
 **PC:** publish reviewed changes to GitHub `master` first. Uncommitted/unpushed work
-is not available to the updater. Git checkouts/symlinked modules are not updater
-targets; maintain the source checkout normally.
+is not available to the updater. Git-tracked calendars and symlinked modules are
+not updater targets; maintain the source checkout normally.
 
-**ThinkPad / standalone installation:** from a desktop-session terminal:
+**Client installation:** standalone calendars and ignored, untracked calendars
+inside a Git checkout are supported. The Quickshell parent may be a symlink;
+`calendar/` itself must be a real directory without a nested Git repository.
+Both the index and `HEAD` must have no tracked calendar files, so staged removal
+alone is insufficient: commit the removal on the client's branch first.
+
+For Git-local clients, put these rules in Quickshell's **parent-level** `.gitignore`
+(outside `calendar/`), or equivalent anchored rules in the repository policy:
+
+```gitignore
+/calendar/
+/.calendar-install.*/
+/calendar.update-rollback-*/
+```
+
+Keep that policy on the client's branch only; do not merge calendar's removal into
+the publishing branch. Later merges or branch switches can reintroduce tracking
+or conflict with local files. Do not change Git tracking or ignore rules while an
+update is running or awaiting confirmation. Updater checks them again before
+replacement and cleanup; other Quickshell projects remain untouched.
+
+From a desktop-session terminal:
 
 ```sh
 sh "$HOME/.config/quickshell/calendar/update.sh"
@@ -134,5 +155,8 @@ sh "$HOME/.config/quickshell/calendar/update.sh" --confirm
 Another replacement is blocked while confirmation/recovery is pending. Ordinary
 failures restore prior code/runtime when safe; uncertain recovery retains files for
 review. Never delete recovery receipts or bypass guards to force an update.
+If Git tracking/ignore rules or the parent link change mid-update, recovery may
+leave services paused and retain protected artifacts for manual review rather
+than overwrite or delete newly tracked files.
 
 [Development, recurrence contracts and verification limits](https://github.com/Imozrabbit/Dotfiles/blob/master/ArchLinux/QuickShell/.config/quickshell/calendar/docs/development.md).

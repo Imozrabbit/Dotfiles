@@ -53,6 +53,72 @@ confirm() {
     esac
 }
 
+update_git_path_check() {
+    git_path=$(realpath -m -- "$1") || return 1
+    git_marker=''
+    if [ -d "$git_path" ]; then git_marker=$(find "$git_path" -name .git -print -quit) || return 1; fi
+    if [ -n "$git_marker" ]; then
+        printf '%s\n' "Update refuses a path containing a Git repository: $1" >&2
+        return 1
+    fi
+    [ -n "$update_git_config" ] || return 0
+    indexed=$(git --literal-pathspecs -C "$update_git_config" ls-files -- "$git_path") || return 1
+    committed=$(git --literal-pathspecs -C "$update_git_config" ls-tree -r --name-only HEAD -- "$git_path") || return 1
+    if [ -n "$indexed$committed" ]; then
+        printf '%s\n' "Update refuses Git-tracked paths or pending tracking changes: $1" >&2
+        return 1
+    fi
+    # A trailing slash on an existing directory lets its own .gitignore match it.
+    # Only parent rules may protect directories which deployment replaces.
+    git_ignore_path=$git_path
+    if [ ! -d "$git_path" ]; then git_ignore_path=$git_path/; fi
+    if ! git -C "$update_git_config" check-ignore -q -- "$git_ignore_path"; then
+        printf '%s\n' "Update requires an external Git ignore rule for: $1" >&2
+        return 1
+    fi
+}
+
+update_storage_check() {
+    resolved_config=$(realpath -e -- "$config_dir") || return 1
+    if [ -n "${update_config_real:-}" ] && [ "$resolved_config" != "$update_config_real" ]; then
+        printf '%s\n' 'Quickshell parent target changed during update; stop and inspect it.' >&2
+        return 1
+    fi
+    update_config_real=$resolved_config
+    update_module_path=$resolved_config/calendar
+    if [ -L "$update_module_path" ] || [ -L "$update_module_path/shell.qml" ]; then
+        printf '%s\n' 'Update refuses a symlinked calendar module or entrypoint.' >&2
+        return 1
+    fi
+    update_git_config=''
+    git_parent=$resolved_config
+    while :; do
+        if [ -e "$git_parent/.git" ] || [ -L "$git_parent/.git" ]; then
+            if ! command -v git >/dev/null 2>&1 ||
+               [ "$(git -C "$resolved_config" rev-parse --is-inside-work-tree)" != true ] ||
+               ! git -C "$resolved_config" rev-parse --verify HEAD >/dev/null; then
+                printf '%s\n' 'Cannot verify Git checkout safely; git and a committed HEAD are required.' >&2
+                return 1
+            fi
+            update_git_config=$resolved_config
+            break
+        fi
+        [ "$git_parent" != / ] || break
+        git_parent=$(dirname "$git_parent")
+    done
+    for git_path_to_check in "$target" "$config_dir/.calendar-install.updater-check" "$config_dir/calendar.update-rollback-updater-check"; do
+        update_git_path_check "$git_path_to_check" || return 1
+    done
+}
+
+update_target_check() {
+    update_storage_check || return 1
+    if [ ! -f "$update_module_path/shell.qml" ]; then
+        printf '%s\n' 'Update requires an existing calendar with shell.qml.' >&2
+        return 1
+    fi
+}
+
 if [ "$mode" != install ]; then
     for path in "$HOME" "${XDG_CONFIG_HOME:-$HOME/.config}" "${XDG_DATA_HOME:-$HOME/.local/share}" "${XDG_STATE_HOME:-$HOME/.local/state}"; do
         case "$path" in /*) ;; *) printf '%s\n' "Expected absolute path: $path" >&2; exit 1 ;; esac
@@ -61,11 +127,7 @@ if [ "$mode" != install ]; then
             exit 1
         fi
     done
-    if [ -L "$config_dir" ] || [ -L "$target" ] || [ -L "$target/shell.qml" ] || [ ! -f "$target/shell.qml" ] ||
-       [ -e "$target/.git" ] || { command -v git >/dev/null 2>&1 && git -C "$target" rev-parse --is-inside-work-tree >/dev/null 2>&1; }; then
-        printf '%s\n' 'Update requires an existing standalone calendar, not a symlink or Git checkout.' >&2
-        exit 1
-    fi
+    update_target_check || exit 1
     mkdir -p -- "$installer_state"
     exec 8<"$installer_state"
     flock -n 8 || { printf '%s\n' 'Another calendar update is running.' >&2; exit 1; }
@@ -145,7 +207,7 @@ fi
 
 mkdir -p -- "$config_dir"
 # Stage on the destination filesystem so activation is a local move.
-staging=$(mktemp -d "$config_dir/.calendar-install.XXXXXXXX")
+staging=$(mktemp -d "${update_config_real:-$config_dir}/.calendar-install.XXXXXXXX")
 previous=''
 cleanup() {
     exit_code=$?
@@ -168,13 +230,23 @@ cleanup() {
             fi
         fi
     fi
-    rm -rf -- "$staging"
+    if [ "$mode" != update ] || update_git_path_check "$staging"; then
+        rm -rf -- "$staging"
+    else
+        # An empty directory contains no Git files; never delete its contents here.
+        if ! rmdir -- "$staging" 2>/dev/null; then
+            printf '%s\n' "Staging cleanup needs review; preserve $staging." >&2
+        fi
+        exit_code=1
+    fi
     exit "$exit_code"
 }
 trap cleanup EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
+
+if [ "$mode" = update ]; then update_git_path_check "$staging" || exit 1; fi
 
 printf '%s\n' 'Downloading calendar sources from GitHub...'
 if ! curl -fsSL "$archive_url" -o "$staging/calendar.tar.gz" > "$staging/download.log" 2>&1; then
@@ -230,12 +302,15 @@ if [ "$mode" = update ]; then
         exit 1
     fi
     . "$source_dir/update-runtime.sh"
+    update_target_check || exit 1
     update_prepare
     update_pause
 fi
 
 # Move the old module only after the replacement is ready.
-if [ -e "$target" ] || [ -L "$target" ]; then
+destination=$target
+if [ "$mode" = update ]; then destination=$update_module_path; fi
+if [ -e "$destination" ] || [ -L "$destination" ]; then
     if [ "$mode" = update ]; then
         printf '%s\n' "Keeping temporary rollback copy at $update_rollback..."
     elif [ "$backup" -eq 1 ]; then
@@ -245,11 +320,11 @@ if [ -e "$target" ] || [ -L "$target" ]; then
         previous="$staging/previous-calendar"
         printf '%s\n' 'Replacing existing calendar module without a retained backup...'
     fi
-    mv -- "$target" "$previous"
+    mv -- "$destination" "$previous"
 fi
 
 printf '%s\n' "Installing calendar module at $target..."
-mv -- "$source_dir" "$target"
+mv -- "$source_dir" "$destination"
 if [ "$mode" = update ]; then
     update_finish
     exit 0
