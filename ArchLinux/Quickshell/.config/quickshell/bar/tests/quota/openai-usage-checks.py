@@ -25,6 +25,16 @@ assert result["fiveHour"]["usedPercent"] == 22
 assert result["fiveHour"]["resetAt"] == 2000000000000
 assert result["weekly"]["usedPercent"] == 3
 assert "email" not in result and "account_id" not in result
+assert result.get("bankedResets", "missing") is None, "Absent reset summary is unknown, not zero"
+for count in (0, 1, 3, 7):
+    snapshot = usage.normalize_usage({**payload, "rate_limit_reset_credits": {"available_count": count}}, 1900000000000)
+    assert snapshot["bankedResets"] == count
+for summary in (None, [], "bad", {}, {"available_count": True}, {"available_count": -1},
+                {"available_count": 1.5}, {"available_count": "2"}, {"available_count": float("inf")},
+                {"available_count": 9007199254740992}):
+    snapshot = usage.normalize_usage({**payload, "rate_limit_reset_credits": summary}, 1900000000000)
+    assert snapshot["bankedResets"] is None
+    assert snapshot["weekly"]["usedPercent"] == 3, "Bad optional count must not break quota"
 
 swapped = json.loads(json.dumps(payload))
 rate = swapped["rate_limit"]
@@ -58,7 +68,7 @@ with patch.dict(usage.os.environ, {"XDG_DATA_HOME": "/nonexistent-quota-test"}),
         raise AssertionError("expired login accepted")
     except usage.QuotaError:
         pass
-with tempfile.TemporaryDirectory(dir=path.parent.parent / "tests") as directory:
+with tempfile.TemporaryDirectory(prefix="quota-auth-", dir="/tmp/opencode") as directory:
     home = Path(directory)
     store = home / "opencode"
     store.mkdir()

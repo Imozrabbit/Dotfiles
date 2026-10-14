@@ -14,11 +14,21 @@ function parseStatus(text) {
         || !Number.isSafeInteger(data.fetchedAt) || data.fetchedAt <= 0 || !validWindow(data.fiveHour) || !validWindow(data.weekly)
         || !data.fiveHour && !data.weekly)
         return null;
+    if (!Number.isSafeInteger(data.bankedResets) || data.bankedResets < 0)
+        data.bankedResets = null;
     return data;
 }
 
 function remaining(window) {
     return window ? Math.max(0, Math.min(100, 100 - window.usedPercent)) : null;
+}
+
+function bankedResetsText(count) {
+    if (!Number.isSafeInteger(count) || count < 0)
+        return "Unavailable";
+    const filled = Math.min(count, 5);
+    return Array(filled).fill("●").concat(Array(5 - filled).fill("○")).join(" ")
+        + (count > 5 ? " +" + (count - 5) : "");
 }
 
 function displayText(display, snapshot, available) {

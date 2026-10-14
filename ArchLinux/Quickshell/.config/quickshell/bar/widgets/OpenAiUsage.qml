@@ -54,6 +54,11 @@ Rectangle {
             });
         }
         rows.push({
+            label: "Banked resets",
+            dotCount: root.available && root.snapshot ? root.snapshot.bankedResets : null,
+            value: Usage.bankedResetsText(root.available && root.snapshot ? root.snapshot.bankedResets : null)
+        });
+        rows.push({
             label: "Updated",
             value: root.snapshot ? Qt.formatDateTime(new Date(root.snapshot.fetchedAt), "hh:mm:ss") : "Never"
         });

@@ -309,6 +309,14 @@ to `"fiveHour"` or `"both"` as needed. Chips show **percentage remaining**, not 
 `󰨳 64%`, `󰔛 25%`, or `󰨳 64% · 󰔛 25%`. Tooltip always includes both
 periods and reset times. Missing readings show `N/A` for that period.
 
+Tooltip also shows banked resets from the same usage response, e.g.
+`● ○ ○ ○ ○`. Vertically centered circles represent available resets; five
+slots are visual only, not a capacity limit. Counts above five still show
+an overflow indicator (`● ● ● ● ● +2` means seven). Zero shows five empty
+circles; missing or invalid reset
+data shows `Unavailable` without disrupting quota readings. This display
+does not redeem resets or fetch individual expiration details.
+
 The collector reads existing OpenAI OAuth credentials from OpenCode's local
 database, with a legacy `auth.json` fallback when no usable v2 credential exists.
 It never refreshes or edits credentials and only requests quota data from

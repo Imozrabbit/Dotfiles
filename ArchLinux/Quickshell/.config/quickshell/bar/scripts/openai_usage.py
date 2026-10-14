@@ -44,12 +44,17 @@ def normalize_usage(payload, fetched_at):
         windows[duration] = {"usedPercent": used, "resetAt": reset * 1000 if reset is not None else None}
     if not windows:
         raise QuotaError("Five-hour and weekly quotas unavailable")
+    resets = payload.get("rate_limit_reset_credits")
+    count = resets.get("available_count") if isinstance(resets, dict) else None
+    if type(count) is not int or not 0 <= count <= 9007199254740991:
+        count = None
     return {
         "plan": payload.get("plan_type") if isinstance(payload.get("plan_type"), str) else "unknown",
         "allowed": limit["allowed"],
         "limitReached": limit["limit_reached"],
         "fiveHour": windows.get(18000),
         "weekly": windows.get(604800),
+        "bankedResets": count,
         "fetchedAt": fetched_at,
     }
 

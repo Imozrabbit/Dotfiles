@@ -31,4 +31,35 @@ assert.equal(api.displayText("both", { ...sample, weekly: null }, true), "󰨳 N
 assert.equal(api.displayText("both", { ...sample, fiveHour: null }, true), "󰨳 97% · 󰔛 N/A");
 assert.equal(api.displayText("weekly", { ...sample, weekly: {usedPercent: 110} }, true), "󰨳 0%");
 assert.equal(api.displayText("weekly", { ...sample, weekly: {usedPercent: 35.6} }, true), "󰨳 64%");
+assert.equal(api.parseStatus(JSON.stringify(sample)).bankedResets, null);
+for (const count of [0, 1, 3, 7])
+    assert.equal(api.parseStatus(JSON.stringify({...sample, bankedResets: count})).bankedResets, count);
+for (const count of [null, true, -1, 1.5, "2", {}, 9007199254740992]) {
+    const parsed = api.parseStatus(JSON.stringify({...sample, bankedResets: count}));
+    assert.equal(parsed.bankedResets, null);
+    assert.equal(parsed.weekly.usedPercent, 3);
+}
+assert.equal(typeof api.bankedResetsText, "function");
+assert.equal(api.bankedResetsText(1), "● ○ ○ ○ ○");
+assert.equal(api.bankedResetsText(3), "● ● ● ○ ○");
+assert.equal(api.bankedResetsText(0), "○ ○ ○ ○ ○");
+assert.equal(api.bankedResetsText(7), "● ● ● ● ● +2");
+for (const count of [null, undefined, -1, NaN, true, "2"])
+    assert.equal(api.bankedResetsText(count), "Unavailable");
+const widget = await readFile(new URL("../../widgets/OpenAiUsage.qml", import.meta.url), "utf8");
+const rowsBody = widget.match(/function tooltipRows\(\) \{([\s\S]*?)\n    \}/)?.[1];
+assert.ok(rowsBody);
+const tooltip = await readFile(new URL("../../widgets/SystemStatTooltip.qml", import.meta.url), "utf8");
+assert.match(tooltip, /visible: statRow.showsDots\s+Layout.alignment: Qt.AlignVCenter/,
+    "Circle row must align geometrically, not rely on glyph baselines");
+assert.match(tooltip, /model: statRow.showsDots \? 5 : 0/);
+assert.match(tooltip, /color: index < statRow.modelData.dotCount/);
+assert.match(tooltip, /visible: !statRow.showsDots/, "Ordinary tooltip rows retain text values");
+for (const available of [true, false]) {
+    const root = {available, snapshot: {...sample, bankedResets: 1}, error: "Fetch failed", windowText: () => "window"};
+    const rows = runInNewContext(`(function() {${rowsBody}})()`, {root, Usage: api, Qt: {formatDateTime: () => "time"}});
+    assert.equal(rows.find(row => row.label === "Banked resets")?.value,
+        available ? "● ○ ○ ○ ○" : "Unavailable", "Never show stale resets after fetch failure");
+    assert.equal(rows.find(row => row.label === "Banked resets")?.dotCount, available ? 1 : null);
+}
 console.log("OpenAI quota display checks passed");
