@@ -21,7 +21,8 @@ Nerd Font Propo** and **Atkinson Hyperlegible Next** for icons and text.
 Audio controls need PipeWire and a session manager.
 
 Copy this `bar/` folder to `~/.config/quickshell/bar/`
-(or `$XDG_CONFIG_HOME/quickshell/bar/`), then run:
+(or `$XDG_CONFIG_HOME/quickshell/bar/`), excluding `tests/` but keeping
+documentation. Then run:
 
 ```sh
 qs -c bar -d
@@ -44,6 +45,7 @@ stage=$(mktemp -d)
 curl -fL https://codeload.github.com/Imozrabbit/Dotfiles/tar.gz/refs/heads/thinkpad \
   -o "$stage/dotfiles.tar.gz" &&
 tar -xzf "$stage/dotfiles.tar.gz" -C "$stage" --strip-components=5 \
+  --exclude='*/bar/tests' \
   Dotfiles-thinkpad/ArchLinux/Quickshell/.config/quickshell/bar &&
 mkdir -p "$config_dir" &&
 rm -rf "$config_dir/bar" &&
@@ -53,6 +55,8 @@ qs -c bar -d
 ```
 
 Your sibling `bar-local.json` and saved weather/Wi-Fi data stay untouched.
+Tests remain in the GitHub repository but are excluded from this installation;
+documentation is included.
 
 </details>
 
