@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, cpSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, cpSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 
@@ -9,6 +9,10 @@ try {
     cpSync(new URL('widgets/', module), join(directory, 'widgets'), {recursive:true});
     cpSync(new URL('core/', module), join(directory, 'core'), {recursive:true});
     let source = readFileSync(new URL('Manager.qml', module), 'utf8');
+    // Only the root layer-shell anchors are invalid on the test Window.
+    const rootAnchors = /^    anchors\s*\{[^{}]*\}\r?\n/gm;
+    assert.equal([...source.matchAll(rootAnchors)].length, 1, 'Expected one root layer-shell anchor block');
+    source = source.replace(rootAnchors, '');
     source = source.replace(/^import Quickshell.*\n/gm, '').replace('PanelWindow {', 'Window {')
         .replace('required property var theme', 'property var theme: QtObject { property string fontFamily: "monospace"; property color workspaceEmptyColor: "#707072" }')
         .replace('required property var service', `property var service: QtObject {
@@ -28,7 +32,6 @@ try {
             function confirm(descriptor) {}
         }`)
         .replace('focusable: true', 'width: 1080; height: 1080')
-        .replace('    anchors { top: true; bottom: true; left: true; right: true }\n', '')
         .replace(/^    WlrLayershell\..*\n/gm, '');
     source = source.replace('    Shortcut {', `
     property int testStage: 0
@@ -63,8 +66,11 @@ try {
     }
     Shortcut {`);
     writeFileSync(join(directory, 'Manager.qml'), source);
+    mkdirSync(join(directory, 'runtime'), {mode: 0o700});
     const result = spawnSync('qml6', [join(directory, 'Manager.qml')], {
         env: { ...process.env, QT_QPA_PLATFORM: 'offscreen', QT_QUICK_BACKEND: 'software',
+            QML_DISK_CACHE_PATH: join(directory, 'qmlcache'), XDG_CACHE_HOME: join(directory, 'cache'),
+            XDG_STATE_HOME: join(directory, 'state'), XDG_RUNTIME_DIR: join(directory, 'runtime'),
             QT_LOGGING_RULES: 'qml.debug=true;*.warning=true;*.critical=true', QT_FORCE_STDERR_LOGGING: '1' },
         encoding: 'utf8', timeout: 10000,
     });

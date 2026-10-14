@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import unittest
@@ -66,7 +67,8 @@ class DemoTests(unittest.TestCase):
             # Offscreen Quickshell has no layer-shell backend; keep real UI, replace window only.
             source = manager.read_text().replace('PanelWindow {', 'Rectangle {')
             source = source.replace('    focusable: true', '    property var screen: null')
-            source = source.replace('    anchors { top: true; bottom: true; left: true; right: true }', '')
+            source, count = re.subn(r'^    anchors\s*\{[^{}]*\}\r?\n', '', source, flags=re.MULTILINE)
+            self.assertEqual(count, 1, "Expected one root layer-shell anchor block")
             source = '\n'.join(line for line in source.split('\n') if not line.strip().startswith('WlrLayershell.'))
             manager.write_text(source)
         source = shell.read_text().replace('    property var config: null', '''
@@ -102,7 +104,8 @@ class DemoTests(unittest.TestCase):
         runtime.mkdir(mode=0o700)
         result = subprocess.run(["quickshell", "-p", str(demo), "--no-color"], capture_output=True, text=True, timeout=10,
             env={**os.environ, "PROTON_FIXTURE_ROOT": str(self.root), "QT_QPA_PLATFORM": "offscreen",
-                 "QT_QUICK_BACKEND": "software", "XDG_RUNTIME_DIR": str(runtime),
+                  "QT_QUICK_BACKEND": "software", "XDG_RUNTIME_DIR": str(runtime),
+                  "QML_DISK_CACHE_PATH": str(self.root / "qmlcache"),
                  "XDG_CACHE_HOME": str(self.root / "cache"), "XDG_STATE_HOME": str(self.root / "state")})
         output = result.stdout + result.stderr
         self.assertEqual(result.returncode, 0, output)
