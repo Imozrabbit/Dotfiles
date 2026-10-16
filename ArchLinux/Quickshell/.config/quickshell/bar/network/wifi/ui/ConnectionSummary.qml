@@ -10,6 +10,9 @@ ColumnLayout {
 
     required property var controller
     required property var style
+    property bool expanded: false
+    property bool isHome: false
+    signal toggleRequested
 
     Layout.fillWidth: true
     spacing: 8
@@ -66,13 +69,23 @@ ColumnLayout {
 
     Rectangle {
         Layout.fillWidth: true
-        implicitHeight: 76
+        implicitHeight: 76 + (root.expanded ? dnsOptions.implicitHeight + 12 : 0)
         radius: 8
         color: root.style.backgroundAlt
 
+        MouseArea {
+            width: parent.width
+            height: 76
+            enabled: !root.controller.isBusy && root.controller.wifiEnabled && root.controller.activeConnectionUuid !== ""
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: root.toggleRequested()
+        }
+
         RowLayout {
-            anchors.fill: parent
-            anchors.margins: 12
+            x: 12
+            y: 12
+            width: parent.width - 24
+            height: 52
             spacing: 12
 
             Rectangle {
@@ -95,7 +108,8 @@ ColumnLayout {
                 spacing: 2
 
                 Label {
-                    text: root.controller.currentSsid
+                    text: root.controller.currentSsid + (root.controller.activeConnectionUuid !== "" ? (root.expanded ? "  ⌃" : "  ⌄") : "")
+                    textFormat: Text.PlainText
                     font.family: root.style.textFont
                     font.pixelSize: 14
                     font.weight: 600
@@ -172,6 +186,17 @@ ColumnLayout {
                     onClicked: root.controller.disconnectNetwork()
                 }
             }
+        }
+        DnsSettingsPage {
+            id: dnsOptions
+            x: 12
+            y: 76
+            width: parent.width - 24
+            visible: root.expanded
+            style: root.style
+            profileUuid: root.controller.activeConnectionUuid
+            backend: root.controller.dns
+            isHome: root.isHome
         }
     }
 }

@@ -182,6 +182,11 @@ assert.equal(config.screenConfig(config.resolveConfig(defaults, "{}", quotaScree
 assert.equal(config.resolveConfig(defaults, "{}").vpn.routerManagedSsids.length, 0);
 assert.equal(config.resolveConfig(defaults, '{"vpn":{"routerManagedSsids":["Home",7,""]}}').vpn.routerManagedSsids.join(","), "Home");
 
+const schoolSettings = config.resolveConfig(defaults, JSON.stringify({vpn:{schoolService:"openfortivpn@Unistra.service",schoolInterface:"ppp0",schoolName:"Unistra"}}));
+assert.equal(schoolSettings.vpn.schoolService, "openfortivpn@Unistra.service");
+assert.equal(config.resolveConfig(defaults, "{}").vpn.schoolService, "");
+for (const schoolService of ["--help", "bad/name.service", "foo\nbar.service", true])
+    assert.equal(config.resolveConfig(defaults, JSON.stringify({vpn:{schoolService}})).vpn.schoolService, "");
 console.log("bar config checks passed");
 assert.equal(config.screenConfig(config.resolveConfig(defaults, "{}"), "DP-1").topMediaMode, "hover");
 assert.equal(config.screenConfig(config.resolveConfig(defaults, '{"mode":"off","topMediaMode":"always","monitors":{"DP-1":{"topMediaMode":"off"}}}'), "DP-1").topMediaMode, "off");

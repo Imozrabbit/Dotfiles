@@ -3,8 +3,8 @@ import { readFile } from "node:fs/promises";
 import { runInNewContext } from "node:vm";
 
 const source = await readFile(new URL("../../network/vpn/VpnDnsStatus.qml", import.meta.url), "utf8");
-const processes = { vpnProcess: { requestDone: false }, deviceProcess: { requestDone: false }, dnsProcess: { requestDone: false } };
-const root = { pending: 3, finish() { this.pending--; } };
+const processes = { vpnProcess: { requestDone: false }, deviceProcess: { requestDone: false }, dnsProcess: { requestDone: false }, schoolProcess: { requestDone: false }, interfaceProcess: { requestDone: false } };
+const root = { pending: 5, finish() { this.pending--; } };
 for (const [id, process] of Object.entries(processes)) {
     const block = source.slice(source.indexOf(`id: ${id}`)).split("\n    Process {")[0];
     const handler = block.match(/onRunningChanged: \{([\s\S]*?)\n        \}/);

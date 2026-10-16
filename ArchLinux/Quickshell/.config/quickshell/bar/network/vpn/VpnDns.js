@@ -27,11 +27,41 @@ function parseConnections(text) {
     return connections;
 }
 
-function vpnState(connections, activeSsids, routerManagedSsids) {
-    if (connections === null) return { mode: "unknown", name: "" };
-    const names = connections.filter(connection => connection.type === "wireguard" || connection.type === "vpn").map(connection => connection.name);
-    if (names.length) return { mode: "vpn", name: names.join(", ") };
-    return { mode: activeSsids.some(ssid => routerManagedSsids.includes(ssid)) ? "home" : "unprotected", name: "" };
+function vpnState(connections, activeSsids, routerManagedSsids, school) {
+    const router = activeSsids.some(ssid => routerManagedSsids.includes(ssid));
+    const schoolConnected = school?.state === "connected";
+    const names = (connections || []).filter(connection => connection.type === "wireguard" || connection.type === "vpn").map(connection => connection.name);
+    if (schoolConnected) names.push(school.name + " (OpenFortiVPN)");
+    const mode = names.length ? "vpn" : connections === null ? "unknown" : router ? "home" : "unprotected";
+    if (router) names.push("Router VPN (assumed)");
+    return { mode, name: names.join(", "), schoolConnected, nestedWarning: router && schoolConnected,
+        schoolStatus: school ? school.name + ": " + school.state : "" };
+}
+
+function schoolState(serviceText, interfaceText, interfaceName) {
+    if (serviceText === null) return "unavailable";
+    const fields = {};
+    for (const line of serviceText.trim().split(/\r?\n/)) {
+        const index = line.indexOf("=");
+        if (index < 1) return "unavailable";
+        fields[line.slice(0, index)] = line.slice(index + 1);
+    }
+    if (fields.LoadState !== "loaded") return "unavailable";
+    if (fields.ActiveState === "inactive") return "disconnected";
+    if (fields.ActiveState === "failed") return "failed";
+    if (fields.ActiveState === "deactivating") return "stopping";
+    if (fields.ActiveState === "activating") return "connecting";
+    // openfortivpn's notify unit reports ready after tunnel setup; simple units do not.
+    if (fields.ActiveState !== "active" || fields.SubState !== "running" || fields.Type !== "notify" || interfaceText === null)
+        return "unavailable";
+    let interfaces;
+    try { interfaces = JSON.parse(interfaceText); } catch (_) { return "unavailable"; }
+    if (!Array.isArray(interfaces)) return "unavailable";
+    const tunnel = interfaces.find(entry => entry && entry.ifname === interfaceName);
+    return tunnel && Array.isArray(tunnel.flags) && tunnel.flags.includes("UP") && tunnel.flags.includes("POINTOPOINT")
+        && Array.isArray(tunnel.addr_info) && tunnel.addr_info.some(address => address && address.scope === "global"
+            && (address.family === "inet" || address.family === "inet6") && typeof address.local === "string" && address.local !== "")
+        ? "connected" : "connecting";
 }
 
 function normalizeAddress(value) {
@@ -156,15 +186,16 @@ function parseDnsStatus(text) {
 function classifyDns(rows, devices, connections) {
     if (!rows || !rows.length) return { kind: "unavailable", name: "Unavailable", servers: "" };
     const nextDns = ["45.90.28.0", "45.90.30.0", "2a07:a8c0:0:0:0:0:0:0", "2a07:a8c1:0:0:0:0:0:0"];
+    const quad9 = ["9.9.9.9", "149.112.112.112", "2620:fe:0:0:0:0:0:fe", "2620:fe:0:0:0:0:0:9"];
     const kinds = [];
     for (const row of rows) {
         const device = devices?.[row.device];
         const vpn = (connections || []).some(connection => (connection.type === "wireguard" || connection.type === "vpn") && connection.device === row.device);
         const physical = device?.connected && (device.type === "ethernet" || device.type === "wifi");
-        const kind = nextDns.includes(row.address) ? "nextdns" : physical && device.gateways.includes(row.address) ? "router" : vpn ? "vpn" : "other";
+        const kind = nextDns.includes(row.address) ? "nextdns" : quad9.includes(row.address) ? "quad9" : physical && device.gateways.includes(row.address) ? "router" : vpn ? "vpn" : "other";
         if (!kinds.includes(kind)) kinds.push(kind);
     }
     const kind = kinds.length > 1 ? "mixed" : kinds[0];
-    const names = { nextdns: "NextDNS", router: "Router DNS", vpn: "VPN DNS", other: "Other DNS", mixed: "Mixed" };
+    const names = { nextdns: "NextDNS", quad9: "Quad9", router: "Router DNS", vpn: "VPN DNS", other: "Other DNS", mixed: "Mixed" };
     return { kind: kind, name: names[kind], servers: rows.map(row => (row.device || "Global") + ": " + row.server).join("\n") };
 }

@@ -1,11 +1,23 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
 import "./services" as Services
 
 // Coordinates WiFi service state, menu state, models, timers, and user actions.
 Scope {
     id: root
+    property var homeSsids: []
+    property var dnsConfig: ({})
+    property string lastHomeUuid: ""
+    onHomeSsidsChanged: {
+        root.lastHomeUuid = "";
+        Qt.callLater(root.refreshStatus);
+    }
+    onDnsConfigChanged: {
+        root.lastHomeUuid = "";
+        Qt.callLater(root.refreshStatus);
+    }
 
     readonly property int statusRefreshInterval: 1000
     readonly property int processTimeout: 20000
@@ -13,7 +25,13 @@ Scope {
 
     property bool menuVisible: false
     property bool isExpanded: false
-    property alias isBusy: actionRunner.busy
+    readonly property bool isBusy: actionRunner.busy || dnsService.busy
+    property alias dns: dnsService
+    property string newDnsSsid: ""
+    property bool newDnsAwaitingStatus: false
+    property var knownDnsUuids: []
+    property string dnsPromptUuid: ""
+    signal dnsChoiceRequested(string uuid)
     property alias scanRunning: scanner.scanRunning
 
     property alias wifiEnabled: statusService.wifiEnabled
@@ -21,6 +39,7 @@ Scope {
     property alias currentSsid: statusService.currentSsid
     property alias currentSignalVal: statusService.currentSignal
     property alias currentIp: statusService.currentIp
+    readonly property bool connectionReady: statusService.connected
     property bool wifiTogglePending: false
     property bool wifiToggleAwaitingCommand: false
     property bool wifiToggleTarget: false
@@ -67,6 +86,11 @@ Scope {
         if (visible) {
             root.refreshStatus();
             root.refreshSaved();
+            if (root.connectionReady && root.dnsPromptUuid === root.activeConnectionUuid)
+                Qt.callLater(() => {
+                    if (root.menuVisible && root.dnsPromptUuid !== "")
+                        root.dnsChoiceRequested(root.dnsPromptUuid);
+                });
         } else {
             root.currentPage = 0;
             root.targetSsid = "";
@@ -132,6 +156,10 @@ Scope {
     }
 
     function connectSaved(uuid, ssid, isEnterprise) {
+        if (root.isBusy)
+            return;
+        root.newDnsSsid = "";
+        root.newDnsAwaitingStatus = false;
         root.pendingSavedUuid = uuid;
         root.pendingSavedSsid = ssid;
         root.targetIsEnterprise = isEnterprise === true;
@@ -147,6 +175,8 @@ Scope {
     // Personal saved profiles are activated unchanged. Enterprise profiles are
     // always rebuilt by the action service so fresh 802.1x credentials are used.
     function connectNew(ssid, password, username, isEnterprise) {
+        if (root.isBusy)
+            return;
         if (!isEnterprise && savedNetworks.bySsid[ssid] !== undefined) {
             root.connectSaved(savedNetworks.bySsid[ssid].uuid, ssid, savedNetworks.bySsid[ssid].isEnterprise);
             return;
@@ -154,12 +184,20 @@ Scope {
 
         root.pendingSavedUuid = "";
         root.pendingSavedSsid = ssid;
+        root.newDnsSsid = !isEnterprise && savedNetworks.bySsid[ssid] === undefined ? ssid : "";
+        root.newDnsAwaitingStatus = false;
+        root.knownDnsUuids = [];
+        for (let i = 0; i < savedNetworks.model.count; i++)
+            root.knownDnsUuids.push(savedNetworks.model.get(i).uuid);
         actionRunner.connectNew(ssid, password, username, isEnterprise);
     }
 
     function toggleWifi() {
         if (root.isBusy || root.wifiTogglePending)
             return;
+        root.newDnsSsid = "";
+        root.newDnsAwaitingStatus = false;
+        root.dnsPromptUuid = "";
         root.wifiToggleTarget = !root.wifiEnabled;
         root.wifiTogglePending = true;
         root.wifiToggleAwaitingCommand = true;
@@ -170,6 +208,9 @@ Scope {
     function disconnectNetwork() {
         if (root.isBusy)
             return;
+        root.newDnsSsid = "";
+        root.newDnsAwaitingStatus = false;
+        root.dnsPromptUuid = "";
         actionRunner.disconnectNetwork(root.activeConnectionUuid);
     }
 
@@ -212,6 +253,17 @@ Scope {
 
     ListModel {
         id: availableNetworks
+    }
+
+    Services.WifiDnsService {
+        id: dnsService
+        config: Object.assign({}, root.dnsConfig, {
+            homeSsids: root.homeSsids
+        })
+        onSaved: uuid => {
+            if (root.dnsPromptUuid === uuid)
+                root.dnsPromptUuid = "";
+        }
     }
 
     Services.WifiStatusService {
@@ -259,6 +311,10 @@ Scope {
             root.errorVisible = false;
             root.enteredPass = "";
             root.currentPage = 0;
+            if (root.newDnsSsid !== "") {
+                root.newDnsAwaitingStatus = true;
+                root.refreshStatus();
+            }
         }
         onPasswordRequired: {
             processWatchdog.stop();
@@ -275,6 +331,8 @@ Scope {
             root.credentialsRequested(root.targetIsEnterprise);
         }
         onFailed: details => {
+            root.newDnsSsid = "";
+            root.newDnsAwaitingStatus = false;
             root.enteredPass = "";
             if (details === "Invalid connection" || details === "No active connection") {
                 root.setStatus(details, true);
@@ -311,6 +369,24 @@ Scope {
         target: statusService
 
         function onRefreshed(generation) {
+            if (root.connectionReady && root.homeSsids.includes(root.currentSsid) && root.activeConnectionUuid !== root.lastHomeUuid) {
+                root.lastHomeUuid = root.activeConnectionUuid;
+                if (root.activeConnectionUuid !== "")
+                    dnsService.load(root.activeConnectionUuid);
+            }
+            if (!root.connectionReady || !root.homeSsids.includes(root.currentSsid))
+                root.lastHomeUuid = "";
+            if (!root.connectionReady || root.dnsPromptUuid !== root.activeConnectionUuid)
+                root.dnsPromptUuid = "";
+            if (root.newDnsAwaitingStatus && root.connectionReady && root.activeConnectionUuid !== "" && root.currentSsid === root.newDnsSsid) {
+                root.newDnsAwaitingStatus = false;
+                root.newDnsSsid = "";
+                if (!root.knownDnsUuids.includes(root.activeConnectionUuid) && !root.homeSsids.includes(root.currentSsid)) {
+                    root.dnsPromptUuid = root.activeConnectionUuid;
+                    if (root.menuVisible)
+                        root.dnsChoiceRequested(root.dnsPromptUuid);
+                }
+            }
             if (!root.wifiTogglePending || root.wifiToggleAwaitingCommand || generation < root.wifiToggleRefreshGeneration)
                 return;
             if (root.wifiEnabled !== root.wifiToggleTarget)
@@ -380,5 +456,35 @@ Scope {
     Component.onCompleted: {
         root.refreshStatus();
         Qt.callLater(() => root.refreshSaved());
+    }
+
+    // Event-driven home enforcement also works when the Wi-Fi panel is closed.
+    Process {
+        id: networkMonitor
+        command: ["nmcli", "monitor"]
+        running: true
+        stdout: SplitParser {
+            onRead: line => networkChanged.restart()
+        }
+        onRunningChanged: {
+            if (!running)
+                monitorRestart.restart();
+        }
+    }
+    Timer {
+        id: networkChanged
+        interval: 500
+        onTriggered: {
+            root.lastHomeUuid = "";
+            root.refreshStatus();
+        }
+    }
+    Timer {
+        id: monitorRestart
+        interval: 5000
+        onTriggered: {
+            root.refreshStatus();
+            networkMonitor.running = true;
+        }
     }
 }

@@ -12,6 +12,10 @@ RowLayout {
     readonly property string protectionMode: root.status.protectionMode
 
     function indicatorIcon() {
+        if (root.status.vpn.nestedWarning)
+            return "󰀦";
+        if (root.status.vpn.schoolConnected)
+            return "󰑴";
         if (root.protectionMode === "home")
             return "󰣫";
         if (root.protectionMode === "vpn")
@@ -22,6 +26,8 @@ RowLayout {
     }
 
     function indicatorColor() {
+        if (root.status.vpn.nestedWarning)
+            return "#D9A441";
         if (root.protectionMode === "home" || root.protectionMode === "vpn")
             return root.theme.networkOnlineColor;
         if (root.protectionMode === "unprotected")
@@ -52,6 +58,7 @@ RowLayout {
         radius: 2.5
         color: ({
                 nextdns: "#8FB7AB",
+                quad9: "#D8D8D8",
                 router: "#9EB5C6",
                 vpn: "#D8D8D8",
                 other: "#D8D8D8",

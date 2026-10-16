@@ -165,6 +165,9 @@ Scope {
         active: root.uses("vpn")
         Vpn.VpnDnsStatus {
             routerManagedSsids: root.barConfig.settings.vpn.routerManagedSsids
+            schoolService: root.barConfig.settings.vpn.schoolService
+            schoolInterface: root.barConfig.settings.vpn.schoolInterface
+            schoolName: root.barConfig.settings.vpn.schoolName
         }
     }
     LazyLoader {
@@ -172,6 +175,8 @@ Scope {
         active: root.uses("wifiMenu") || (root.wifiMenu?.actionBusy ?? false)
         Wifi.WifiMenu {
             standalone: false
+            homeSsids: root.barConfig.settings.vpn.routerManagedSsids
+            dnsConfig: root.barConfig.settings.dns
             theme: root.theme
             barRevealed: outputBars.instances.find(bar => bar.modelData === root.wifiMenu?.screen)?.barShown ?? false
             onCloseRequested: visible = false

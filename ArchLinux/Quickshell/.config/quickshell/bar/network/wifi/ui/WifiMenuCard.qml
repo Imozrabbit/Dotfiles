@@ -13,8 +13,22 @@ Item {
 
     required property var controller
     required property var style
+    property var homeSsids: []
     required property real availableWidth
     required property real availableHeight
+    property string expandedDnsKey: ""
+
+    function toggleDns(key) {
+        if (root.controller.isBusy)
+            return;
+        root.expandedDnsKey = root.expandedDnsKey === key ? "" : key;
+        root.controller.dnsPromptUuid = "";
+    }
+
+    onVisibleChanged: {
+        if (!visible)
+            root.expandedDnsKey = "";
+    }
 
     function scrollToTop() {
         contentScroll.contentY = 0;
@@ -34,6 +48,10 @@ Item {
 
     Connections {
         target: root.controller
+        function onDnsChoiceRequested(uuid) {
+            root.expandedDnsKey = "connected:" + uuid;
+            root.scrollToTop();
+        }
         function onCurrentPageChanged() {
             root.scrollToTop();
         }
@@ -94,6 +112,29 @@ Item {
                 ConnectionSummary {
                     controller: root.controller
                     style: root.style
+                    isHome: root.homeSsids.includes(root.controller.currentSsid)
+                    expanded: root.expandedDnsKey === "connected:" + root.controller.activeConnectionUuid
+                    onToggleRequested: root.toggleDns("connected:" + root.controller.activeConnectionUuid)
+                }
+
+                Label {
+                    visible: root.controller.dnsPromptUuid !== ""
+                    Layout.fillWidth: true
+                    text: root.homeSsids.includes(root.controller.currentSsid) ? "Home network uses router DNS." : "Choose DNS for this new network. Suggested: " + (root.controller.dns.providers.find(provider => provider.id === root.controller.dns.preferredProvider)?.label || "Default") + "."
+                    color: root.style.foreground
+                    font.family: root.style.textFont
+                    wrapMode: Text.Wrap
+                }
+                MenuButton {
+                    visible: root.controller.dnsPromptUuid !== ""
+                    Layout.fillWidth: true
+                    implicitHeight: 26
+                    text: "Later — keep current DNS"
+                    style: root.style
+                    onClicked: {
+                        root.controller.dnsPromptUuid = "";
+                        root.expandedDnsKey = "";
+                    }
                 }
 
                 RowLayout {
@@ -123,8 +164,9 @@ Item {
                 }
 
                 ListView {
+                    id: savedList
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Math.min(210, Math.max(0, root.controller.savedModel.count * 35 + (root.controller.savedModel.count - 1) * 6))
+                    Layout.preferredHeight: Math.min(300, savedList.contentHeight || root.controller.savedModel.count * 41)
                     visible: root.controller.savedModel.count > 0
                     clip: true
                     model: root.controller.savedModel
@@ -134,9 +176,15 @@ Item {
                         width: 4
                     }
                     delegate: SavedNetworkRow {
+                        id: savedRow
                         style: root.style
                         isBusy: root.controller.isBusy
+                        expanded: root.expandedDnsKey === "saved:" + savedRow.uuid
+                        isConnected: savedRow.uuid === root.controller.activeConnectionUuid
+                        isHome: root.homeSsids.includes(savedRow.ssid)
+                        dnsBackend: root.controller.dns
                         onClicked: (uuid, ssid, isEnterprise) => root.controller.connectSaved(uuid, ssid, isEnterprise)
+                        onToggleRequested: root.toggleDns("saved:" + savedRow.uuid)
                     }
                 }
 

@@ -66,7 +66,7 @@ Install tools for features you use; missing tools leave those controls unavailab
 
 | Feature | Tools |
 | --- | --- |
-| Network / Wi-Fi / VPN / DNS | `ip`, `iw`, NetworkManager (`nmcli`), `resolvectl` |
+| Network / Wi-Fi / VPN / DNS | `ip`, `iw`, NetworkManager (`nmcli`), `resolvectl`; optional school VPN detection uses `systemctl` |
 | Updates | `checkupdates` from `pacman-contrib` |
 | Bluetooth | `bluetoothctl`; optional `ghostty` + `bluetui` for advanced controls |
 | Brightness | `brightnessctl` |
@@ -91,10 +91,12 @@ Save `{}` to reset to defaults.
 
 ### Full example
 
-This includes every supported option. Most values match defaults; workspace
-labels and monitor entries are examples. Replace monitor names using
-`hyprctl monitors`. Proton paths below are host-specific: change them before
-enabling Proton Manager.
+Most values below match defaults; workspace labels and monitor entries are
+examples. Find monitor names with `hyprctl monitors`. Change host-specific
+Proton paths before enabling Proton Manager.
+
+<details>
+<summary>Complete bar-local.json example (all supported options)</summary>
 
 ```json
 {
@@ -103,7 +105,23 @@ enabling Proton Manager.
   "mediaPosition": "top",
   "edgeSpacing": 14,
   "hoverToggleEnabled": true,
-  "vpn": { "routerManagedSsids": [] },
+  "dns": {
+    "providers": [
+      {
+        "id": "quad9",
+        "label": "Quad9",
+        "ipv4": ["9.9.9.9", "149.112.112.112"],
+        "ipv6": ["2620:fe::fe", "2620:fe::9"]
+      }
+    ],
+    "preferredProvider": "quad9"
+  },
+  "vpn": {
+    "routerManagedSsids": [],
+    "schoolService": "",
+    "schoolInterface": "ppp0",
+    "schoolName": "School VPN"
+  },
   "mouseBattery": { "name": "WLMouse Beast X" },
   "openAiUsage": { "display": "weekly" },
   "protonManager": {
@@ -178,6 +196,8 @@ enabling Proton Manager.
 }
 ```
 
+</details>
+
 ### Display and layout
 
 | Option | What it does |
@@ -195,12 +215,10 @@ enabling Proton Manager.
 
 Inside a monitor entry, you can override `mode`, `topMediaMode`, `mediaPosition`, `edgeSpacing`,
 `hoverToggleEnabled`, `modules`, `workspaceDisplay`, `launchers`,
-`mouseBattery`, and `openAiUsage`. **`vpn` and `protonManager` settings are global only.**
+`mouseBattery`, and `openAiUsage`. **`dns`, `vpn`, and `protonManager` settings are global only.**
 
-In the example, DP-1 shows both quota periods, HDMI-A-1 shows only the 5-hour
-quota, and other monitors inherit the global weekly setting when quota is enabled.
-DP-1 places music in its bottom bar; HDMI-A-1 uses an always-visible top panel
-when a player is available. Other monitors inherit global top placement.
+Example: DP-1 uses bottom music and both quota periods; HDMI-A-1 uses top music
+and 5-hour quota. Other monitors inherit global settings. Modules must be enabled.
 
 To pin/unpin the focused hover bar:
 
@@ -219,14 +237,14 @@ except **`protonManager`**, **`mouseBattery`**, and **`openAiUsage`**.
 | Module | What you get |
 | --- | --- |
 | `workspaces` | Workspace buttons and special workspaces. |
-| `tray` | Application icons shown inline in the left bar box, without a toggle or separate drawer. The box grows as icons appear. Left-click activates the app (or opens its menu for menu-only items); right-click opens a non-empty context menu. Empty menus do not open. |
+| `tray` | Inline app icons: left-click activates (or opens menu-only items); right-click opens non-empty menus. No separate drawer. |
 | `launcher` | App shortcuts revealed on hover. |
 | `updates` | Available Arch update count; manual refresh. |
 | `protonManager` | GE-Proton/CachyOS installs, confirmed cleanup, and umu selection. [Setup and safety](docs/proton-manager.md). |
 | `media` | MPRIS music in the selected top/bottom position, with scrolling track text and playback toggle. |
 | `network` | Download/upload speeds and connection details. |
 | `vpn` | Local VPN/router VPN indicator and DNS category. Requires `network`. |
-| `wifiMenu` | Wi-Fi connections, saved networks, and credentials. Requires `network`. |
+| `wifiMenu` | Wi-Fi connections, saved networks, credentials, and per-profile Default/Quad9 DNS selection. Requires `network`; DNS selection also requires Python 3. |
 | `cpu` | CPU usage and sensor details. |
 | `gpu` | AMD GPU usage/details; Intel/NVIDIA metrics are not supported. |
 | `memory` | Memory usage and details. |
@@ -245,10 +263,8 @@ except **`protonManager`**, **`mouseBattery`**, and **`openAiUsage`**.
 Hiding a parent also hides dependent modules. Missing devices/tools show
 unavailable data rather than breaking the bar. Module order is fixed.
 
-When no tray icons exist and Proton Manager is disabled, their leading
-separator is hidden. An open tray context menu keeps its hover bar visible
-without pinning it or reserving screen space. Normal hiding resumes after
-the menu closes; disabling the tray closes its context menu.
+Tray menus hold hover bars open without pinning/reserving space; hiding the
+tray closes its menu. Empty tray/Proton sections have no leading separator.
 
 ### Shortcuts and optional settings
 
@@ -260,7 +276,12 @@ the menu closes; disabling the tray closes its context menu.
 | `launchers[].leftCommand` / `rightCommand` | Program plus arguments for each click, e.g. `["qt6ct"]`. Omitted or `[]` does nothing. No shell expansion. |
 | `mouseBattery.name` | Name displayed in the mouse tooltip. Default: `WLMouse Beast X`; does not change device detection. |
 | `openAiUsage.display` | Quota remaining on the chip: `weekly` (default), `fiveHour`, or `both`. Both shows weekly first, then 5-hour, separated by a dot. Calendar/timer icons identify each period. |
-| `vpn.routerManagedSsids` | Exact Wi-Fi names where your router is configured for VPN. Default: `[]`. A matching name is **not proof** the router VPN is working. Local VPN takes priority. |
+| `dns.providers` | DNS choices in addition to built-in Default. Defaults to Quad9 only. Entries have a unique `id`, `label`, and `ipv4`/`ipv6` address lists. Invalid entries are hidden with a configuration warning. `[]` leaves only Default. |
+| `dns.preferredProvider` | Suggested choice for new non-home networks; default `quad9`. Unknown IDs fall back to the first valid provider or Default. Does not rewrite existing profiles. |
+| `vpn.routerManagedSsids` | Exact Wi-Fi names where your router is configured for VPN. Default: `[]`. A matching name is **not proof** the router VPN is working. Local VPN takes priority, but tooltip retains router context. |
+| `vpn.schoolService` | OpenFortiVPN system service to observe, e.g. `openfortivpn@Unistra.service`. Default: `""` (disabled; no school queries). Requires a `Type=notify` unit, as shipped by OpenFortiVPN. Never starts/stops the service or reads its credentials. |
+| `vpn.schoolInterface` | Dedicated school PPP interface to check alongside service readiness. Default: `ppp0`; set to your actual school interface. Must not refer to an unrelated PPP tunnel. |
+| `vpn.schoolName` | School VPN label in tooltip. Default: `School VPN`; use `Unistra` for that service. |
 | `protonManager.compatibilityToolsDir` | Host folder containing Proton installations, not an individual version folder. |
 | `protonManager.umuConfigPath` | Existing umu TOML config file to update. |
 | `protonManager.sandboxCompatibilityToolsDir` | Same Proton folder as seen inside your gaming sandbox. Without a sandbox, use the host folder here too. |
@@ -268,17 +289,19 @@ the menu closes; disabling the tray closes its context menu.
 Proton paths must be absolute, contain no `..`, and refer to an existing setup.
 The example paths match this author's gaming PC, not necessarily yours.
 
-<details>
-<summary>VPN/DNS indicator</summary>
+### Wi-Fi, VPN, and DNS
 
-The VPN icon distinguishes local VPN, configured router VPN, no local VPN,
-and unavailable status. The DNS dot shows NextDNS (mint), router (blue),
-VPN/other (neutral), mixed (purple), or unavailable (muted red).
-Colors identify resolver categories, **not security guarantees**.
-Domain-specific split DNS, such as Tailscale name resolution, does not count
-as a main Internet VPN/DNS route. Use `resolvectl status` for resolver details.
+Expand a connected/saved Wi-Fi card to choose **Default** or a configured DNS
+provider. Choices are saved per profile; **Test** checks each provider server
+without changing settings. Home Wi-Fi listed in `vpn.routerManagedSsids` is
+locked to automatic/router-advertised DNS; saved manual DNS is reset there.
+Other custom settings stay untouched until explicitly replaced.
 
-</details>
+VPN detection and DNS reporting are independent. Router VPN is an assumption
+from configured Wi-Fi names; colors are **not security guarantees**. School
+VPN plus assumed router VPN produces an amber nesting/overhead warning.
+
+[Network guide: DNS application, prompts, indicators, and school VPN setup](docs/network.md).
 
 <details>
 <summary>WLMouse battery setup</summary>
@@ -313,13 +336,10 @@ to `"fiveHour"` or `"both"` as needed. Chips show **percentage remaining**, not 
 `󰨳 64%`, `󰔛 25%`, or `󰨳 64% · 󰔛 25%`. Tooltip always includes both
 periods and reset times. Missing readings show `N/A` for that period.
 
-Tooltip also shows banked resets from the same usage response, e.g.
-`● ○ ○ ○ ○`. Vertically centered circles represent available resets; five
-slots are visual only, not a capacity limit. Counts above five still show
-an overflow indicator (`● ● ● ● ● +2` means seven). Zero shows five empty
-circles; missing or invalid reset
-data shows `Unavailable` without disrupting quota readings. This display
-does not redeem resets or fetch individual expiration details.
+Tooltip banked resets use five circles: `● ○ ○ ○ ○` means one available;
+`● ● ● ● ● +2` means seven. Slots are visual, not a capacity limit. Zero
+shows empty circles; unknown data shows `Unavailable` without affecting
+quotas. Resets are not redeemed and individual expiration details are not fetched.
 
 The collector reads existing OpenAI OAuth credentials from OpenCode's local
 database, with a legacy `auth.json` fallback when no usable v2 credential exists.
@@ -343,5 +363,6 @@ sudo access to enable them. Ordinary battery display needs no sudo setup.
 
 ## More information
 
+- [Wi-Fi, DNS choices, and VPN indicators](docs/network.md)
 - [Proton Manager: setup, usage, and safety](docs/proton-manager.md)
 - [Development, testing, and troubleshooting](docs/development.md)

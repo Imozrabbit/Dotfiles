@@ -80,10 +80,13 @@ function resolveConfig(defaults, text, previous) {
         mediaPosition: defaults.mediaPosition || "top",
         edgeSpacing: defaults.edgeSpacing,
         hoverToggleEnabled: defaults.hoverToggleEnabled,
+        dns: Object.assign({providers: [{id:"quad9",label:"Quad9",ipv4:["9.9.9.9","149.112.112.112"],ipv6:["2620:fe::fe","2620:fe::9"]}], preferredProvider:"quad9"}, defaults.dns || {}),
         launchers: launcherEntries(defaults.launchers || []),
         mouseBattery: Object.assign({}, defaults.mouseBattery),
         openAiUsage: { display: defaults.openAiUsage?.display || "weekly" },
-        vpn: { routerManagedSsids: (defaults.vpn?.routerManagedSsids || []).slice() },
+        vpn: { routerManagedSsids: (defaults.vpn?.routerManagedSsids || []).slice(),
+            schoolService: defaults.vpn?.schoolService || "", schoolInterface: defaults.vpn?.schoolInterface || "ppp0",
+            schoolName: defaults.vpn?.schoolName || "School VPN" },
         protonManager: Object.assign({}, defaults.protonManager || {}),
         modules: Object.assign({}, defaults.modules),
         workspaceDisplay: workspaceSettings(defaults.workspaceDisplay, null),
@@ -98,6 +101,12 @@ function resolveConfig(defaults, text, previous) {
     if (!isObject(local))
         return previous || result;
     const names = Object.keys(defaults.modules);
+    if (isObject(local.dns)) {
+        if (Object.prototype.hasOwnProperty.call(local.dns, "providers"))
+            result.dns.providers = JSON.stringify(local.dns.providers).length <= 32768 ? local.dns.providers : null;
+        if (typeof local.dns.preferredProvider === "string" && /^[a-z][a-z0-9_-]{0,31}$/.test(local.dns.preferredProvider))
+            result.dns.preferredProvider = local.dns.preferredProvider;
+    }
     applyFields(result, local, names);
     if (isObject(local.protonManager)) {
         for (const key of ["compatibilityToolsDir", "umuConfigPath", "sandboxCompatibilityToolsDir"]) {
@@ -110,6 +119,16 @@ function resolveConfig(defaults, text, previous) {
     if (isObject(local.vpn) && Array.isArray(local.vpn.routerManagedSsids))
         result.vpn.routerManagedSsids = local.vpn.routerManagedSsids.filter((ssid, index, entries) =>
             typeof ssid === "string" && ssid !== "" && ssid.length <= 32 && !ssid.includes("\0") && entries.indexOf(ssid) === index);
+    if (isObject(local.vpn)) {
+        if (typeof local.vpn.schoolService === "string" && (local.vpn.schoolService === ""
+            || /^[A-Za-z0-9_][A-Za-z0-9_.@-]{0,239}\.service$/.test(local.vpn.schoolService)))
+            result.vpn.schoolService = local.vpn.schoolService;
+        if (typeof local.vpn.schoolInterface === "string" && /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,14}$/.test(local.vpn.schoolInterface))
+            result.vpn.schoolInterface = local.vpn.schoolInterface;
+        if (typeof local.vpn.schoolName === "string" && local.vpn.schoolName.trim() !== ""
+            && local.vpn.schoolName.length <= 64 && !/[\x00-\x1f\x7f]/.test(local.vpn.schoolName))
+            result.vpn.schoolName = local.vpn.schoolName.trim();
+    }
     result.workspaceDisplay = workspaceSettings(defaults.workspaceDisplay, local.workspaceDisplay);
     if (isObject(local.monitors)) {
         for (const name of Object.keys(local.monitors)) {

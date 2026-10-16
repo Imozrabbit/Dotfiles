@@ -170,6 +170,7 @@ Rectangle {
         ipAddressCidr: root.ipAddressCidr
         frequencyMhz: root.frequencyMhz
         protectionMode: root.vpnStatus?.protectionMode ?? "unknown"
+        vpnDetails: root.vpnStatus?.vpn ?? ({})
         vpnName: root.vpnStatus?.vpnName ?? ""
         dnsName: root.vpnStatus?.dnsName ?? ""
         theme: root.theme

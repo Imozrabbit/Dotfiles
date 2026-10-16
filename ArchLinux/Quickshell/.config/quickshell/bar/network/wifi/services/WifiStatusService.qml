@@ -12,6 +12,7 @@ Scope {
     property string currentSsid: "Checking…"
     property int currentSignal: 0
     property string currentIp: ""
+    property bool connected: false
     property bool statusLoaded: false
     property string lastStatusCacheJson: ""
     property bool refreshQueued: false
@@ -163,6 +164,7 @@ Scope {
                 }
 
                 root.statusLoaded = true;
+                root.connected = wifi === "enabled" && state === "activated";
                 root.wifiEnabled = wifi === "enabled";
 
                 if (!root.wifiEnabled) {

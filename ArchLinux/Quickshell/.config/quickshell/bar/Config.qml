@@ -14,8 +14,22 @@ Scope {
             mediaPosition: "top",
             edgeSpacing: 14,
             hoverToggleEnabled: true,
+            dns: {
+                providers: [
+                    {
+                        id: "quad9",
+                        label: "Quad9",
+                        ipv4: ["9.9.9.9", "149.112.112.112"],
+                        ipv6: ["2620:fe::fe", "2620:fe::9"]
+                    }
+                ],
+                preferredProvider: "quad9"
+            },
             vpn: {
-                routerManagedSsids: []
+                routerManagedSsids: [],
+                schoolService: "",
+                schoolInterface: "ppp0",
+                schoolName: "School VPN"
             },
             protonManager: {
                 compatibilityToolsDir: "/home/Steam/.local/share/Steam/compatibilitytools.d",

@@ -12,6 +12,47 @@ const local = api.parseConnections("uuid:Proton\\: VPN:wireguard:wg0\nlan:Ethern
 assert.equal(local[0].name, "Proton: VPN");
 assert.equal(api.vpnState(local, ["Home"], ["Home"]).mode, "vpn");
 assert.equal(api.vpnState(local, [], []).name, "Proton: VPN");
+const school = {state: "connected", name: "Unistra"};
+assert.equal(api.vpnState([], [], ["Home"], school).schoolConnected, true);
+assert.equal(api.vpnState([], [], ["Home"], school).nestedWarning, false);
+assert.equal(api.vpnState([], ["Home"], ["Home"], school).nestedWarning, true);
+assert.match(api.vpnState(local, ["Home"], ["Home"], school).name, /Proton: VPN.*Unistra.*Router/);
+for (const state of ["connecting", "stopping", "failed", "unavailable", "disconnected"])
+    assert.equal(api.vpnState([], ["Home"], ["Home"], {state, name:"Unistra"}).nestedWarning, false);
+const service = "LoadState=loaded\nActiveState=active\nSubState=running\nType=notify\n";
+const interfaces = JSON.stringify([{ifname:"ppp0", flags:["UP", "POINTOPOINT"], addr_info:[{family:"inet", scope:"global", local:"10.1.2.3"}]}]);
+assert.equal(api.schoolState(service, interfaces, "ppp0"), "connected");
+assert.equal(api.schoolState(service, "[]", "ppp0"), "connecting");
+assert.equal(api.schoolState(service, interfaces, "ppp1"), "connecting");
+assert.equal(api.schoolState(service.replace("Type=notify", "Type=simple"), interfaces, "ppp0"), "unavailable");
+assert.equal(api.schoolState("LoadState=loaded\nActiveState=inactive\n", null, "ppp0"), "disconnected");
+assert.equal(api.schoolState("LoadState=loaded\nActiveState=failed\n", null, "ppp0"), "failed");
+assert.equal(api.schoolState(null, null, "ppp0"), "unavailable");
+assert.equal(api.schoolState(service, "bad json", "ppp0"), "unavailable");
+const indicatorSource = await readFile(new URL("../../network/vpn/VpnIndicator.qml", import.meta.url), "utf8");
+const tooltipSource = await readFile(new URL("../../network/NetworkTooltip.qml", import.meta.url), "utf8");
+assert.doesNotMatch(tooltipSource, /label: "School VPN"/, "VPN sources share one tooltip row");
+const vpnTextBody = tooltipSource.match(/function vpnText\(\) \{([\s\S]*?)\n    \}/)[1];
+for (const [schoolStatus, schoolConnected, expected] of [
+    ["Unistra: connected", true, "Unistra (OpenFortiVPN)"],
+    ["Unistra: connecting", false, "Not connected · Unistra: connecting"],
+    ["Unistra: failed", false, "Not connected · Unistra: failed"],
+    ["Unistra: disconnected", false, "Not connected"]
+]) {
+    const root = {protectionMode:schoolConnected ? "vpn" : "unprotected", vpnName:"Unistra (OpenFortiVPN)",vpnDetails:{schoolStatus,schoolConnected}};
+    assert.equal(runInNewContext(`(function(){${vpnTextBody}})()`,{root}),expected);
+}
+for (const [state, home, icon, color] of [
+    ["connected", false, "󰑴", "green"], ["connected", true, "󰀦", "#D9A441"],
+    ["disconnected", true, "󰣫", "green"], ["disconnected", false, "󱙲", "red"]
+]) {
+    const vpn = api.vpnState([], home ? ["Home"] : [], ["Home"], {state,name:"Unistra"});
+    const root = {status:{vpn}, protectionMode:vpn.mode, theme:{networkOnlineColor:"green",networkOfflineColor:"red"}};
+    for (const [name, expected] of [["indicatorIcon",icon],["indicatorColor",color]]) {
+        const body = indicatorSource.match(new RegExp(`function ${name}\\(\\) \\{([\\s\\S]*?)\\n    \\}`))[1];
+        assert.equal(runInNewContext(`(function(){${body}})()`, {root}), expected);
+    }
+}
 assert.equal(api.parseConnections("malformed"), null);
 
 const devices = api.parseDevices("GENERAL.DEVICE:eth0\nGENERAL.TYPE:ethernet\nGENERAL.STATE:100 (connected)\nGENERAL.CONNECTION:Ethernet\nIP4.GATEWAY:192.168.1.1\nIP6.GATEWAY:fe80\\:\\:1\n\nGENERAL.DEVICE:wg0\nGENERAL.TYPE:wireguard\nGENERAL.STATE:100 (connected)\nGENERAL.CONNECTION:Proton\\: VPN\nIP4.GATEWAY:\n");
@@ -23,6 +64,7 @@ assert.equal(api.classifyDns(api.parseDns("Link 3 (wg0): 45.90.28.0#example.dns.
 assert.equal(api.classifyDns(api.parseDns("Link 2 (eth0): 2a07:a8c0:0:0:0:0:0:0"), devices, []).kind, "nextdns");
 assert.equal(api.classifyDns(api.parseDns("Link 2 (eth0): fe80::1"), devices, []).kind, "router");
 assert.equal(api.classifyDns(api.parseDns("Link 2 (eth0): 1.1.1.1"), devices, []).kind, "other");
+assert.equal(api.classifyDns(api.parseDns("Link 2 (eth0): 9.9.9.9 2620:fe::fe"), devices, []).kind, "quad9");
 assert.equal(api.classifyDns(api.parseDns("Link 2 (eth0): 192.168.1.1 1.1.1.1"), devices, []).kind, "mixed");
 assert.equal(api.classifyDns(rows, {}, []).kind, "other", "no gateway evidence must not imply router DNS");
 assert.equal(api.classifyDns([], devices, local).kind, "unavailable");

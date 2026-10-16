@@ -20,6 +20,7 @@ PopupWindow {
     required property int frequencyMhz
     required property string protectionMode
     required property string vpnName
+    property var vpnDetails: ({})
     required property string dnsName
     required property Core.Theme theme
 
@@ -44,13 +45,9 @@ PopupWindow {
     }
 
     function vpnText() {
-        if (root.protectionMode === "unknown")
-            return "Unavailable";
-        if (root.protectionMode === "home")
-            return "Router VPN";
-        if (root.protectionMode === "vpn")
-            return root.vpnName;
-        return "Not connected";
+        const text = root.protectionMode === "unknown" ? "Unavailable" : root.protectionMode === "home" ? "Router VPN (assumed)" : root.protectionMode === "vpn" ? root.vpnName : "Not connected";
+        const status = root.vpnDetails.schoolStatus || "";
+        return status && !root.vpnDetails.schoolConnected && !status.endsWith(": disconnected") ? text + " · " + status : text;
     }
 
     // Build only the detail rows that apply to the current connection type.
@@ -89,6 +86,11 @@ PopupWindow {
                 label: "DNS",
                 value: root.valueOrUnavailable(root.dnsName)
             });
+            if (root.vpnDetails.nestedWarning)
+                rows.push({
+                    label: "Warning",
+                    value: "Possible nested VPN: school + assumed router VPN.\nAdditional tunneling overhead may increase latency."
+                });
         }
         return rows;
     }

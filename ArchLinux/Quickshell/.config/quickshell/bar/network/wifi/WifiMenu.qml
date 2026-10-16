@@ -15,6 +15,8 @@ PanelWindow { // qmllint disable uncreatable-type
     required property Core.Theme theme
     required property bool barRevealed
     property bool standalone: true
+    property var homeSsids: []
+    property var dnsConfig: ({})
     readonly property bool actionBusy: controller.isBusy
 
     signal closeRequested
@@ -70,12 +72,15 @@ PanelWindow { // qmllint disable uncreatable-type
 
     WifiController {
         id: controller
+        homeSsids: root.homeSsids
+        dnsConfig: root.dnsConfig
 
         onDismissRequested: root.dismiss()
     }
 
     UI.WifiMenuCard {
         id: menuCard
+        homeSsids: root.homeSsids
 
         anchors.right: parent.right
         anchors.bottom: parent.bottom
