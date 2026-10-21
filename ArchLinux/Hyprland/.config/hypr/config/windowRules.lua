@@ -122,6 +122,13 @@ register_rules({
 		name = "nwg-look: floating",
 		match = { title = "nwg-look" },
 	},
+	{
+		name = "handy: floating",
+		match = {
+			class = "handy",
+			title = "Handy",
+		},
+	},
 }, STYLE.persistent_floating)
 
 ----------------------------------------------------------
