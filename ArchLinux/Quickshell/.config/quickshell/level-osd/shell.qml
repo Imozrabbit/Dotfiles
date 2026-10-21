@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -12,6 +13,15 @@ Scope {
     readonly property int osdHeight: 40
     readonly property int stackSpacing: 8
     readonly property int hideDelayMs: 1000
+
+    // Match XF86AudioMicMute's physical target, not the virtual default source.
+    readonly property string microphoneName: "alsa_input.pci-0000_06_00.6.HiFi__Mic1__source"
+    readonly property var microphone: Pipewire.nodes.values.find(node => node.name === root.microphoneName && !node.isSink && !node.isStream) ?? null
+    readonly property var microphoneAudio: root.microphone?.audio ?? null
+    readonly property bool microphoneReady: !!root.microphone?.ready && !!root.microphoneAudio
+    readonly property bool microphoneMuted: root.microphoneAudio?.muted ?? false
+    readonly property string microphoneLabel: !root.microphoneReady ? "Mic unavailable" : root.microphoneMuted ? "Muted" : "Unmuted"
+    readonly property string microphoneIcon: !root.microphoneReady ? "dialog-warning-symbolic" : root.microphoneMuted ? "microphone-sensitivity-muted-symbolic" : "microphone-sensitivity-high-symbolic"
 
     readonly property var sink: Pipewire.defaultAudioSink
     readonly property var audio: root.sink?.audio ?? null
@@ -41,12 +51,28 @@ Scope {
 
     property bool volumeVisible: false
     property bool brightnessVisible: false
-    readonly property int visibleRows: (root.volumeVisible ? 1 : 0) + (root.brightnessVisible ? 1 : 0)
+    property bool microphoneVisible: false
+    readonly property int visibleRows: (root.volumeVisible ? 1 : 0) + (root.brightnessVisible ? 1 : 0) + (root.microphoneVisible ? 1 : 0)
     readonly property int stackHeight: root.visibleRows * root.osdHeight + Math.max(0, root.visibleRows - 1) * root.stackSpacing
 
     function revealVolume(): void {
         root.volumeVisible = true;
         volumeHideTimer.restart();
+    }
+
+    function revealMicrophone(): void {
+        root.microphoneVisible = true;
+        microphoneHideTimer.restart();
+    }
+
+    IpcHandler {
+        target: "levelOsd"
+        function microphone(): void {
+            // Missing inputs emit no mute signal. Otherwise wait for PipeWire,
+            // so IPC cannot briefly display the state from before the keypress.
+            if (!root.microphoneReady)
+                root.revealMicrophone();
+        }
     }
 
     function revealBrightness(): void {
@@ -75,7 +101,16 @@ Scope {
     }
 
     PwObjectTracker {
-        objects: root.sink ? [root.sink] : []
+        objects: [root.sink, root.microphone].filter(node => node !== null)
+    }
+
+    Connections {
+        target: root.microphoneAudio
+        ignoreUnknownSignals: true
+        function onMutedChanged(): void {
+            if (root.microphoneReady)
+                root.revealMicrophone();
+        }
     }
 
     Connections {
@@ -161,6 +196,12 @@ Scope {
         onTriggered: root.brightnessVisible = false
     }
 
+    Timer {
+        id: microphoneHideTimer
+        interval: root.hideDelayMs
+        onTriggered: root.microphoneVisible = false
+    }
+
     LazyLoader {
         active: root.visibleRows > 0
 
@@ -196,6 +237,16 @@ Scope {
                     iconName: "display-brightness-symbolic"
                     fillLevel: root.displayedBrightness
                     label: root.brightnessPercent >= 0 ? root.brightnessPercent + "%" : "N/A"
+                }
+
+                OsdItem {
+                    visible: root.microphoneVisible
+                    Layout.preferredWidth: root.osdWidth
+                    Layout.preferredHeight: root.osdHeight
+                    iconName: root.microphoneIcon
+                    label: root.microphoneLabel
+                    fillLevel: 0
+                    statusOnly: true
                 }
             }
         }

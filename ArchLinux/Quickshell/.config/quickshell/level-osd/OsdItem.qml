@@ -11,6 +11,7 @@ Rectangle {
     required property string label
 
     property int animationDurationMs: 80
+    property bool statusOnly: false
 
     implicitWidth: 280
     implicitHeight: 40
@@ -25,6 +26,11 @@ Rectangle {
         }
         spacing: 10
 
+        Item {
+            visible: root.statusOnly
+            Layout.fillWidth: true
+        }
+
         IconImage {
             Layout.alignment: Qt.AlignVCenter
             implicitSize: 25
@@ -32,6 +38,7 @@ Rectangle {
         }
 
         Rectangle {
+            visible: !root.statusOnly
             Layout.fillWidth: true
             Layout.preferredHeight: 8
             Layout.alignment: Qt.AlignVCenter
@@ -60,12 +67,17 @@ Rectangle {
 
         Text {
             Layout.alignment: Qt.AlignVCenter
-            Layout.preferredWidth: 42
+            Layout.preferredWidth: root.statusOnly ? implicitWidth : 42
             text: root.label
             color: "#ffffffff"
             font.pixelSize: 14
-            horizontalAlignment: Text.AlignRight
+            horizontalAlignment: root.statusOnly ? Text.AlignLeft : Text.AlignRight
             verticalAlignment: Text.AlignVCenter
+        }
+
+        Item {
+            visible: root.statusOnly
+            Layout.fillWidth: true
         }
     }
 }
