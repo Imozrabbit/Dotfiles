@@ -17,6 +17,7 @@ Scope {
     property bool outputFinished: false
     property bool errorFinished: false
     property int exitCode: -1
+    property bool timedOut: false
 
     function clearStatus(reason) {
         root.available = false;
@@ -26,14 +27,15 @@ Scope {
         root.error = reason;
     }
 
-    function refresh() {
+    function refresh(force) {
         const now = Date.now();
-        if (root.queryPending || queryProcess.running || root.lastAttemptAt > 0 && now - root.lastAttemptAt < 10000)
+        if (root.queryPending || queryProcess.running || !force && root.lastAttemptAt > 0 && now - root.lastAttemptAt < 10000)
             return;
         root.lastAttemptAt = now;
         root.outputFinished = false;
         root.errorFinished = false;
         root.exitCode = -1;
+        root.timedOut = false;
         root.queryPending = true;
         watchdog.restart();
         queryProcess.running = true;
@@ -44,9 +46,9 @@ Scope {
             return;
         watchdog.stop();
         root.queryPending = false;
-        const status = root.exitCode === 0 ? MouseBatteryParser.parseStatus(queryOutput.text) : null;
+        const status = root.exitCode === 0 && !root.timedOut ? MouseBatteryParser.parseStatus(queryOutput.text) : null;
         if (!status) {
-            root.clearStatus(root.exitCode === 0 ? "Invalid mouse battery response" : queryError.text.trim().slice(0, 200) || "Mouse query failed");
+            root.clearStatus(root.timedOut ? "Mouse query timed out" : root.exitCode === 0 ? "Invalid mouse battery response" : queryError.text.trim().slice(0, 200) || "Mouse query failed");
             return;
         }
         root.percentage = status.battery;
@@ -79,6 +81,17 @@ Scope {
             root.finishQuery();
         }
         // qmllint enable signal-handler-parameters
+        onRunningChanged: {
+            if (!running && root.queryPending)
+                Qt.callLater(function () {
+                    if (!queryProcess.running && root.queryPending && root.exitCode < 0) {
+                        root.exitCode = 1;
+                        root.outputFinished = true;
+                        root.errorFinished = true;
+                        root.finishQuery();
+                    }
+                });
+        }
     }
 
     Timer {
@@ -86,9 +99,9 @@ Scope {
         interval: 5000
         repeat: false
         onTriggered: {
-            root.queryPending = false;
+            root.timedOut = true;
             root.clearStatus("Mouse query timed out");
-            queryProcess.running = false;
+            queryProcess.signal(15);
         }
     }
 

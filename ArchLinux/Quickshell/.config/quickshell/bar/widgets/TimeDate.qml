@@ -49,8 +49,8 @@ Rectangle {
     required property string batteryActionError
 
     signal notificationsRequested
-    signal mouseRefreshRequested
-    signal djiRefreshRequested
+    signal mouseRefreshRequested(bool force)
+    signal djiRefreshRequested(bool force)
     signal batteryPanelOpened
     signal batteryPowerProfileRequested(string profile)
     signal batteryChargeThresholdsRequested(int startValue, int endValue)
@@ -135,7 +135,7 @@ Rectangle {
                 charging: root.mouseCharging
                 connection: root.mouseConnection
                 error: root.mouseError
-                onRefreshRequested: root.mouseRefreshRequested()
+                onRefreshRequested: force => root.mouseRefreshRequested(force)
             }
 
             Rectangle {
@@ -162,7 +162,7 @@ Rectangle {
                 available: root.djiAvailable
                 transmitters: root.djiTransmitters
                 error: root.djiError
-                onRefreshRequested: root.djiRefreshRequested()
+                onRefreshRequested: force => root.djiRefreshRequested(force)
             }
             Rectangle {
                 id: djiSeparator

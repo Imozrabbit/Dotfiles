@@ -20,8 +20,8 @@ for (const value of ["invalid", "null", "[]", "{}",
     assert.equal(parser.parseStatus(value), null);
 
 const service = await readFile(new URL("../../services/MouseBattery.qml", import.meta.url), "utf8");
-function complete(order, exitCode = 0, text = '{"battery":57,"charging":true,"connection":"wired"}') {
-    const root = { queryPending: true, available: false, outputFinished: false, errorFinished: false, exitCode: -1 };
+function complete(order, exitCode = 0, text = '{"battery":57,"charging":true,"connection":"wired"}', timedOut = false) {
+    const root = { queryPending: true, available: false, outputFinished: false, errorFinished: false, exitCode: -1, timedOut };
     const context = { root, MouseBatteryParser: parser, queryOutput: { text }, queryError: { text: "WLMouse not found" }, watchdog: { stop() {} } };
     for (const name of ["clearStatus", "finishQuery"]) {
         const match = service.match(new RegExp(`function ${name}\\([^)]*\\) \\{[\\s\\S]*?\\n    \\}`));
@@ -59,4 +59,8 @@ late.root.errorFinished = true;
 late.finish();
 assert.equal(late.root.available, false, "late results must not replace timed-out state");
 assert.equal(late.root.error, "Mouse query timed out");
+const timedOut = complete(["exit", "outputFinished", "errorFinished"], 0, '{"battery":57,"charging":true,"connection":"wired"}', true).root;
+assert.equal(timedOut.available, false, "timed-out output cannot become a successful reading");
+assert.equal(timedOut.error, "Mouse query timed out");
+assert.equal(timedOut.queryPending, false, "release ownership after timeout, exit and both streams");
 console.log("mouse battery output checks passed");

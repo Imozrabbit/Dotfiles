@@ -13,7 +13,7 @@ Item {
     required property string connection
     required property string error
 
-    signal refreshRequested
+    signal refreshRequested(bool force)
     property bool tooltipVisible: false
 
     implicitWidth: mouseText.implicitWidth + 20
@@ -40,15 +40,21 @@ Item {
 
     HoverHandler {
         id: mouseHover
+        cursorShape: Qt.PointingHandCursor
         onHoveredChanged: {
             if (hovered) {
-                root.refreshRequested();
+                root.refreshRequested(false);
                 tooltipDelay.restart();
             } else {
                 tooltipDelay.stop();
                 root.tooltipVisible = false;
             }
         }
+    }
+
+    TapHandler {
+        acceptedButtons: Qt.LeftButton
+        onTapped: root.refreshRequested(true)
     }
 
     Timer {

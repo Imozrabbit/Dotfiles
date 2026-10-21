@@ -8,7 +8,7 @@ Item {
     required property bool available
     required property var transmitters
     required property string error
-    signal refreshRequested
+    signal refreshRequested(bool force)
     property bool tooltipVisible: false
     implicitWidth: micText.implicitWidth + 20
     implicitHeight: micText.implicitHeight + 4
@@ -31,15 +31,20 @@ Item {
     }
     HoverHandler {
         id: micHover
+        cursorShape: Qt.PointingHandCursor
         onHoveredChanged: {
             if (hovered) {
-                root.refreshRequested();
+                root.refreshRequested(false);
                 tooltipDelay.restart();
             } else {
                 tooltipDelay.stop();
                 root.tooltipVisible = false;
             }
         }
+    }
+    TapHandler {
+        acceptedButtons: Qt.LeftButton
+        onTapped: root.refreshRequested(true)
     }
     Timer {
         id: tooltipDelay

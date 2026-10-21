@@ -21,9 +21,9 @@ Scope {
         root.transmitters = [];
         root.error = reason;
     }
-    function refresh() {
+    function refresh(force) {
         const now = Date.now();
-        if (!root.enabled || root.queryPending || queryProcess.running || root.lastAttemptAt > 0 && now - root.lastAttemptAt < 10000)
+        if (!root.enabled || root.queryPending || queryProcess.running || !force && root.lastAttemptAt > 0 && now - root.lastAttemptAt < 10000)
             return;
         root.lastAttemptAt = now;
         root.outputFinished = false;

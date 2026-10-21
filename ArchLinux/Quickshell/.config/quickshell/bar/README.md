@@ -327,7 +327,8 @@ python3 "$config_dir/bar/scripts/wlmouse.py"
 
 Reconnect the mouse/receiver if needed. The final command should print JSON
 without sudo. Then enable `modules.mouseBattery`. Hover refreshes readings
-with a 10-second cooldown; failed readings show `N/A`.
+with a 10-second cooldown; left-click refreshes immediately, bypassing that
+cooldown. Running queries never overlap. Failed readings show `N/A`.
 
 </details>
 
@@ -370,7 +371,8 @@ Enable `"djiMicBattery": true` inside `modules` in `bar-local.json` on that PC.
 Global and per-output switches are supported; defaults and this machine's live
 override keep it disabled. Disabled outputs create no collector; all enabled
 outputs share one service. Reads run every minute, with hover refresh throttled
-to once per ten seconds. Queries never overlap; the 20-second watchdog sends
+to once per ten seconds. Left-click refreshes immediately, bypassing that cooldown.
+Queries never overlap, including repeated clicks; the 20-second watchdog sends
 SIGTERM and waits for process exit/stream completion, allowing USB cleanup.
 
 The validated collector still uses interface 6 / endpoint `0x86` and may

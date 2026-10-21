@@ -437,9 +437,9 @@ PanelWindow { // qmllint disable uncreatable-type
                 djiAvailable: root.djiMicBatteryService?.available ?? false
                 djiTransmitters: root.djiMicBatteryService?.transmitters ?? []
                 djiError: root.djiMicBatteryService?.error ?? "No transmitter reading available"
-                onDjiRefreshRequested: {
+                onDjiRefreshRequested: force => {
                     if (root.djiMicBatteryService)
-                        root.djiMicBatteryService.refresh();
+                        root.djiMicBatteryService.refresh(force);
                 }
                 mouseName: root.configuration.mouseBattery.name
                 mouseAvailable: root.mouseBatteryService?.available ?? false
@@ -447,9 +447,9 @@ PanelWindow { // qmllint disable uncreatable-type
                 mouseCharging: root.mouseBatteryService?.charging ?? false
                 mouseConnection: root.mouseBatteryService?.connection ?? ""
                 mouseError: root.mouseBatteryService?.error ?? "No reading available"
-                onMouseRefreshRequested: {
+                onMouseRefreshRequested: force => {
                     if (root.mouseBatteryService)
-                        root.mouseBatteryService.refresh();
+                        root.mouseBatteryService.refresh(force);
                 }
                 showClock: root.modules.clock
                 showCalendar: root.modules.calendar
