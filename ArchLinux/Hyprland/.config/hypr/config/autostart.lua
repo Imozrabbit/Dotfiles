@@ -25,6 +25,9 @@ hl.on("hyprland.start", function()
 	hl.exec_cmd("qs -n -p ~/.config/quickshell/lockscreen")
 	hl.exec_cmd("qs -c calendar -d")
 
+	-- Handy
+	hl.exec_cmd("handy --start-hidden")
+
 	-- Autostart the input methode framework fcitx5
 	hl.exec_cmd("fcitx5 --replace -d")
 end)
