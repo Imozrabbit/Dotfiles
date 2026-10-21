@@ -6,6 +6,13 @@ hl.workspace_rule({
 	persistent = true,
 })
 
+hl.workspace_rule({
+	workspace = "2",
+	monitor = "eDP-1",
+	layout = "master",
+	persistent = true,
+})
+
 -------------- Set up workspaces for specific applications --------------
 -- Stremio
 hl.workspace_rule({
