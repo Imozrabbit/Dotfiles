@@ -75,6 +75,7 @@ Scope {
                 brightness: true,
                 battery: true,
                 mouseBattery: false,
+                djiMicBattery: false,
                 openAiUsage: false,
                 clock: true,
                 calendar: true,

@@ -196,6 +196,7 @@ ColumnLayout {
             style: root.style
             profileUuid: root.controller.activeConnectionUuid
             backend: root.controller.dns
+            observedDns: root.controller.connectionReady ? root.controller.observedDns : null
             isHome: root.isHome
         }
     }

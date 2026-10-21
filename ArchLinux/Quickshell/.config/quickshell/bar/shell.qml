@@ -32,6 +32,7 @@ Scope {
     readonly property var swayncService: swayncLoader.item
     readonly property var batteryService: batteryLoader.item
     readonly property var mouseBatteryService: mouseBatteryLoader.item
+    readonly property var djiMicBatteryService: djiMicBatteryLoader.item
     readonly property var openAiUsageService: openAiUsageLoader.item
     readonly property var mprisService: mprisLoader.item
     readonly property var bluetoothService: bluetoothLoader.item
@@ -132,6 +133,13 @@ Scope {
         Services.MouseBattery {}
     }
     LazyLoader {
+        id: djiMicBatteryLoader
+        active: root.uses("djiMicBattery") || (root.djiMicBatteryService?.queryPending ?? false)
+        Services.DjiMicBattery {
+            enabled: root.uses("djiMicBattery")
+        }
+    }
+    LazyLoader {
         id: bluetoothLoader
         active: root.uses("bluetooth")
         Services.Bluetooth {}
@@ -162,7 +170,7 @@ Scope {
     }
     LazyLoader {
         id: vpnLoader
-        active: root.uses("vpn")
+        active: root.uses("vpn") || root.uses("wifiMenu")
         Vpn.VpnDnsStatus {
             routerManagedSsids: root.barConfig.settings.vpn.routerManagedSsids
             schoolService: root.barConfig.settings.vpn.schoolService
@@ -177,6 +185,9 @@ Scope {
             standalone: false
             homeSsids: root.barConfig.settings.vpn.routerManagedSsids
             dnsConfig: root.barConfig.settings.dns
+            observedDns: root.vpnStatus?.dns ?? ({
+                    kind: "unavailable"
+                })
             theme: root.theme
             barRevealed: outputBars.instances.find(bar => bar.modelData === root.wifiMenu?.screen)?.barShown ?? false
             onCloseRequested: visible = false

@@ -188,14 +188,17 @@ function classifyDns(rows, devices, connections) {
     const nextDns = ["45.90.28.0", "45.90.30.0", "2a07:a8c0:0:0:0:0:0:0", "2a07:a8c1:0:0:0:0:0:0"];
     const quad9 = ["9.9.9.9", "149.112.112.112", "2620:fe:0:0:0:0:0:fe", "2620:fe:0:0:0:0:0:9"];
     const kinds = [];
+    const sources = [];
     for (const row of rows) {
         const device = devices?.[row.device];
         const vpn = (connections || []).some(connection => (connection.type === "wireguard" || connection.type === "vpn") && connection.device === row.device);
         const physical = device?.connected && (device.type === "ethernet" || device.type === "wifi");
+        const source = vpn ? "vpn" : physical ? "network" : "other";
+        if (!sources.includes(source)) sources.push(source);
         const kind = nextDns.includes(row.address) ? "nextdns" : quad9.includes(row.address) ? "quad9" : physical && device.gateways.includes(row.address) ? "router" : vpn ? "vpn" : "other";
         if (!kinds.includes(kind)) kinds.push(kind);
     }
     const kind = kinds.length > 1 ? "mixed" : kinds[0];
     const names = { nextdns: "NextDNS", quad9: "Quad9", router: "Router DNS", vpn: "VPN DNS", other: "Other DNS", mixed: "Mixed" };
-    return { kind: kind, name: names[kind], servers: rows.map(row => (row.device || "Global") + ": " + row.server).join("\n") };
+    return { kind: kind, name: names[kind], source: sources.length > 1 ? "mixed" : sources[0], servers: rows.map(row => (row.device || "Global") + ": " + row.server).join("\n") };
 }

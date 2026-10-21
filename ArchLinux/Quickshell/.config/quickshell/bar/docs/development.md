@@ -26,6 +26,7 @@ Run from `bar/`. These checks use fixtures, not real gaming files or credentials
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/proton -p 'test_proton_*.py'
 PYTHONDONTWRITEBYTECODE=1 python3 tests/quota/openai-usage-checks.py
 PYTHONDONTWRITEBYTECODE=1 python3 tests/hardware/wlmouse-checks.py
+PYTHONDONTWRITEBYTECODE=1 python3 tests/hardware/dji-mic-backend-checks.py
 for test in tests/*.mjs tests/*/*.mjs; do
   PYTHONDONTWRITEBYTECODE=1 node "$test" || exit
 done

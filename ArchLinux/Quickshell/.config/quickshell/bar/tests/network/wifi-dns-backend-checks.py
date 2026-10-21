@@ -25,8 +25,8 @@ with patch.object(dns.secrets,"randbits",return_value=123), patch.object(dns.soc
     question=b"\x07example\x03com\x00"+dns.struct.pack("!HH",1,1)
     connection.recv.return_value+=question
     assert dns.test_server("9.9.9.9")["status"]=="response"
-default = "802-11-wireless\nauto\nno\n\nauto\nno\n\n"
-quad9 = "802-11-wireless\nauto\nyes\n9.9.9.9,149.112.112.112\nauto\nyes\n2620:fe::fe,2620:fe::9\n"
+default = "802-11-wireless\nauto\nno\n\nauto\nno\n\n0\n"
+quad9 = "802-11-wireless\nauto\nyes\n9.9.9.9,149.112.112.112\nauto\nyes\n2620:fe::fe,2620:fe::9\n0\n"
 with patch.object(dns, "nmcli", return_value=default):
     assert dns.read_profile(uuid)["policy"] == "automatic"
 with patch.object(dns, "nmcli", return_value=quad9):
@@ -98,7 +98,7 @@ with patch.object(dns, "nmcli", side_effect=home), patch.object(dns.sys,"argv",[
     with redirect_stdout(output): assert dns.main() == 0
     assert json.loads(output.getvalue())["home"] is True
 assert any("modify" in call for call in calls), "Home manual DNS must reset to automatic"
-with patch.object(dns,"test_server",side_effect=lambda address:{"server":address,"status":"timeout"}) as probe, \
+with patch.object(dns,"test_server",side_effect=lambda address, **kwargs:{"server":address,"status":"timeout"}) as probe, \
      patch.object(dns,"nmcli",side_effect=AssertionError("DNS tests cannot mutate profiles")), \
      patch.object(dns.sys,"argv",["dns.py","test","quad9","{}"]):
     output = io.StringIO()

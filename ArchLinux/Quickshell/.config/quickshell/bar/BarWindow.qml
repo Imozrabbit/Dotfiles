@@ -27,6 +27,7 @@ PanelWindow { // qmllint disable uncreatable-type
     readonly property var swayncService: root.shared.swayncService
     readonly property var batteryService: root.shared.batteryService
     readonly property var mouseBatteryService: root.shared.mouseBatteryService
+    readonly property var djiMicBatteryService: root.shared.djiMicBatteryService
     readonly property var openAiUsageService: root.shared.openAiUsageService
     readonly property var mprisService: root.shared.mprisService
     readonly property var bluetoothService: root.shared.bluetoothService
@@ -227,7 +228,7 @@ PanelWindow { // qmllint disable uncreatable-type
             anchors.right: parent.right
             anchors.rightMargin: root.sideMargin
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.modules.network || root.modules.cpu || root.modules.gpu || root.modules.memory || root.modules.volume || root.modules.bluetooth || root.modules.inputMethod || root.modules.brightness || root.modules.battery || root.modules.mouseBattery || root.modules.openAiUsage || root.modules.clock || root.modules.calendar || root.modules.notifications
+            visible: root.modules.network || root.modules.cpu || root.modules.gpu || root.modules.memory || root.modules.volume || root.modules.bluetooth || root.modules.inputMethod || root.modules.brightness || root.modules.battery || root.modules.mouseBattery || root.modules.djiMicBattery || root.modules.openAiUsage || root.modules.clock || root.modules.calendar || root.modules.notifications
             z: 1
 
             Network.NetworkUsage {
@@ -432,6 +433,14 @@ PanelWindow { // qmllint disable uncreatable-type
                 currentDate: root.shared.clock?.date ?? new Date()
                 showBattery: root.modules.battery
                 showMouseBattery: root.modules.mouseBattery
+                showDjiMicBattery: root.modules.djiMicBattery
+                djiAvailable: root.djiMicBatteryService?.available ?? false
+                djiTransmitters: root.djiMicBatteryService?.transmitters ?? []
+                djiError: root.djiMicBatteryService?.error ?? "No transmitter reading available"
+                onDjiRefreshRequested: {
+                    if (root.djiMicBatteryService)
+                        root.djiMicBatteryService.refresh();
+                }
                 mouseName: root.configuration.mouseBattery.name
                 mouseAvailable: root.mouseBatteryService?.available ?? false
                 mousePercentage: root.mouseBatteryService?.percentage ?? -1

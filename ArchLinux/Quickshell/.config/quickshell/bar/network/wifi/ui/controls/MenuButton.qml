@@ -12,6 +12,7 @@ Rectangle {
     property string icon: ""
     property string kind: "outline"
     property bool disabled: false
+    property bool compact: false
     property color btnColor: style.success
     property color textColor: kind === "primary" ? style.background : style.foreground
 
@@ -20,7 +21,7 @@ Rectangle {
     readonly property bool hovered: mouse.containsMouse
 
     radius: 12
-    implicitHeight: 40
+    implicitHeight: compact ? 24 : 40
     scale: mouse.pressed ? 0.95 : (hovered && !disabled ? 1.045 : 1.0)
     color: {
         if (kind === "primary") {
@@ -57,21 +58,21 @@ Rectangle {
 
     RowLayout {
         anchors.centerIn: parent
-        spacing: 8
+        spacing: root.compact ? 4 : 8
 
         Label {
             visible: root.icon.length > 0
             text: root.icon
             font.family: root.style.iconFont
-            font.pixelSize: 16
+            font.pixelSize: root.compact ? 12 : 16
             color: root.textColor
         }
 
         Label {
             text: root.text
             font.family: root.style.textFont
-            font.pixelSize: 13
-            font.weight: 600
+            font.pixelSize: root.compact ? 11 : 13
+            font.weight: root.compact ? Font.Normal : Font.DemiBold
             color: root.textColor
         }
     }

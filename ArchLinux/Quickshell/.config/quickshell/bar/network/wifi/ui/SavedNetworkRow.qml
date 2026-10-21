@@ -17,6 +17,7 @@ Rectangle {
     property bool isConnected: false
     property bool isHome: false
     required property var dnsBackend
+    property var observedDns: null
 
     signal clicked(string uuid, string ssid, bool isEnterprise)
     signal toggleRequested
@@ -24,7 +25,7 @@ Rectangle {
     width: ListView.view ? ListView.view.width : 0
     height: 35 + (root.expanded ? dnsOptions.implicitHeight + 12 : 0)
     radius: 12
-    color: mouse.containsMouse ? Qt.rgba(style.accent.r, style.accent.g, style.accent.b, 0.10) : "transparent"
+    color: Qt.rgba(style.accent.r, style.accent.g, style.accent.b, mouse.containsMouse ? 0.10 : 0.06)
     border.width: mouse.containsMouse ? 1 : 0
     border.color: Qt.rgba(style.accent.r, style.accent.g, style.accent.b, 0.25)
     opacity: isBusy ? 0.6 : 1.0
@@ -96,6 +97,7 @@ Rectangle {
         style: root.style
         profileUuid: root.uuid
         backend: root.dnsBackend
+        observedDns: root.isConnected ? root.observedDns : null
         isHome: root.isHome
     }
 }

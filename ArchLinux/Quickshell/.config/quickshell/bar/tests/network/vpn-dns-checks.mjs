@@ -68,6 +68,9 @@ assert.equal(api.classifyDns(api.parseDns("Link 2 (eth0): 9.9.9.9 2620:fe::fe"),
 assert.equal(api.classifyDns(api.parseDns("Link 2 (eth0): 192.168.1.1 1.1.1.1"), devices, []).kind, "mixed");
 assert.equal(api.classifyDns(rows, {}, []).kind, "other", "no gateway evidence must not imply router DNS");
 assert.equal(api.classifyDns([], devices, local).kind, "unavailable");
+assert.equal(api.classifyDns(api.parseDns("Link 3 (wg0): 45.90.28.0#example.dns.nextdns.io"), devices, local).source, "vpn", "Known provider retains VPN source");
+assert.equal(api.classifyDns(api.parseDns("Link 2 (eth0): 45.90.28.0"), devices, local).source, "network", "Provider name alone does not imply VPN");
+assert.equal(api.classifyDns(api.parseDns("Link 2 (eth0): 45.90.28.0\nLink 3 (wg0): 45.90.28.0"), devices, local).source, "mixed", "Same provider on different source types remains mixed");
 assert.equal(api.parseDns("bad output"), null);
 assert.equal(api.parseDns("Link 2 (eth0): 999.1.2.3"), null);
 assert.equal(api.classifyDns(api.parseDns("Link 2 (eth0): ::ffff:192.0.2.1"), devices, []).kind, "other");

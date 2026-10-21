@@ -9,6 +9,7 @@ Scope {
     id: root
     property var homeSsids: []
     property var dnsConfig: ({})
+    property var observedDns: null
     property string lastHomeUuid: ""
     onHomeSsidsChanged: {
         root.lastHomeUuid = "";

@@ -183,6 +183,7 @@ Item {
                         isConnected: savedRow.uuid === root.controller.activeConnectionUuid
                         isHome: root.homeSsids.includes(savedRow.ssid)
                         dnsBackend: root.controller.dns
+                        observedDns: root.controller.observedDns
                         onClicked: (uuid, ssid, isEnterprise) => root.controller.connectSaved(uuid, ssid, isEnterprise)
                         onToggleRequested: root.toggleDns("saved:" + savedRow.uuid)
                     }

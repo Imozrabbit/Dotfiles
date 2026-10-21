@@ -15,7 +15,7 @@ const defaults = {
     mediaPosition: "top",
     edgeSpacing: 14,
     hoverToggleEnabled: true,
-    modules: { network: true, wifiMenu: true, vpn: true, bluetooth: true, calendar: true, weather: true, cpu: true, mouseBattery: false, openAiUsage: false },
+    modules: { network: true, wifiMenu: true, vpn: true, bluetooth: true, calendar: true, weather: true, cpu: true, mouseBattery: false, djiMicBattery: false, openAiUsage: false },
     mouseBattery: { name: "WLMouse Beast X" },
     openAiUsage: { display: "weekly" },
     vpn: { routerManagedSsids: [] },
@@ -25,6 +25,10 @@ const defaults = {
 };
 
 const missing = config.resolveConfig(defaults, "{}");
+assert.equal(config.screenConfig(missing, "DP-1").modules.djiMicBattery, false);
+const djiOverride = config.resolveConfig(defaults, '{"modules":{"djiMicBattery":true},"monitors":{"DP-1":{"modules":{"djiMicBattery":false}}}}');
+assert.equal(config.screenConfig(djiOverride, "DP-1").modules.djiMicBattery, false);
+assert.equal(config.screenConfig(djiOverride, "DP-2").modules.djiMicBattery, true);
 assert.equal(missing.protonManager?.compatibilityToolsDir, "/host/tools");
 assert.equal(config.resolveConfig(defaults, '{"protonManager":{"compatibilityToolsDir":"/new/tools"}}').protonManager.compatibilityToolsDir, "/new/tools");
 const protonPaths = { compatibilityToolsDir: "/new/tools", umuConfigPath: "/new/umu.toml", sandboxCompatibilityToolsDir: "/new/sandbox/tools" };

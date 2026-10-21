@@ -23,6 +23,10 @@ Rectangle {
     required property bool barRevealed
     required property bool showBattery
     required property bool showMouseBattery
+    property bool showDjiMicBattery: false
+    property bool djiAvailable: false
+    property var djiTransmitters: []
+    property string djiError: "No transmitter reading available"
     required property string mouseName
     required property bool mouseAvailable
     required property int mousePercentage
@@ -46,6 +50,7 @@ Rectangle {
 
     signal notificationsRequested
     signal mouseRefreshRequested
+    signal djiRefreshRequested
     signal batteryPanelOpened
     signal batteryPowerProfileRequested(string profile)
     signal batteryChargeThresholdsRequested(int startValue, int endValue)
@@ -59,7 +64,7 @@ Rectangle {
 
     implicitWidth: contentLayout.implicitWidth
     implicitHeight: contentLayout.implicitHeight
-    visible: root.showBattery || root.showMouseBattery || root.showClock || root.showCalendar || root.showNotifications
+    visible: root.showBattery || root.showMouseBattery || root.showDjiMicBattery || root.showClock || root.showCalendar || root.showNotifications
     radius: root.theme.radiusMedium
     color: root.theme.timeDateBg
 
@@ -104,7 +109,7 @@ Rectangle {
             Rectangle {
                 id: batterySeparator
 
-                visible: root.showBattery && (root.showMouseBattery || root.showClock || root.showCalendar || root.showNotifications)
+                visible: root.showBattery && (root.showMouseBattery || root.showDjiMicBattery || root.showClock || root.showCalendar || root.showNotifications)
                 anchors.left: battery.right
                 anchors.verticalCenter: parent.verticalCenter
                 implicitWidth: 1
@@ -135,8 +140,34 @@ Rectangle {
 
             Rectangle {
                 id: mouseSeparator
-                visible: root.showClock || root.showCalendar || root.showNotifications
+                visible: root.showDjiMicBattery || root.showClock || root.showCalendar || root.showNotifications
                 anchors.left: mouseBattery.right
+                anchors.verticalCenter: parent.verticalCenter
+                implicitWidth: 1
+                implicitHeight: root.theme.timeDateFontSize
+                color: root.theme.timeDateColor
+                opacity: 0.25
+            }
+        }
+
+        Item {
+            visible: root.showDjiMicBattery
+            implicitWidth: djiMic.implicitWidth + 11
+            implicitHeight: Math.max(djiMic.implicitHeight, djiSeparator.implicitHeight)
+            DjiMicBattery {
+                id: djiMic
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                theme: root.theme
+                available: root.djiAvailable
+                transmitters: root.djiTransmitters
+                error: root.djiError
+                onRefreshRequested: root.djiRefreshRequested()
+            }
+            Rectangle {
+                id: djiSeparator
+                visible: root.showClock || root.showCalendar || root.showNotifications
+                anchors.left: djiMic.right
                 anchors.verticalCenter: parent.verticalCenter
                 implicitWidth: 1
                 implicitHeight: root.theme.timeDateFontSize

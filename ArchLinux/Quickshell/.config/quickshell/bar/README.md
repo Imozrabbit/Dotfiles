@@ -66,7 +66,7 @@ Install tools for features you use; missing tools leave those controls unavailab
 
 | Feature | Tools |
 | --- | --- |
-| Network / Wi-Fi / VPN / DNS | `ip`, `iw`, NetworkManager (`nmcli`), `resolvectl`; optional school VPN detection uses `systemctl` |
+| Network / Wi-Fi / VPN / DNS | `ip`, `iw`, NetworkManager (`nmcli`), `resolvectl`; strict DNS-over-TLS also requires NetworkManager's `systemd-resolved` DNS backend and `busctl`; optional school VPN detection uses `systemctl` |
 | Updates | `checkupdates` from `pacman-contrib` |
 | Bluetooth | `bluetoothctl`; optional `ghostty` + `bluetui` for advanced controls |
 | Brightness | `brightnessctl` |
@@ -110,6 +110,7 @@ Proton paths before enabling Proton Manager.
       {
         "id": "quad9",
         "label": "Quad9",
+        "tls": false,
         "ipv4": ["9.9.9.9", "149.112.112.112"],
         "ipv6": ["2620:fe::fe", "2620:fe::9"]
       }
@@ -162,6 +163,7 @@ Proton paths before enabling Proton Manager.
     "brightness": true,
     "battery": true,
     "mouseBattery": false,
+    "djiMicBattery": false,
     "openAiUsage": false,
     "clock": true,
     "calendar": true,
@@ -244,7 +246,7 @@ except **`protonManager`**, **`mouseBattery`**, and **`openAiUsage`**.
 | `media` | MPRIS music in the selected top/bottom position, with scrolling track text and playback toggle. |
 | `network` | Download/upload speeds and connection details. |
 | `vpn` | Local VPN/router VPN indicator and DNS category. Requires `network`. |
-| `wifiMenu` | Wi-Fi connections, saved networks, credentials, and per-profile Default/Quad9 DNS selection. Requires `network`; DNS selection also requires Python 3. |
+| `wifiMenu` | Wi-Fi connections, saved networks, credentials, and per-profile DNS provider selection, including strict DNS-over-TLS. Requires `network`; DNS selection also requires Python 3. |
 | `cpu` | CPU usage and sensor details. |
 | `gpu` | AMD GPU usage/details; Intel/NVIDIA metrics are not supported. |
 | `memory` | Memory usage and details. |
@@ -254,6 +256,7 @@ except **`protonManager`**, **`mouseBattery`**, and **`openAiUsage`**.
 | `brightness` | Display brightness and available keyboard backlight. |
 | `battery` | Charge, health, power profiles, and supported charge limits. |
 | `mouseBattery` | Supported WLMouse battery level; independent of laptop battery. |
+| `djiMicBattery` | DJI Mic Mini transmitter battery icons and charging status, beside mouse in the same box. Disabled by default; requires Python 3, PyUSB, libusb, and USB access rule below. |
 | `openAiUsage` | ChatGPT/Codex subscription quota, reset times, and click-to-refresh. |
 | `clock` | Time and date. |
 | `calendar` | Monthly calendar popup. |
@@ -276,7 +279,7 @@ tray closes its menu. Empty tray/Proton sections have no leading separator.
 | `launchers[].leftCommand` / `rightCommand` | Program plus arguments for each click, e.g. `["qt6ct"]`. Omitted or `[]` does nothing. No shell expansion. |
 | `mouseBattery.name` | Name displayed in the mouse tooltip. Default: `WLMouse Beast X`; does not change device detection. |
 | `openAiUsage.display` | Quota remaining on the chip: `weekly` (default), `fiveHour`, or `both`. Both shows weekly first, then 5-hour, separated by a dot. Calendar/timer icons identify each period. |
-| `dns.providers` | DNS choices in addition to built-in Default. Defaults to Quad9 only. Entries have a unique `id`, `label`, and `ipv4`/`ipv6` address lists. Invalid entries are hidden with a configuration warning. `[]` leaves only Default. |
+| `dns.providers` | DNS choices in addition to built-in Default. Defaults to Quad9 only. Entries have a unique `id`, `label`, and `ipv4`/`ipv6` address lists. Optional `tls: true` requires `IP#TLS-hostname` entries and enables strict DoT without plaintext fallback. Invalid entries are hidden with a configuration warning. `[]` leaves only Default. |
 | `dns.preferredProvider` | Suggested choice for new non-home networks; default `quad9`. Unknown IDs fall back to the first valid provider or Default. Does not rewrite existing profiles. |
 | `vpn.routerManagedSsids` | Exact Wi-Fi names where your router is configured for VPN. Default: `[]`. A matching name is **not proof** the router VPN is working. Local VPN takes priority, but tooltip retains router context. |
 | `vpn.schoolService` | OpenFortiVPN system service to observe, e.g. `openfortivpn@Unistra.service`. Default: `""` (disabled; no school queries). Requires a `Type=notify` unit, as shipped by OpenFortiVPN. Never starts/stops the service or reads its credentials. |
@@ -291,9 +294,10 @@ The example paths match this author's gaming PC, not necessarily yours.
 
 ### Wi-Fi, VPN, and DNS
 
-Expand a connected/saved Wi-Fi card to choose **Default** or a configured DNS
-provider. Choices are saved per profile; **Test** checks each provider server
-without changing settings. Home Wi-Fi listed in `vpn.routerManagedSsids` is
+Expand a connected/saved Wi-Fi card to choose **Auto** (network-advertised DNS) or a configured DNS
+provider. Selection stays pending until **Confirm** saves it per profile.
+**Test** checks the pending provider's servers without saving; **Cancel** restores
+the saved choice. Home Wi-Fi listed in `vpn.routerManagedSsids` is
 locked to automatic/router-advertised DNS; saved manual DNS is reset there.
 Other custom settings stay untouched until explicitly replaced.
 
@@ -302,6 +306,9 @@ from configured Wi-Fi names; colors are **not security guarantees**. School
 VPN plus assumed router VPN produces an amber nesting/overhead warning.
 
 [Network guide: DNS application, prompts, indicators, and school VPN setup](docs/network.md).
+
+For profile-aware NextDNS, use the [strict DoT provider example](docs/network.md#nextdns-over-tls).
+NextDNS profile IDs stay in host-local configuration, not source defaults.
 
 <details>
 <summary>WLMouse battery setup</summary>
@@ -321,6 +328,55 @@ python3 "$config_dir/bar/scripts/wlmouse.py"
 Reconnect the mouse/receiver if needed. The final command should print JSON
 without sudo. Then enable `modules.mouseBattery`. Hover refreshes readings
 with a 10-second cooldown; failed readings show `N/A`.
+
+</details>
+
+<details>
+<summary>DJI Mic Mini battery setup</summary>
+
+Only transmitter readings are shown; receiver battery/status are ignored. The
+compact mic/battery icons use the mouse module's font, colors and content-sized
+padding in the same box, with a subtle divider when both are enabled. Transmitter
+IDs and raw levels appear only in the hover tooltip. Each reported transmitter
+gets a battery icon and a charging marker when applicable.
+
+Level **1 is full**; **2–7 indicate descending charge**, with 7 lowest. Icons are
+charge tiers, not exact percentages. Missing levels use an unknown icon; missing
+devices, permissions, dependencies or malformed output show `N/A` with tooltip
+feedback. No receiver-only result is presented as a transmitter reading.
+
+On the PC with the USB receiver (`2ca3:4011`), install dependencies and the rule:
+
+```sh
+sudo pacman -S python-pyusb libusb
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell"
+sudo install -m 0644 "$config_dir/bar/scripts/70-dji-mic-mini.rules" /etc/udev/rules.d/70-dji-mic-mini.rules
+sudo udevadm control --reload-rules
+```
+
+The bundled rule is:
+
+```udev
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2ca3", ATTR{idProduct}=="4011", TAG+="uaccess"
+```
+
+Reconnect the receiver from an active local desktop session, then verify without sudo:
+
+```sh
+python3 "$config_dir/bar/scripts/dji-mic-battery.py"
+```
+
+Enable `"djiMicBattery": true` inside `modules` in `bar-local.json` on that PC.
+Global and per-output switches are supported; defaults and this machine's live
+override keep it disabled. Disabled outputs create no collector; all enabled
+outputs share one service. Reads run every minute, with hover refresh throttled
+to once per ten seconds. Queries never overlap; the 20-second watchdog sends
+SIGTERM and waits for process exit/stream completion, allowing USB cleanup.
+
+The validated collector still uses interface 6 / endpoint `0x86` and may
+temporarily detach its kernel driver. Do not run parallel copies or use it during
+firmware updates. Test on the target PC before relying on it while recording.
+No extra daemon or receiver settings changes are introduced.
 
 </details>
 

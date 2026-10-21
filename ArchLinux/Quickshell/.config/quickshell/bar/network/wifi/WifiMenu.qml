@@ -17,6 +17,7 @@ PanelWindow { // qmllint disable uncreatable-type
     property bool standalone: true
     property var homeSsids: []
     property var dnsConfig: ({})
+    property var observedDns: null
     readonly property bool actionBusy: controller.isBusy
 
     signal closeRequested
@@ -74,6 +75,7 @@ PanelWindow { // qmllint disable uncreatable-type
         id: controller
         homeSsids: root.homeSsids
         dnsConfig: root.dnsConfig
+        observedDns: root.observedDns
 
         onDismissRequested: root.dismiss()
     }
