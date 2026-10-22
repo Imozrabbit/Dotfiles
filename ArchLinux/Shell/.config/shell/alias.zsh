@@ -49,3 +49,6 @@ alias winecfg-ltspice='WINEPREFIX="$HOME/.local/share/wineprefixes/LTSpice" wine
 
 # NetworkManger TUI
 alias nmtui="NEWT_COLORS='root=white,black;window=white,black;border=white,black;title=white,black;textbox=white,black;label=white,black;listbox=white,black;actlistbox=black,white;entry=white,black;button=black,white;actbutton=black,lightgray' /usr/bin/nmtui"
+
+# VPN related
+alias cadence='TERM=xterm-256color sshpass -f "$HOME/.ssh/passwords/migrest-cao_icube" ssh migrest-cao'
