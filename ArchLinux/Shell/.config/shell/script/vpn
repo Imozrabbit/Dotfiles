@@ -1,25 +1,131 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-wg_config_folder="/home/Zrabbit/.config/wireguard"
-ifVpn=false
-active_vpn=""
+wg_config_folder="$HOME/.config/wireguard"
+forti_config="/etc/openfortivpn/Unistra.conf"
+forti_service="openfortivpn@Unistra.service"
+# Assume router-side VPN on the home network; this does not verify router status.
+home_network_uuid="b55079d9-1e7c-4ef4-83dc-d52452b5b43c"
+at_home=false
+profile_uuids=() profile_types=() profile_names=()
+active_wg=()
+forti_running=false
+forti_load=not-found
+forti_state=inactive
+stopped_wg=() stopped_forti=false
+foreign_forti=false
+
+die() { printf '%s\n' "$*" >&2; exit 1; }
+
+# Parse only UUID/type pairs; names may contain nmcli escape characters.
+profiles=$(nmcli -t -f UUID,TYPE connection show)
+while IFS=: read -r uuid type; do
+    [[ -n "$uuid" ]] || continue
+    profile_uuids+=("$uuid")
+    profile_types+=("$type")
+    name=$(nmcli -e no -g connection.id connection show uuid "$uuid")
+    profile_names+=("$name")
+done <<< "$profiles"
+
+resolve_wg() {
+    local query=$1 i found="" count=0
+    for i in "${!profile_uuids[@]}"; do
+        [[ ${profile_types[i]} == wireguard ]] || continue
+        if [[ ${profile_uuids[i]} == "$query" ]]; then
+            printf '%s\n' "$query"
+            return
+        fi
+        if [[ ${profile_names[i]} == "$query" ]]; then
+            found=${profile_uuids[i]}
+            count=$((count + 1))
+        fi
+    done
+    [[ $count == 1 ]] || die 'WireGuard profile not found or name ambiguous; manage duplicate names with nm-connection-editor.'
+    printf '%s\n' "$found"
+}
+
+get_active() {
+    local rows pids uuid type pid status service_info key value main_pid=0
+    active_wg=() forti_running=false foreign_forti=false at_home=false
+    rows=$(nmcli -t -f UUID,TYPE connection show --active)
+    while IFS=: read -r uuid type; do
+        if [[ "$uuid" == "$home_network_uuid" ]]; then at_home=true; fi
+        if [[ "$type" == wireguard ]]; then active_wg+=("$uuid"); fi
+    done <<< "$rows"
+    service_info=$(systemctl show "$forti_service" -p LoadState -p ActiveState -p MainPID)
+    forti_load=not-found forti_state=inactive
+    while IFS='=' read -r key value; do
+        case "$key" in
+            LoadState) forti_load=$value ;;
+            ActiveState) forti_state=$value ;;
+            MainPID) main_pid=$value ;;
+        esac
+    done <<< "$service_info"
+    case "$forti_state" in
+        active|activating|deactivating|reloading|refreshing) forti_running=true ;;
+    esac
+    if pids=$(pgrep -x openfortivpn); then
+        for pid in $pids; do
+            if [[ $forti_running == true && "$pid" == "$main_pid" ]]; then
+                continue
+            elif [[ -d /proc/$pid ]]; then
+                foreign_forti=true
+            fi
+        done
+    else
+        status=$?
+        [[ $status == 1 ]] || die 'Cannot inspect OpenFortiVPN processes.'
+    fi
+}
+
+disconnect_all() {
+    local uuid
+    stopped_wg=() stopped_forti=false
+    [[ $foreign_forti == false ]] || die 'Unmanaged OpenFortiVPN session found; stop it separately.'
+    if [[ $forti_running == true ]]; then
+        sudo systemctl stop "$forti_service" || return $?
+        stopped_forti=true
+    fi
+    for uuid in "${active_wg[@]}"; do
+        nmcli conn down uuid "$uuid" >/dev/null || return $?
+        stopped_wg+=("$uuid")
+    done
+}
+
+restore_previous() {
+    local uuid name
+    printf 'Operation failed; attempting to restore stopped tunnels.\n' >&2
+    for uuid in "${stopped_wg[@]}"; do
+        name=$(nmcli -e no -g connection.id connection show uuid "$uuid") || name='unknown profile'
+        nmcli conn up uuid "$uuid" >/dev/null || printf 'Could not restore WireGuard %s.\n' "$name" >&2
+    done
+    if [[ $stopped_forti == true ]]; then
+        sudo systemctl start "$forti_service" || printf 'Could not restore OpenFortiVPN; check journalctl -u %s.\n' "$forti_service" >&2
+    fi
+}
 
 printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
-echo "WireGuard list:"
-nmcli -f NAME,TYPE,DEVICE conn show | awk '/wireguard/'
-echo "Unistra (OpenFortiVPN)"
-if nmcli -t -f NAME,TYPE connection show --active | grep -q ':wireguard$'; then
-    active_vpn="$(nmcli -t -f NAME,TYPE connection show --active | awk -F: '$2=="wireguard"{print $1; exit}')"
-    ifVpn=true
-    printf "\033[38;2;255;165;0mThe following WireGuard is active: %s\033[0m\n" "$active_vpn"
-else
-    printf "\033[38;2;255;165;0mNo active WireGuard connection.\033[0m\n"
-    if pgrep -x openfortivpn >/dev/null; then
-        active_vpn="Unistra"
-        ifVpn=true
-        printf "\033[38;2;255;165;0mThe following VPN connection is active: %s\033[0m\n" "$active_vpn"
-    fi
+{
+    echo 'WireGuard list:'
+    nmcli -f NAME,TYPE,DEVICE conn show | awk 'NR==1 || $(NF-1)=="wireguard" {
+        type=$(NF-1); device=$NF
+        sub(/[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]*$/, "")
+        printf "%s\t%s\t%s\n", $0, type, device
+    }'
+    printf '\nOpenFortiVPN list:\n'
+    printf '%s\t%s\t%s\n' NAME TYPE DEVICE Unistra openfortivpn --
+} | column -t -L -s $'\t'
+get_active
+printf '\n'
+if [[ $at_home == true ]]; then printf '\033[38;2;255;165;0mRouter-side VPN\033[0m\n'; fi
+for uuid in "${active_wg[@]}"; do
+    name=$(nmcli -e no -g connection.id connection show uuid "$uuid")
+    printf '\033[38;2;255;165;0mActive WireGuard: %s\033[0m\n' "$name"
+done
+if [[ $forti_running == true ]]; then printf '\033[38;2;255;165;0mActive OpenFortiVPN: Unistra (service: %s).\033[0m\n' "$forti_state"; fi
+if [[ $foreign_forti == true ]]; then printf '\033[38;2;255;165;0mUnmanaged OpenFortiVPN session detected.\033[0m\n'; fi
+if ((${#active_wg[@]} == 0)) && [[ $forti_running == false && $foreign_forti == false && $at_home == false ]]; then
+    printf '\033[38;2;255;165;0mActive VPN: none\033[0m\n'
 fi
 printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
 printf "\033[1;36m██╗   ██╗██████╗ ███╗   ██╗               󰍜 Main Menu:\033[0m\n"
@@ -34,50 +140,55 @@ read -r choice
 case "${choice:-}" in
   1)
     printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
-    if [[ $ifVpn == true ]]; then
-        printf "\033[38;2;255;165;0mThere is an active VPN running: %s. Try to connect to another VPN would result in disconnecting the current one.\033[0m\n" "$active_vpn"
-        printf "\033[38;2;255;165;0mFor a more advance setup like assigning different VPN configs to different applications, use nm-connection-editor.\033[0m\n"
-    fi
-    printf "\033[1;36mEnter the name of the VPN profile to connect, leave empty for default (CH-Zurich) ›\033[0m "
+    printf "\033[1;36mWireGuard profile name or Unistra (empty for CH-Zurich) ›\033[0m "
     read -r vpn_conn_name
 
     if [[ -z "$vpn_conn_name" ]]; then
         vpn_conn_name="CH-Zurich"
     fi
 
-    # Check current VPN connection, if found any, disconnect
-    if [[ "$active_vpn" == "Unistra" ]]; then
-        sudo pkill -INT -x openfortivpn
-    elif [ -n "${active_vpn:-}" ]; then        
-        nmcli conn down "$active_vpn"
-    fi
-
-    # VPN connection
-    if [[ "$vpn_conn_name" == "Unistra" ]]; then
-        sudo openfortivpn -c "$HOME/.config/openfortivpn/config"
-        exit 0
-    fi
-    if nmcli -g NAME,TYPE connection show | grep -Fxq "$vpn_conn_name:wireguard"; then 
-        nmcli conn up "$vpn_conn_name"
-        exit 0
+    # Validate the destination before touching the current connection.
+    if [[ "$vpn_conn_name" == 'Unistra' ]]; then
+        command -v openfortivpn >/dev/null || die 'openfortivpn is not installed.'
+        [[ $forti_load == loaded ]] || die 'OpenFortiVPN system service is not loaded; install openfortivpn@.service first.'
+        sudo test -r "$forti_config" || die 'OpenFortiVPN config not readable.'
     else
-        printf "\033[1;31mVPN profile not found.\033[0m\n"
-        exit 1
+        target_uuid=$(resolve_wg "$vpn_conn_name")
     fi
+    get_active
+    printf 'Switching disconnects current tunnels. No kill switch; traffic may leave outside VPN.\n' >&2
+    if disconnect_all; then :; else
+        status=$?
+        restore_previous
+        exit "$status"
+    fi
+    if [[ "$vpn_conn_name" == 'Unistra' ]]; then
+        if sudo systemctl start "$forti_service"; then exit 0; else status=$?; fi
+        printf 'Unistra startup failed; check journalctl -u %s.\n' "$forti_service" >&2
+        # Cancel automatic restarts before restoring any previous tunnels.
+        if ! sudo systemctl stop "$forti_service"; then
+            printf 'Could not stop Unistra; refusing to restore other tunnels while it may restart.\n' >&2
+            exit "$status"
+        fi
+    else
+        if nmcli conn up uuid "$target_uuid" >/dev/null; then exit 0; else status=$?; fi
+    fi
+    # Ctrl-C is intentional; do not reconnect after the user interrupts.
+    [[ $status != 130 ]] || exit "$status"
+    restore_previous
+    exit "$status"
     ;;
   2)
     printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
-    if [[ "$active_vpn" == "Unistra" ]]; then
-        sudo pkill -INT -x openfortivpn
-        exit 0
+    get_active
+    if ((${#active_wg[@]} == 0)) && [[ $forti_running == false && $foreign_forti == false ]]; then
+        die 'There is no active local VPN to disconnect.'
     fi
-    if [ -n "${active_vpn:-}" ]; then
-        nmcli conn down "$active_vpn"
-        exit 0
-    else 
-        printf "\033[1;31mThere is no active VPN running.\033[0m\n"
-        exit 1
-    fi 
+    if disconnect_all; then :; else
+        status=$?
+        restore_previous
+        exit "$status"
+    fi
     ;;
   3)
     printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
@@ -90,44 +201,33 @@ case "${choice:-}" in
             printf "\033[1;36mEnter the name of the config file to add ›\033[0m "
             read -r vpn_add_name
             # Check if the file is there
-            [ -f "$wg_config_folder/$vpn_add_name" ] || {
+            [[ -n "$vpn_add_name" && "$vpn_add_name" != */* && -f "$wg_config_folder/$vpn_add_name" ]] || {
                 printf "\033[1;31mWireguard config file not found.\033[0m\n"
                 exit 1
             }
-            nmcli conn import type wireguard file "$wg_config_folder/$vpn_add_name"
+            nmcli conn import type wireguard file "$wg_config_folder/$vpn_add_name" >/dev/null
             exit 0
             ;;
         2|remove|delete|REMOVE|DELETE)
             printf "\033[1;36mEnter the name of the profile to remove ›\033[0m "
             read -r vpn_remove_name
             # Check if the profile is on the list
-            if nmcli -g NAME,TYPE connection show | grep -Fxq "$vpn_remove_name:wireguard"; then 
-                nmcli conn delete "$vpn_remove_name"
-                printf "\033[38;2;255;165;0mConsider deleting the corresponding config file: %s.\033[0m\n" "$wg_config_folder/$vpn_remove_name"
-                exit 0
-            else
-                printf "\033[1;31mVPN profile not found.\033[0m\n"
-                exit 1
-            fi
+            profile_uuid=$(resolve_wg "$vpn_remove_name")
+            nmcli conn delete uuid "$profile_uuid" >/dev/null
+            printf 'Original config files are unchanged; profile names do not identify source filenames.\n'
             ;;
         3|rename|RENAME)
             printf "\033[1;36mEnter the name of the profile to rename ›\033[0m "
             read -r vpn_original_name
             # Check if the profile exists
-            if nmcli -g NAME,TYPE connection show | grep -Fxq "$vpn_original_name:wireguard"; then 
-                printf "\033[1;36mEnter the new name of the profile ›\033[0m "
-                read -r vpn_new_name
-                if nmcli -g NAME,TYPE connection show | grep -Fxq "$vpn_new_name:wireguard"; then 
-                    printf "\033[1;31m%s\033[0m\n" "Profile name already exists or the same name was entered."
-                    exit 1
-                else
-                    nmcli conn modify "$vpn_original_name" connection.id "$vpn_new_name"
-                    exit 0
-                fi
-            else
-                printf "\033[1;31mVPN profile not found.\033[0m\n"
-                exit 1
-            fi
+            profile_uuid=$(resolve_wg "$vpn_original_name")
+            printf "\033[1;36mEnter the new name of the profile ›\033[0m "
+            read -r vpn_new_name
+            [[ -n "$vpn_new_name" ]] || die 'Profile name cannot be empty.'
+            for name in "${profile_names[@]}"; do
+                [[ "$name" != "$vpn_new_name" ]] || die 'Profile name already exists.'
+            done
+            nmcli conn modify uuid "$profile_uuid" connection.id "$vpn_new_name" >/dev/null
             ;;
         *)
             printf "\033[1;31m%s\033[0m\n" "Invalid choice"
@@ -138,31 +238,27 @@ case "${choice:-}" in
   4)
     printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '=' 
     printf "\033[1;36mCurrent status of auto-connection:\033[0m\n"
-    nmcli -f NAME,TYPE,AUTOCONNECT connection show | awk '/wireguard/'
+    nmcli -f NAME,TYPE,AUTOCONNECT connection show | awk 'NR==1 || $(NF-1)=="wireguard"'
     printf "\033[1;36mEnter the name of the profile to change its auto-connect behavior ›\033[0m "
     read -r profile_tochange
     # Check if profile exists
-    if nmcli -g NAME,TYPE connection show | grep -Fxq "$profile_tochange:wireguard"; then
-        printf "\033[1;36mOn/Off ›\033[0m "
-        read -r onoroff
-        case "${onoroff:-}" in
-            1|on|ON)
-                nmcli connection modify "$profile_tochange" connection.autoconnect yes
-                exit 0
-                ;;
-            2|off|OFF)
-                nmcli connection modify "$profile_tochange" connection.autoconnect no
-                exit 0
-                ;;
-            *)
-                printf "\033[1;31m%s\033[0m\n" "Invalid choice"
-                exit 1
-                ;;
-        esac
-    else
-        printf "\033[1;31mProfile not found.\033[0m\n"
-        exit 1
-    fi
+    profile_uuid=$(resolve_wg "$profile_tochange")
+    printf "\033[1;36mOn/Off ›\033[0m "
+    read -r onoroff
+    case "${onoroff:-}" in
+        1|on|ON)
+            nmcli connection modify uuid "$profile_uuid" connection.autoconnect yes >/dev/null
+            exit 0
+            ;;
+        2|off|OFF)
+            nmcli connection modify uuid "$profile_uuid" connection.autoconnect no >/dev/null
+            exit 0
+            ;;
+        *)
+            printf "\033[1;31m%s\033[0m\n" "Invalid choice"
+            exit 1
+            ;;
+    esac
     ;;
   5|q|exit|quit)
     exit 0
