@@ -12,9 +12,11 @@ Variants {
         screen: modelData
 
         WlrLayershell.namespace: "weather"
-        WlrLayershell.layer: WlrLayer.Top
+        WlrLayershell.layer: WlrLayer.Bottom
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         exclusionMode: ExclusionMode.Ignore
+        exclusiveZone: 0
+        focusable: false
 
         anchors {
             top: true
@@ -22,12 +24,13 @@ Variants {
         }
         margins {
             top: 57
-            right: 17
+            right: 22 // Match the clock date's right edge and desktop-status.
         }
 
         width: 260
         height: 40
         color: "transparent"
+        surfaceFormat.opaque: false
 
         WeatherService {
             id: wx
@@ -36,6 +39,7 @@ Variants {
         RowLayout {
             id: line
             anchors.centerIn: parent
+            width: parent.width
             height: 35
             spacing: 0
 
@@ -64,8 +68,9 @@ Variants {
 
             Rectangle {
                 Layout.alignment: Qt.AlignVCenter
-                width: 100
-                height: 5
+                Layout.fillWidth: true
+                implicitWidth: 100
+                implicitHeight: 5
                 radius: 6
                 color: "#2c2c2e80"
 
@@ -86,11 +91,19 @@ Variants {
             }
 
             Text {
+                id: maxTemperature
                 Layout.alignment: Qt.AlignVCenter
                 text: " " + ((isNaN(wx.tmaxC[0]) ? "--" : Math.round(wx.tmaxC[0]))) + "°"
                 color: "#e6e1e1e2"
                 font.family: "BigBlueTermPlus Nerd Font"
                 font.pixelSize: 22
+                // Align painted glyphs, not the degree sign's trailing cell.
+                rightPadding: Math.min(0, maxTemperatureInk.tightBoundingRect.x + maxTemperatureInk.tightBoundingRect.width - Math.ceil(maxTemperatureInk.advanceWidth))
+                TextMetrics {
+                    id: maxTemperatureInk
+                    font: maxTemperature.font
+                    text: maxTemperature.text
+                }
             }
         }
     }
