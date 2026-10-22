@@ -20,7 +20,7 @@ hl.layer_rule({
 hl.layer_rule({
 	match = { namespace = "swaync-control-center" },
 	blur = true,
-	ignore_alpha = 0.3,
+	ignore_alpha = 0.5,
 	animation = "slide",
 })
 -- Add blur for the swaync popup notifications
@@ -43,7 +43,7 @@ hl.layer_rule({
 hl.layer_rule({
 	match = { namespace = "quickshell:expose" },
 	blur = true,
-	ignore_alpha = 1,
+	ignore_alpha = 0.5,
 	dim_around = true,
 	animation = "fade",
 })
@@ -73,7 +73,7 @@ hl.layer_rule({
 -- Make the rest of the third monitor items always on screen
 hl.layer_rule({
 	match = {
-		namespace = "^(weather|clock|ram-osd)$",
+		namespace = "^(weather|clock|ram-osd|desktop-status)$",
 	},
 	above_lock = 1,
 })
