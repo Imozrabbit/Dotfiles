@@ -129,6 +129,13 @@ register_rules({
 			title = ".*Settings.*",
 		},
 	},
+	{
+		name = "handy: floating",
+		match = {
+			class = "handy",
+			title = "Handy",
+		},
+	},
 }, STYLE.persistent_floating)
 
 ----------------------------------------------------------
