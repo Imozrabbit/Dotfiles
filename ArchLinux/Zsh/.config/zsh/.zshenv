@@ -65,7 +65,7 @@ export DOCKER_CONFIG="$XDG_CONFIG_HOME"/docker
 export MACHINE_STORAGE_PATH="$XDG_DATA_HOME"/docker-machine
 
 #---------------- Ollama -----------------#
-export OLLAMA_HOST="172.17.0.1:11434"
+#export OLLAMA_HOST=""
 
 #---------------- OpenCode ----------------#
 export SUPERPOWERS_DISABLE_TELEMETRY=1
