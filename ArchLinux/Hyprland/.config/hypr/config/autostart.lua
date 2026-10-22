@@ -19,12 +19,12 @@ hl.on("hyprland.start", function()
 	hl.exec_cmd("wl-paste --type image --watch cliphist store # Stores only image data")
 
 	-- QuickShell
-	hl.exec_cmd("qs -p ~/.config/quickshell/volume-osd/shell.qml")
-	hl.exec_cmd("qs -p ~/.config/quickshell/system-osd/shell.qml")
-	hl.exec_cmd("qs -p ~/.config/quickshell/clock/shell.qml")
-	hl.exec_cmd("qs -p ~/.config/quickshell/ram-osd/shell.qml")
-	hl.exec_cmd("qs -p ~/.config/quickshell/weather/shell.qml")
-	hl.exec_cmd("qs -p ~/.config/quickshell/alt-tab_view/shell.qml")
+	hl.exec_cmd("qs -c volume-osd -d")
+	hl.exec_cmd("qs -c system-osd -d")
+	hl.exec_cmd("qs -c clock -d")
+	hl.exec_cmd("qs -c ram-osd -d")
+	hl.exec_cmd("qs -c weather -d")
+	hl.exec_cmd("qs -c alt-tab_view -d")
 	hl.exec_cmd("qs -c calendar -d")
 	hl.exec_cmd("qs -c bar -d")
 
@@ -33,4 +33,7 @@ hl.on("hyprland.start", function()
 
 	-- Set up DP-1 as my primary monitor in x11 sessions like some steam games
 	hl.exec_cmd("xrandr --output DP-1 --primary")
+
+	-- Autostart handy
+	hl.exec_cmd("handy --start-hidden")
 end)
