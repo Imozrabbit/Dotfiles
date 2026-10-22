@@ -17,6 +17,8 @@ ShellRoot {
             required property var modelData
             screen: modelData
             WlrLayershell.namespace: "clock"
+            WlrLayershell.layer: WlrLayer.Bottom
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
             // Only show on the target monitor
             visible: (modelData.name === root.targetScreenName)
@@ -24,7 +26,6 @@ ShellRoot {
             // OSD behavior
             exclusionMode: ExclusionMode.Ignore
             exclusiveZone: 0
-            aboveWindows: false
             focusable: false
 
             // transparency from the start
@@ -49,6 +50,7 @@ ShellRoot {
             property int sizeHM: 120
             property int sizeSec: 90
             property int dateSize: 40
+            property int dateInkAdjustment: 1 // Optical trim; retune if the date font changes.
             property int padx: 100
             property int pady: 10
             Item {
@@ -81,6 +83,13 @@ ShellRoot {
                         font.family: "BigBlueTermPlus Nerd Font"
                         font.pixelSize: window.dateSize
                         color: "#e9e1e1e2"
+                        // Keep the month's painted edge flush across font bearings.
+                        rightPadding: Math.min(0, monthInk.tightBoundingRect.x + monthInk.tightBoundingRect.width - Math.ceil(monthInk.advanceWidth) - window.dateInkAdjustment)
+                        TextMetrics {
+                            id: monthInk
+                            font: month.font
+                            text: month.text
+                        }
                     }
                 }
                 // Clock (centered)
