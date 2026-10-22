@@ -85,6 +85,9 @@ hl.bind(mainMod .. "+ period", hl.dsp.exec_cmd('rmpc remote keybind "."'), { loc
 -- Screenshot
 hl.bind(mainMod .. "+ DELETE", hl.dsp.exec_cmd("/home/Zrabbit/.config/shell/script/Screenshot/screenshot_region"))
 
+-- Voice Transcription with AI Post-Processing
+hl.bind("Control_R", hl.dsp.exec_cmd("handy --toggle-post-process"))
+
 -- Close & Kill steam
 local function close_bind()
 	return function()
