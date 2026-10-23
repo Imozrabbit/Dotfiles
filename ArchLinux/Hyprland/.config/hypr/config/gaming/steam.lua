@@ -12,7 +12,7 @@ hl.window_rule({
 hl.window_rule({
 	name = "make steam opaque and appear on its own special workspace",
 	match = {
-		class = "steam",
+		class = "^(|steam)$",
 		title = "^(Sign in to Steam|Steam)$",
 	},
 	opaque = true,
