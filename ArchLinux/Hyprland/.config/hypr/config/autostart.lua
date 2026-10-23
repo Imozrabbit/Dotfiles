@@ -27,6 +27,7 @@ hl.on("hyprland.start", function()
 	hl.exec_cmd("qs -c alt-tab_view -d")
 	hl.exec_cmd("qs -c calendar -d")
 	hl.exec_cmd("qs -c bar -d")
+	hl.exec_cmd("qs -c desktop-status -d")
 
 	-- Autostart the input methode framework fcitx5
 	hl.exec_cmd("fcitx5 --replace -d")
