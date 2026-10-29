@@ -28,7 +28,7 @@
   <property name="shortcuts-icon-emblems" type="bool" value="true"/>
   <property name="tree-icon-size" type="string" value="THUNAR_ICON_SIZE_16"/>
   <property name="tree-icon-emblems" type="bool" value="true"/>
-  <property name="misc-symbolic-icons-in-sidepane" type="bool" value="true"/>
+  <property name="misc-symbolic-icons-in-sidepane" type="bool" value="false"/>
   <property name="misc-image-preview-mode" type="string" value="THUNAR_IMAGE_PREVIEW_MODE_EMBEDDED"/>
   <property name="misc-middle-click-in-tab" type="bool" value="true"/>
   <property name="misc-open-new-window-as-tab" type="bool" value="false"/>
