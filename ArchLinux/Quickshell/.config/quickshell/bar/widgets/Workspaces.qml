@@ -39,57 +39,64 @@ Rectangle {
 
     RowLayout {
         id: workspaceLayout
-        spacing: root.workspaceDisplay.itemSpacing
+        spacing: 13
         anchors.centerIn: parent
 
-        SystemTrayItems {
-            id: trayItems
-            visible: root.trayVisible
-            theme: root.theme
-        }
+        RowLayout {
+            id: utilityIcons
+            visible: root.trayVisible || root.showProtonManager
+            spacing: 8
 
-        Text {
-            id: protonIcon
-            visible: root.showProtonManager
-            property bool tooltipVisible: false
-            text: "󰹂"
-            color: protonMouse.containsMouse ? root.theme.launcherHoverColor : root.protonManagerOpen ? root.theme.launcherColor : root.theme.workspaceEmptyColor
-            font.family: root.theme.fontFamily
-            font.pixelSize: root.theme.launcherFontSize
-            font.bold: true
-            onVisibleChanged: {
-                if (!visible) {
-                    protonTooltipDelay.stop();
-                    tooltipVisible = false;
-                }
-            }
-            MouseArea {
-                id: protonMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onEntered: protonTooltipDelay.restart()
-                onExited: {
-                    protonTooltipDelay.stop();
-                    protonIcon.tooltipVisible = false;
-                }
-                onClicked: {
-                    protonTooltipDelay.stop();
-                    protonIcon.tooltipVisible = false;
-                    root.protonManagerRequested();
-                }
-            }
-            Timer {
-                id: protonTooltipDelay
-                interval: 300
-                onTriggered: protonIcon.tooltipVisible = protonMouse.containsMouse && protonIcon.visible
-            }
-            SystemStatTooltip {
-                visible: protonIcon.tooltipVisible
-                anchorItem: protonIcon
-                heading: "Proton Manager"
-                rows: []
+            SystemTrayItems {
+                id: trayItems
+                visible: root.trayVisible
+                spacing: utilityIcons.spacing
                 theme: root.theme
+            }
+
+            Text {
+                id: protonIcon
+                visible: root.showProtonManager
+                property bool tooltipVisible: false
+                text: "󰹂"
+                color: protonMouse.containsMouse ? root.theme.launcherHoverColor : root.protonManagerOpen ? root.theme.launcherColor : root.theme.workspaceEmptyColor
+                font.family: root.theme.fontFamily
+                font.pixelSize: root.theme.launcherFontSize
+                font.bold: true
+                onVisibleChanged: {
+                    if (!visible) {
+                        protonTooltipDelay.stop();
+                        tooltipVisible = false;
+                    }
+                }
+                MouseArea {
+                    id: protonMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onEntered: protonTooltipDelay.restart()
+                    onExited: {
+                        protonTooltipDelay.stop();
+                        protonIcon.tooltipVisible = false;
+                    }
+                    onClicked: {
+                        protonTooltipDelay.stop();
+                        protonIcon.tooltipVisible = false;
+                        root.protonManagerRequested();
+                    }
+                }
+                Timer {
+                    id: protonTooltipDelay
+                    interval: 300
+                    onTriggered: protonIcon.tooltipVisible = protonMouse.containsMouse && protonIcon.visible
+                }
+                SystemStatTooltip {
+                    visible: protonIcon.tooltipVisible
+                    anchorItem: protonIcon
+                    heading: "Proton Manager"
+                    rows: []
+                    theme: root.theme
+                }
             }
         }
 
@@ -102,57 +109,63 @@ Rectangle {
             opacity: 0.7
         }
 
-        Repeater {
-            model: root.showWorkspaces ? root.normalEntries : []
-            Text {
-                id: workspaceText
+        RowLayout {
+            id: workspaceIcons
+            visible: root.showWorkspaces
+            spacing: root.workspaceDisplay.itemSpacing
 
-                required property var modelData
+            Repeater {
+                model: root.showWorkspaces ? root.normalEntries : []
+                Text {
+                    id: workspaceText
 
-                property var ws: Hyprland.workspaces.values.find(w => w.id === modelData.id)
-                property bool isActive: Hyprland.focusedWorkspace?.id === modelData.id
-                property bool isOccupied: (ws?.toplevels.values.length ?? 0) > 0
+                    required property var modelData
 
-                text: modelData.label
-                textFormat: Text.PlainText
-                color: workspaceMouse.containsMouse ? root.theme.workspaceHoveredColor : (isActive ? root.theme.workspaceActiveColor : (isOccupied ? root.theme.workspaceOccupiedColor : root.theme.workspaceEmptyColor))
-                font {
-                    family: root.theme.fontFamily
-                    pixelSize: root.theme.workspaceFontSize
-                    bold: true
-                }
-                MouseArea {
-                    id: workspaceMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Hyprland.dispatch("hl.dsp.focus({ workspace = " + workspaceText.modelData.id + " })")
+                    property var ws: Hyprland.workspaces.values.find(w => w.id === modelData.id)
+                    property bool isActive: Hyprland.focusedWorkspace?.id === modelData.id
+                    property bool isOccupied: (ws?.toplevels.values.length ?? 0) > 0
+
+                    text: modelData.label
+                    textFormat: Text.PlainText
+                    color: workspaceMouse.containsMouse ? root.theme.workspaceHoveredColor : (isActive ? root.theme.workspaceActiveColor : (isOccupied ? root.theme.workspaceOccupiedColor : root.theme.workspaceEmptyColor))
+                    font {
+                        family: root.theme.fontFamily
+                        pixelSize: root.theme.workspaceFontSize
+                        bold: true
+                    }
+                    MouseArea {
+                        id: workspaceMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Hyprland.dispatch("hl.dsp.focus({ workspace = " + workspaceText.modelData.id + " })")
+                    }
                 }
             }
-        }
 
-        Repeater {
-            model: root.showWorkspaces ? root.specialEntries : []
+            Repeater {
+                model: root.showWorkspaces ? root.specialEntries : []
 
-            Text {
-                id: specialWorkspaceText
+                Text {
+                    id: specialWorkspaceText
 
-                required property var modelData
+                    required property var modelData
 
-                text: modelData.label
-                textFormat: Text.PlainText
-                color: specialWorkspaceMouse.containsMouse ? root.theme.workspaceHoveredColor : modelData.state === "focused" ? root.theme.workspaceActiveColor : modelData.state === "occupied" ? root.theme.specialWorkspaceColor : root.theme.workspaceEmptyColor
-                font {
-                    family: root.theme.fontFamily
-                    pixelSize: root.theme.workspaceFontSize
-                    bold: true
-                }
-                MouseArea {
-                    id: specialWorkspaceMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Hyprland.dispatch("hl.dsp.workspace.toggle_special(" + JSON.stringify(specialWorkspaceText.modelData.name) + ")")
+                    text: modelData.label
+                    textFormat: Text.PlainText
+                    color: specialWorkspaceMouse.containsMouse ? root.theme.workspaceHoveredColor : modelData.state === "focused" ? root.theme.workspaceActiveColor : modelData.state === "occupied" ? root.theme.specialWorkspaceColor : root.theme.workspaceEmptyColor
+                    font {
+                        family: root.theme.fontFamily
+                        pixelSize: root.theme.workspaceFontSize
+                        bold: true
+                    }
+                    MouseArea {
+                        id: specialWorkspaceMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Hyprland.dispatch("hl.dsp.workspace.toggle_special(" + JSON.stringify(specialWorkspaceText.modelData.name) + ")")
+                    }
                 }
             }
         }

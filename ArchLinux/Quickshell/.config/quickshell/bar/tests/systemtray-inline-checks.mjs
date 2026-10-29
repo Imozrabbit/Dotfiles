@@ -14,6 +14,16 @@ for (const menuVisible of [false, true]) {
 assert.match(source, /readonly property bool menuVisible: trayMenu\.visible/);
 assert.match(workspaces, /readonly property bool trayMenuVisible: trayItems\.menuVisible/);
 assert.match(workspaces, /SystemTrayItems\s*\{\s*id: trayItems/);
+assert.match(workspaces, /RowLayout\s*\{\s*id: utilityIcons\s+visible: root\.trayVisible \|\| root\.showProtonManager\s+spacing: 8/,
+    "Tray and Proton form a compact group with eight-pixel gaps");
+assert.match(workspaces, /SystemTrayItems\s*\{[^}]*spacing: utilityIcons\.spacing/,
+    "All tray icons share Proton group spacing");
+assert.doesNotMatch(workspaces, /SystemTrayItems\s*\{[^}]*spacing: root\.workspaceDisplay\.itemSpacing/,
+    "Tray retains its compact internal gaps");
+assert.match(workspaces, /id: workspaceLayout\s+spacing: 13/,
+    "Section boundaries have matching thirteen-pixel divider gaps");
+assert.match(workspaces, /id: workspaceIcons\s+visible: root\.showWorkspaces\s+spacing: root\.workspaceDisplay\.itemSpacing/,
+    "Workspace icons retain configured spacing within their group");
 const trayVisible = workspaces.match(/readonly property bool trayVisible: ([^\n]+)/)?.[1];
 assert.ok(trayVisible, "One actual tray-presence condition must drive icons and separators");
 const separators = [...workspaces.matchAll(/visible: ([^\n]+)\n\s+Layout.preferredWidth: 1/g)].map(match => match[1]);

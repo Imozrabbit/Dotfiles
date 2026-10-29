@@ -268,6 +268,8 @@ unavailable data rather than breaking the bar. Module order is fixed.
 
 Tray menus hold hover bars open without pinning/reserving space; hiding the
 tray closes its menu. Empty tray/Proton sections have no leading separator.
+Tray/Proton icons use compact 8 px gaps; section dividers have 13 px gaps on each
+side. Workspace/launcher icons retain `workspaceDisplay.itemSpacing`.
 
 ### Shortcuts and optional settings
 
