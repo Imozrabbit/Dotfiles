@@ -4,7 +4,7 @@ hl.monitor({
 	mode = "1920x1080@60.01Hz",
 	position = "0x0",
 	scale = 1,
-	vrr = 2, -- Fullscreen only
+	vrr = 3, -- Fullscreen only
 	bitdepth = 8,
 	cm = "auto",
 	max_luminance = 300,
