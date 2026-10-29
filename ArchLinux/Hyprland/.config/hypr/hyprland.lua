@@ -57,3 +57,6 @@ for file in p:lines() do
 	require("config.gaming.games." .. name)
 end
 p:close()
+
+-- Plugins
+require("config.plugins.hyprglass")
