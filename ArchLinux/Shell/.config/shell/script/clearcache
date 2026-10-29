@@ -121,10 +121,6 @@ printf "\033[1;36m%s\033[0m\n" "Shell command hash refreshed"
 rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/rtk/tee"
 printf "\033[1;36m%s\033[0m\n" "RTK's tee recovery logs cleared"
 
-# CLear opencode's log and useless shit
-rm -fr ~/.local/share/opencode/log/*
-printf "\033[1;36m%s\033[0m\n" "OpenCode logs cleared"
-
 # Prune unused docker image
 sudo docker system prune
 
@@ -214,6 +210,44 @@ if [[ -d "$handy_logs" ]]; then
         -name '*.log.*' -mtime +7 -delete
 fi
 printf "\033[1;36m%s\033[0m\n" "Handy's logs cleared"
+
+# CLear opencode's log and useless shit
+rm -fr ~/.local/share/opencode/log/*
+printf "\033[1;36m%s\033[0m\n" "OpenCode logs cleared"
+# Prompt to vacuum OpenCode's database
+opencode_db="$HOME/.local/share/opencode/opencode.db"
+printf "\033[38;5;208mVacuum OpenCode's database?\033[0m\n"
+printf "\033[1;36mYour choice (default: yes) ›\033[0m "
+read -r choice_opencode || choice_opencode=n
+case "${choice_opencode:-y}" in
+    1|y|Y|yes|YES|o|O|oui|OUI)
+        if [[ ! -f "$opencode_db" ]]; then
+            printf "\033[1;36m%s\033[0m\n" "OpenCode database not found; skipping vacuum"
+        elif pgrep -u "$UID" -x opencode >/dev/null; then
+            printf "\033[1;36m%s\033[0m\n" "OpenCode is running; skipping database vacuum"
+        elif (( $? != 1 )); then # pgrep: 1 means no matching process
+            printf "\033[1;31m%s\033[0m\n" "Cannot check OpenCode processes; skipping vacuum" >&2
+        elif ! free_pages=$(sqlite3 -readonly -ifexists -cmd '.timeout 2000' "$opencode_db" 'PRAGMA freelist_count;'); then
+            printf "\033[1;31m%s\033[0m\n" "Cannot check database free pages; skipping vacuum" >&2
+        elif [[ "$free_pages" == 0 ]]; then
+            printf "\033[1;36m%s\033[0m\n" "OpenCode database has no free pages; skipping vacuum"
+        elif ! size_before=$(stat -c %s -- "$opencode_db"); then
+            printf "\033[1;31m%s\033[0m\n" "Cannot read database size; skipping vacuum" >&2
+        elif sqlite3 -ifexists -cmd '.timeout 2000' "$opencode_db" 'VACUUM;'; then
+            if size_after=$(stat -c %s -- "$opencode_db"); then
+                printf '\033[1;36mOpenCode database vacuumed\nBefore: %s (%s bytes)\nAfter:  %s (%s bytes)\033[0m\n' \
+                    "$(numfmt --to=iec-i --format='%.2f' --suffix=B "$size_before")" "$size_before" \
+                    "$(numfmt --to=iec-i --format='%.2f' --suffix=B "$size_after")" "$size_after"
+            else
+                printf "\033[1;31m%s\033[0m\n" "Vacuum succeeded, but cannot read database size afterward" >&2
+            fi
+        else
+            printf "\033[1;31m%s\033[0m\n" "OpenCode database vacuum failed" >&2
+        fi
+        ;;
+    2|n|N|no|NO|non|NON)
+        ;;
+esac
 
 
 
