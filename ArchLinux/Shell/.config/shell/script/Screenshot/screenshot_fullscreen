@@ -17,7 +17,7 @@ TMPFILE="$TMPDIR/$NAME"
 FINALFILE="$OUTDIR/$NAME"
 BODY="$(printf '<img src="file://%s"/>\n%s' "$TMPFILE" "$NAME")"
 
-mon="$(slurp -o -r -f '%o')" || exit 0
+mon="$(slurp -b '#00000080' -o -r -f '%o')" || exit 0
 grim -o "$mon" "$TMPFILE"
 
 CHOICE="$(

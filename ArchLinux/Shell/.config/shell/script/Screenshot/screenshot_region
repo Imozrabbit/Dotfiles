@@ -17,7 +17,7 @@ TMPFILE="$TMPDIR/$NAME"
 FINALFILE="$OUTDIR/$NAME"
 BODY="$(printf '<img src="file://%s"/>\n%s' "$TMPFILE" "$NAME")"
 
-grim -g "$(slurp)" "$TMPFILE"
+grim -g "$(slurp -b '#00000080')" "$TMPFILE"
 CHOICE="$(
   notify-send \
     -a Screenshot \
