@@ -3,14 +3,14 @@ local mainMod = "SUPER"
 -- Basic Fonctions
 hl.bind(mainMod .. "+ RETURN", hl.dsp.exec_cmd(TERMINAL)) -- Open new terminal
 hl.bind(mainMod .. "+ V", hl.dsp.window.float("toggle")) -- Toggle float
-hl.bind(mainMod .. "+ F", hl.dsp.window.fullscreen("fullscreen", "toggle")) -- Toggle fullscreen mode
+hl.bind(mainMod .. "+ F", hl.dsp.window.fullscreen("toggle")) -- Toggle fullscreen mode
 
 -- Open applications
 hl.bind(mainMod .. "+ E", hl.dsp.exec_cmd(FILEMANAGER)) -- Open file manager
 hl.bind(mainMod .. "+ SPACE", hl.dsp.exec_cmd(MENU)) -- Open app launcher
 hl.bind(mainMod .. "+ B", hl.dsp.exec_cmd("zen-browser")) -- Open zen browser
 hl.bind(mainMod .. "+ N", hl.dsp.exec_cmd(NOTES)) -- Open obsidian
-hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("~/.config/shell/script/Swaync/swaync-toggle")) -- Open side hub
+hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("swaync-client -t")) -- Open side hub
 hl.bind(mainMod .. "+ C", hl.dsp.exec_cmd("qs -c calendar ipc call calendar toggle")) -- Toggle Calendar
 
 -- Toggle bottom bar
@@ -77,7 +77,9 @@ hl.bind(
 hl.bind("XF86AudioMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked = true })
 hl.bind(
 	"XF86AudioMicMute",
-	hl.dsp.exec_cmd("pactl set-source-mute alsa_input.pci-0000_06_00.6.HiFi__Mic1__source toggle; quickshell -c level-osd ipc call levelOsd microphone"),
+	hl.dsp.exec_cmd(
+		"pactl set-source-mute alsa_input.pci-0000_06_00.6.HiFi__Mic1__source toggle; quickshell -c level-osd ipc call levelOsd microphone"
+	),
 	{ locked = true }
 )
 
@@ -112,7 +114,7 @@ hl.bind(mainMod .. "+ comma", hl.dsp.exec_cmd('rmpc remote keybind ","'), { lock
 hl.bind(mainMod .. "+ period", hl.dsp.exec_cmd('rmpc remote keybind "."'), { locked = true, repeating = true })
 
 -- Screenshot
-hl.bind(mainMod .. "+ Print", hl.dsp.exec_cmd("/home/Zrabbit/.config/shell/script/Screenshot/screenshot_region"))
+hl.bind("Print", hl.dsp.exec_cmd("/home/Zrabbit/.config/shell/script/Screenshot/screenshot_region"))
 
 -- Voice control with handy
 hl.bind("Control_R", hl.dsp.exec_cmd("handy --toggle-transcription"))
