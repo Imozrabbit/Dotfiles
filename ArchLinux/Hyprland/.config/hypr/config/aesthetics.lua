@@ -57,6 +57,9 @@ hl.config({
 			vibrancy = 0.1696,
 			-- Whether to blur behind the special workspace (expensive)
 			special = true,
+			-- Need render:use_shader_blur_blend to work but that shit glitches in 0.57
+			proportional = true,
+			-- variant = "acrylic"
 		},
 	},
 
