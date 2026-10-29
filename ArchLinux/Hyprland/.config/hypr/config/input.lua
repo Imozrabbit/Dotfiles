@@ -8,6 +8,7 @@ hl.config({
 		-- Focus will shift to the window under the cursor when a window is closed
 		focus_on_close = 1,
 	},
+	cursor = {},
 })
 
 hl.device({

@@ -12,5 +12,13 @@ hl.config({
 	binds = {
 		-- Disable delay inbetween scrolls to have a smooth experience
 		scroll_event_delay = 0,
+		drag_center_window = false,
+	},
+})
+
+hl.config({
+	render = {
+		-- Glitches for 0.57, need further improvement
+		-- use_shader_blur_blend = true,
 	},
 })
