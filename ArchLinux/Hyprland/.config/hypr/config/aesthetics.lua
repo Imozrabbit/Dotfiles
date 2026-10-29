@@ -50,13 +50,14 @@ hl.config({
 			enabled = true,
 			size = 3,
 			passes = 2,
-			-- Weird setting, being on makes blurs better but somehow consumes a lot more GPU usage
 			new_optimizations = true,
 			xray = true,
 			ignore_opacity = true,
-			vibrancy = 0.1696,
-			-- Whether to blur behind the special workspace (expensive)
 			special = true,
+			vibrancy = 0.1696,
+			-- Need render:use_shader_blur_blend to work but that shit glitches my wallpaper in 0.57
+			-- proportional = true,
+			-- variant = "acrylic",
 		},
 	},
 
