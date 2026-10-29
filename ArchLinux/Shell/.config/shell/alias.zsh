@@ -35,7 +35,7 @@ alias untargz='tar -zvxf' # Extract verbally a .gz file
 
 # Pacman
 alias updatesys='sudo pacman -Syu'
-alias updateall='yay -Syu && flatpak update --user'
+alias updateall='yay -Syu && hyprpm update && flatpak update --user'
 alias orphan='yay -Qdtq'
 
 # Global
