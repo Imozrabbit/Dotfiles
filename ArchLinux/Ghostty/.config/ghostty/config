@@ -4,13 +4,15 @@
 theme = Monokai Remastered
 font-family = JetBrainsMono Nerd Font
 font-size = 13
-background-opacity = 0.85
+background-opacity = 0.75
 resize-overlay = never
 adjust-cell-height = 30%
 mouse-hide-while-typing = true
 quit-after-last-window-closed = true
 quit-after-last-window-closed-delay = 1m
 gtk-single-instance = false
+gtk-custom-css = /home/Zrabbit/.config/ghostty/blur.css
+bell-features = border,no-system,no-audio
 
 #------------------------------------------------------------------#
 #---------------               Keybind              ---------------#
