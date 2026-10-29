@@ -1,6 +1,6 @@
 * {
     font: "Atkinson Hyperlegible Next 13";
-    bg0: #242424cc;
+    bg0: #1d1d1dd9;
     bg1: #7E7E7E4d;
     bg2: #0860f2E6;
     fg0: #DEDEDE;

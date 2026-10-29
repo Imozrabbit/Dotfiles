@@ -1,5 +1,9 @@
 @import "~/.config/rofi/themes/spotlight-dark.rasi"
 
+* {
+    bg0: #161616cc;
+}
+
 configuration {
     me-select-entry: "";
     me-accept-entry: "MousePrimary";
@@ -38,7 +42,7 @@ element {
     border: 1px;
     border-color: #ffffff14;
     border-radius: 5px;
-    background-color: #2a2a2a9c;
+    background-color: #1c1c1ccc;
     border-color: #0f0f0f40;
 }
 
@@ -47,7 +51,7 @@ element-text {
 }
 
 element selected normal, element selected active {
-    background-color: #2f4a73cc;
+    background-color: #24354de6;
     border-color: #0f0f0f80;
 }
 
