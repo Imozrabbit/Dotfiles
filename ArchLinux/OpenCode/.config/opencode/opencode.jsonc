@@ -26,7 +26,7 @@
     },
     "agents": {
         "explore": {
-            "model": "openai/gpt-6-luna#low"
+            "model": "openai/gpt-6.1-terra#low"
         },
         "build": {
             "model": "openai/gpt-6.1-sol#high",
@@ -49,7 +49,7 @@
             ]
         },
         "plan": {
-            "model": "openai/gpt-6.1-sol#medium",
+            "model": "openai/gpt-6.1-terra#max",
             "permissions": [
                 {
                     "action": "edit",
@@ -74,7 +74,7 @@
             ]
         },
         "doc-writer": {
-            "model": "openai/gpt-6-luna#high",
+            "model": "openai/gpt-6.1-terra#high",
             "permissions": [
                 {
                     "action": "*",
@@ -124,7 +124,7 @@
             ]
         },
         "learn": {
-            "model": "openai/gpt-6-luna#high",
+            "model": "openai/gpt-6.1-terra#high",
             "permissions": [
                 {
                     "action": "*",
@@ -179,7 +179,7 @@
             ]
         },
         "security-auditor": {
-            "model": "openai/gpt-6.1-sol#low",
+            "model": "openai/gpt-6.1-sol#max",
             "permissions": [
                 {
                     "action": "*",
