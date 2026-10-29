@@ -79,6 +79,7 @@
 }
 
 .notification-row .notification-background .notification .notification-default-action .notification-content .text-box .time {
+    margin-left: 10px;
     font-size: var(--font-size-time);
     font-weight: normal;
     color: var(--text-color-disabled);
