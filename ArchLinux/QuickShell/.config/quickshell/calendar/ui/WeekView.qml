@@ -100,6 +100,9 @@ Item {
                     const clippedStart = Math.max(event.startMs, dayStartMs);
                     const clippedEnd = Math.min(event.endMs, dayEndMs);
                     const layoutRange = CalendarMath.wallClockRange(clippedStart, clippedEnd, date);
+                    // Instant events need a hit target, not an invented stored duration.
+                    if (clippedStart === clippedEnd)
+                        layoutRange.end = layoutRange.start + 26 * 60 / root.hourHeight;
                     timed.push(Object.assign({}, event, {
                         sourceEvent: event,
                         displayStartMs: event.startMs,
@@ -405,9 +408,10 @@ Item {
                                 readonly property real durationPixels: (endMinutes - startMinutes) / 60 * root.hourHeight
 
                                 x: 4 + modelData.column * (laneWidth + 3)
-                                y: startMinutes / 60 * root.hourHeight + 2
+                                y: modelData.startMs === modelData.endMs ? Math.min(startMinutes / 60 * root.hourHeight + 2, 24 * root.hourHeight - 26) : startMinutes / 60 * root.hourHeight + 2
                                 width: laneWidth
-                                height: durationPixels > 4 ? durationPixels - 4 : durationPixels
+                                height: modelData.startMs === modelData.endMs ? 26 : durationPixels > 4 ? durationPixels - 4 : durationPixels
+                                compact: modelData.startMs === modelData.endMs
                                 eventData: modelData
                                 selected: root.selectedEventUid === (modelData.sourceEvent ?? modelData).uid
                                 conflicted: root.calendarService.conflictService.isConflicted(modelData.sourceEvent ?? modelData)

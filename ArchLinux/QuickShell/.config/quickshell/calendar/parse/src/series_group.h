@@ -1,16 +1,17 @@
 #pragma once
-#include <QString>
 #include <QJsonObject>
+#include <QString>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
-#include <map>
 struct Event;
 
 struct SeriesFileChange {
     std::string uid;
     std::optional<std::string> before;
     std::optional<std::string> after;
+    std::string filename{}; // Existing ordinary remote resource; empty means canonical UID hash.
 };
 
 // Caller must hold the existing calendar directory lock and pause sync before
@@ -32,7 +33,7 @@ bool mutateSeriesGroup(const std::string &directory, const std::string &output,
 void reconstructSeriesGroups(std::vector<Event> &events, std::vector<std::string> &warnings);
 // Caller pauses sync. Owns calendar lock; sourcesSafe permits resume even if cache fails.
 bool recoverSeriesCache(const std::string &directory, const std::string &output,
-                        const QString &sourceId, QString &error, bool &sourcesSafe);
+                        const QString &sourceId, QString &error, bool &sourcesSafe, const QString &uid = {});
 // Read-only argument preflight, before broker installs a durable recovery guard.
 bool checkSeriesTarget(const std::string &directory, const std::string &output,
                        const QString &sourceId, QString &error);

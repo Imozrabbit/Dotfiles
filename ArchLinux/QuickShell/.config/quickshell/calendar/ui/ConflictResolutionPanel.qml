@@ -7,14 +7,20 @@ Item {
     id: root
 
     required property var conflictService
+    property var conversionService: null
     signal closeRequested
 
-    readonly property var conflict: root.conflictService.currentConflict
+    readonly property bool conversionMode: root.conversionService !== null
+    readonly property bool allowLocalOnly: root.conversionMode && root.conversionService.allowLocalOnly !== false
+    readonly property var conflict: root.conversionMode ? root.conversionService.conversionConflict : root.conflictService.currentConflict
+    readonly property string stagedChoice: root.conversionService?.conversionChoices.find(choice => choice.uid === root.conflict?.uid)?.choice || ""
     readonly property var local: root.conflict ? root.conflict.local : null
     readonly property var remote: root.conflict ? root.conflict.remote : null
     readonly property bool groupProtected: root.conflict !== null && root.conflict.kind === "group" && root.conflict.ready !== true
+    readonly property bool selectionEnabled: root.conflict !== null && !root.groupProtected && (root.conversionMode ? !root.conversionService.busy && !root.conversionService.conversionSession?.remoteAttempted && (!["remote-delete", "local-preserve", "local-to-synced"].includes(root.conversionService.conversionKind) || root.conversionService.conversionSession?.phase === "review") : !root.conflictService.busy && root.conflictService.stateValid)
     property string selectedSide: ""
     property string selectedUid: ""
+    property string selectedCalendarId: ""
     property string selectedLocalIcs: ""
     property string selectedRemoteIcs: ""
     property string selectedRevision: ""
@@ -69,11 +75,35 @@ Item {
         return root.value(root.local, key) !== root.value(root.remote, key);
     }
 
+    function selectSide(side) {
+        if (!root.selectionEnabled || !(root.allowLocalOnly ? ["local", "remote", "local-only"] : ["local", "remote"]).includes(side))
+            return;
+        root.selectedUid = root.conflict.uid;
+        root.selectedCalendarId = root.conflict.calendarId || "";
+        root.selectedRevision = root.conflict.revision || "";
+        root.selectedLocalIcs = root.conflict.localIcs || "";
+        root.selectedRemoteIcs = root.conflict.remoteIcs || "";
+        root.selectedSide = side;
+    }
+
+    function restoreConversionChoice() {
+        if (!root.conversionMode)
+            return;
+        root.selectedSide = root.stagedChoice;
+        root.selectedUid = root.conflict?.uid || "";
+        root.selectedRevision = root.conflict?.revision || "";
+    }
+
     function confirmChoice() {
+        if (root.conversionMode) {
+            if (root.selectionEnabled && root.selectedSide.length > 0)
+                root.stageChoice(root.selectedSide);
+            return;
+        }
         if (root.groupProtected || root.selectedSide.length === 0 || root.conflictService.busy || !root.conflictService.stateValid)
             return;
         root.confirmPending = true;
-        root.conflictService.choose(root.selectedSide, root.selectedUid, root.selectedRevision);
+        root.conflictService.choose(root.selectedSide, root.selectedUid, root.selectedRevision, root.selectedCalendarId);
     }
 
     function cancelChoice() {
@@ -82,18 +112,55 @@ Item {
         root.closeRequested();
     }
 
+    function stageChoice(choice) {
+        if (!root.conflict)
+            return;
+        const result = root.conversionService.stageConversionChoice(root.selectedUid, root.selectedRevision, choice);
+        if (!result.ok)
+            root.conversionService.conversionError = result.message;
+        else if (root.conversionService.conversionReady)
+            root.closeRequested();
+    }
+
+    function cancelConversion() {
+        const result = root.conversionService.cancelConversion();
+        if (!result.ok)
+            root.conversionService.conversionError = result.message;
+    }
+
+    onConflictChanged: root.restoreConversionChoice()
+    onStagedChoiceChanged: root.restoreConversionChoice()
+    onConversionModeChanged: {
+        root.selectedSide = "";
+        root.confirmPending = false;
+        root.restoreConversionChoice();
+    }
+    Component.onCompleted: root.restoreConversionChoice()
+
+    Connections {
+        target: root.conversionService
+        function onConversionSessionChanged() {
+            if (!root.conversionService.conversionSession)
+                root.closeRequested();
+        }
+    }
+
     Connections {
         target: root.conflictService
         function onConflictsChanged() {
+            if (root.conversionMode)
+                return;
             if (root.confirmPending && !root.conflictService.hasConflict)
                 root.closeRequested();
             const uid = root.conflict ? root.conflict.uid : "";
+            const calendarId = root.conflict ? root.conflict.calendarId || "" : "";
             const localIcs = root.conflict ? root.conflict.localIcs : "";
             const remoteIcs = root.conflict ? root.conflict.remoteIcs : "";
-            if (uid !== root.selectedUid || localIcs !== root.selectedLocalIcs || remoteIcs !== root.selectedRemoteIcs) {
+            if (calendarId !== root.selectedCalendarId || uid !== root.selectedUid || localIcs !== root.selectedLocalIcs || remoteIcs !== root.selectedRemoteIcs) {
                 root.selectedSide = "";
                 root.confirmPending = false;
                 root.selectedUid = uid;
+                root.selectedCalendarId = calendarId;
                 root.selectedLocalIcs = localIcs;
                 root.selectedRemoteIcs = remoteIcs;
                 root.selectedRevision = root.conflict ? root.conflict.revision || "" : "";
@@ -144,7 +211,7 @@ Item {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Conflict"
+                text: root.conversionMode ? root.allowLocalOnly || root.conversionService.conversionKind === "local-to-synced" ? "Conversion conflict" : "Preservation review" : "Conflict"
                 color: Theme.text
                 font.family: Theme.font
                 font.pixelSize: 21
@@ -156,7 +223,7 @@ Item {
                 anchors.leftMargin: 17
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: 7
-                text: root.conflict ? ((root.conflictService.conflicts.indexOf(root.conflict) + 1) + " of " + root.conflictService.conflicts.length) : "No conflicts"
+                text: root.conflict ? root.conversionMode ? (root.conversionService.conversionIndex + 1) + " of " + root.conversionService.conversionSession.conflicts.length : ((root.conflictService.conflicts.indexOf(root.conflict) + 1) + " of " + root.conflictService.conflicts.length) : "No conflicts"
                 color: Theme.textMuted
                 font.family: Theme.font
                 font.pixelSize: 12
@@ -167,7 +234,7 @@ Item {
                 anchors.rightMargin: 17
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: 7
-                text: root.conflict ? root.conflict.uid : ""
+                text: root.conflict ? (root.conflict.calendarId ? root.conflict.calendarId + " · " : "") + root.conflict.uid : ""
                 textFormat: Text.PlainText
                 color: Theme.textMuted
                 font.pixelSize: 9
@@ -196,14 +263,51 @@ Item {
 
                 Text {
                     Layout.fillWidth: true
-                    text: root.groupProtected ? "Group protected. " + (root.conflict.problem || "Whole-series conflict resolution required.")
-                        : root.conflict && root.conflict.kind === "group" ? "Choose complete series version. All member resources are resolved together; unknown ICS properties stay unchanged."
-                        : "Choose complete event version. Unknown ICS properties stay unchanged."
+                    text: root.groupProtected ? "Group protected. " + (root.conflict.problem || "Whole-series conflict resolution required.") : root.conflict && root.conflict.kind === "group" ? "Choose complete series version. All member resources are resolved together; unknown ICS properties stay unchanged." : "Choose complete event version. Unknown ICS properties stay unchanged."
                     textFormat: Text.PlainText
                     horizontalAlignment: Text.AlignHCenter
                     color: Theme.textMuted
                     font.pixelSize: 12
                     wrapMode: Text.Wrap
+                }
+
+                ColumnLayout {
+                    visible: root.conversionMode
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.allowLocalOnly ? "Choices stay offline until final confirmation. Local choice updates server unless keep-local option is selected." : root.conversionService?.conversionKind === "local-to-synced" ? "Choices stay offline until every differing event or series has a version. After the last choice, refresh, attachment and synchronization run automatically; Local replaces the matching remote version. Unique events from both sides stay." : root.conversionService?.conversionKind === "local-preserve" ? "Server cards show previously captured versions, not live server data. Choose what to keep locally. No server requests, uploads or DELETE." : "Choose the version to keep locally. Confirm stays offline and never uploads. Only the separate final server-deletion confirmation sends DELETE."
+                        wrapMode: Text.Wrap
+                        color: Theme.textMuted
+                        font.pixelSize: 12
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    ActionButton {
+                        id: keepLocalChoice
+                        objectName: "conversionKeepLocal"
+                        visible: root.allowLocalOnly
+                        Layout.fillWidth: true
+                        enabled: visible && root.selectionEnabled
+                        label: "Keep local, leave server unchanged"
+                        primary: root.selectedSide === "local-only"
+                        activeFocusOnTab: enabled
+                        border.width: activeFocus ? 2 : primary ? 0 : 1
+                        border.color: activeFocus ? Theme.text : Theme.border
+                        Accessible.role: Accessible.RadioButton
+                        Accessible.name: keepLocalChoice.label
+                        Accessible.checked: keepLocalChoice.primary
+                        Accessible.onPressAction: keepLocalChoice.clicked()
+                        Keys.onPressed: event => {
+                            if (event.key !== Qt.Key_Space && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
+                                return;
+                            keepLocalChoice.clicked();
+                            event.accepted = true;
+                        }
+                        onClicked: if (root.conversionMode)
+                            root.selectSide("local-only")
+                    }
                 }
 
                 RowLayout {
@@ -218,7 +322,7 @@ Item {
                                 data: root.local
                             },
                             {
-                                label: "OTHER DEVICE",
+                                label: root.conversionMode && !root.allowLocalOnly ? "SERVER" : "OTHER DEVICE",
                                 side: "remote",
                                 data: root.remote
                             }
@@ -226,18 +330,29 @@ Item {
 
                         delegate: Rectangle {
                             id: versionCard
-                            enabled: !root.groupProtected
+                            objectName: "conflictVersion_" + versionCard.modelData.side
+                            enabled: visible && root.selectionEnabled
                             required property var modelData
-                            readonly property bool selected: root.selectedSide === modelData.side
+                            readonly property bool selected: (root.selectedSide === "local-only" ? "local" : root.selectedSide) === modelData.side
+                            activeFocusOnTab: enabled
+                            Accessible.role: Accessible.RadioButton
+                            Accessible.name: versionCard.modelData.label
+                            Accessible.checked: versionCard.selected
+                            Accessible.onPressAction: root.selectSide(versionCard.modelData.side)
+                            Keys.onPressed: event => {
+                                if (event.key !== Qt.Key_Space && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
+                                    return;
+                                root.selectSide(versionCard.modelData.side);
+                                event.accepted = true;
+                            }
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1
                             Layout.minimumWidth: 0
                             Layout.preferredHeight: cardContent.implicitHeight + 35
-                            color: cardTap.pressed ? Qt.darker(Theme.surfaceRaised, 1.2)
-                                : selected ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14) : cardHover.hovered ? Theme.surfaceRaised : Theme.background
+                            color: cardTap.pressed ? Qt.darker(Theme.surfaceRaised, 1.2) : selected ? Qt.alpha(Theme.accent, 0.14) : cardHover.hovered ? Theme.surfaceRaised : Theme.background
                             radius: Theme.radius
-                            border.width: selected ? 2 : 1
-                            border.color: selected ? Theme.accent : cardHover.hovered ? Theme.textMuted : Theme.border
+                            border.width: selected || activeFocus ? 2 : 1
+                            border.color: selected ? Theme.accent : activeFocus ? Theme.text : cardHover.hovered ? Theme.textMuted : Theme.border
 
                             HoverHandler {
                                 id: cardHover
@@ -246,13 +361,8 @@ Item {
                             }
                             TapHandler {
                                 id: cardTap
-                                onTapped: {
-                                    root.selectedUid = root.conflict.uid;
-                                    root.selectedRevision = root.conflict.revision || "";
-                                    root.selectedLocalIcs = root.conflict.localIcs;
-                                    root.selectedRemoteIcs = root.conflict.remoteIcs;
-                                    root.selectedSide = versionCard.modelData.side;
-                                }
+                                enabled: versionCard.enabled
+                                onTapped: root.selectSide(versionCard.modelData.side)
                             }
 
                             ColumnLayout {
@@ -331,8 +441,8 @@ Item {
 
                 Text {
                     Layout.fillWidth: true
-                    visible: root.conflictService.errorMessage.length > 0
-                    text: root.conflictService.errorMessage
+                    visible: text.length > 0
+                    text: root.conversionMode ? root.conversionService.conversionError : root.conflictService.errorMessage
                     textFormat: Text.PlainText
                     horizontalAlignment: Text.AlignHCenter
                     color: Theme.currentTime
@@ -354,11 +464,26 @@ Item {
             spacing: 8
 
             Rectangle {
+                id: confirmButton
+                objectName: "conflictConfirm"
+                enabled: visible && root.selectionEnabled && root.selectedSide.length > 0
+                activeFocusOnTab: enabled
+                Accessible.role: Accessible.Button
+                Accessible.name: "Confirm choice"
+                Accessible.onPressAction: root.confirmChoice()
+                Keys.onPressed: event => {
+                    if (event.key !== Qt.Key_Space && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
+                        return;
+                    root.confirmChoice();
+                    event.accepted = true;
+                }
                 Layout.preferredWidth: confirmText.implicitWidth + 28
                 Layout.preferredHeight: 34
                 radius: Theme.radius
+                border.width: activeFocus ? 1 : 0
+                border.color: Theme.text
                 color: confirmMouse.pressed ? Qt.darker(Theme.accent, 1.2) : confirmHover.hovered ? Qt.lighter(Theme.accent, 1.12) : Theme.accent
-                opacity: !root.groupProtected && !root.conflictService.busy && root.conflictService.stateValid && root.selectedSide.length > 0 ? 1 : 0.5
+                opacity: enabled ? 1 : 0.5
                 Text {
                     id: confirmText
                     anchors.centerIn: parent
@@ -369,17 +494,36 @@ Item {
                 }
                 HoverHandler {
                     id: confirmHover
-                    enabled: !root.groupProtected && !root.conflictService.busy && root.conflictService.stateValid && root.selectedSide.length > 0
+                    enabled: confirmButton.enabled
                     cursorShape: Qt.PointingHandCursor
                 }
                 MouseArea {
                     id: confirmMouse
                     anchors.fill: parent
                     hoverEnabled: true
-                    enabled: !root.groupProtected && !root.conflictService.busy && root.conflictService.stateValid && root.selectedSide.length > 0
+                    enabled: confirmButton.enabled
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: root.confirmChoice()
                 }
+            }
+
+            ActionButton {
+                visible: root.conversionMode
+                enabled: !root.conversionService?.busy && root.conversionService?.conversionIndex > 0
+                label: card.width < 500 ? "‹" : "Previous"
+                minimumWidth: card.width < 500 ? 34 : 80
+                Accessible.role: Accessible.Button
+                Accessible.name: "Previous conflict"
+                onClicked: root.conversionService.conversionIndex--
+            }
+            ActionButton {
+                visible: root.conversionMode
+                enabled: !root.conversionService?.busy && root.conversionService?.conversionIndex < (root.conversionService?.conversionSession?.conflicts.length || 0) - 1
+                label: card.width < 500 ? "›" : "Next"
+                minimumWidth: card.width < 500 ? 34 : 80
+                Accessible.role: Accessible.Button
+                Accessible.name: "Next conflict"
+                onClicked: root.conversionService.conversionIndex++
             }
 
             Item {
@@ -387,6 +531,7 @@ Item {
             }
 
             Rectangle {
+                visible: !root.conversionMode
                 Layout.preferredWidth: cancelText.implicitWidth + 28
                 Layout.preferredHeight: 34
                 radius: Theme.radius
@@ -415,6 +560,23 @@ Item {
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: root.cancelChoice()
                 }
+            }
+            ActionButton {
+                visible: root.conversionMode
+                enabled: !root.conversionService?.busy && !root.conversionService?.conversionSession?.remoteAttempted && root.conversionService?.conversionCanCancel !== false
+                label: root.allowLocalOnly || root.conversionService?.conversionKind === "local-to-synced" ? "Cancel conversion" : root.conversionService?.conversionKind === "local-preserve" ? "Cancel preservation" : "Cancel deletion"
+                activeFocusOnTab: enabled
+                border.color: activeFocus ? Theme.text : Theme.border
+                Accessible.role: Accessible.Button
+                Accessible.name: label
+                Accessible.onPressAction: clicked()
+                Keys.onPressed: event => {
+                    if (event.key !== Qt.Key_Space && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
+                        return;
+                    clicked();
+                    event.accepted = true;
+                }
+                onClicked: root.cancelConversion()
             }
         }
     }

@@ -1,15 +1,16 @@
 #include "recurrence.h"
+#include "helper.h"
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QSet>
 #include <QRegularExpression>
+#include <QSet>
 #include <QTimeZone>
-#include <libical/ical.h>
 #include <algorithm>
 #include <cmath>
-#include <memory>
+#include <libical/ical.h>
 #include <map>
+#include <memory>
 #include <vector>
 
 namespace {
@@ -61,53 +62,46 @@ QDate boundary(const QJsonObject &rule) {
 bool validateRule(const QJsonValue &value, QString &error) {
     if (!keys(value, {"frequency", "interval", "startsOn", "pattern", "ends"}))
         return fail(error, "Recurrence schema is invalid");
-    const auto rule = value.toObject();
+    const auto rule      = value.toObject();
     const auto frequency = rule.value("frequency").toString();
-    if (!QStringList{"daily", "weekly", "monthly", "yearly"}.contains(frequency)
-            || !integer(rule.value("interval"), 1, 2147483647) || !date(rule.value("startsOn")).isValid())
+    if (!QStringList{"daily", "weekly", "monthly", "yearly"}.contains(frequency) || !integer(rule.value("interval"), 1, 2147483647) || !date(rule.value("startsOn")).isValid())
         return fail(error, "Recurrence frequency, interval or boundary is invalid");
     const auto patternValue = rule.value("pattern");
-    const auto pattern = patternValue.toObject();
-    bool valid = false;
+    const auto pattern      = patternValue.toObject();
+    bool valid              = false;
     if (frequency == "daily") {
         valid = keys(patternValue, {});
     } else if (frequency == "weekly" || (frequency == "monthly" && pattern.value("mode") == "dates")) {
         const QString selection = frequency == "weekly" ? "weekdays" : "days";
-        valid = keys(patternValue, frequency == "weekly" ? QStringList{selection} : QStringList{"mode", selection})
-            && pattern.value(selection).isArray() && !pattern.value(selection).toArray().isEmpty();
+        valid                   = keys(patternValue, frequency == "weekly" ? QStringList{selection} : QStringList{"mode", selection}) && pattern.value(selection).isArray() && !pattern.value(selection).toArray().isEmpty();
         for (const auto &item : pattern.value(selection).toArray())
             valid = valid && integer(item, frequency == "weekly" ? 0 : 1, frequency == "weekly" ? 6 : 31);
     } else if (frequency == "monthly" && pattern.value("mode") == "positions") {
         valid = keys(patternValue, {"mode", "positions"}) && pattern.value("positions").isArray() && !pattern.value("positions").toArray().isEmpty();
         for (const auto &item : pattern.value("positions").toArray()) {
             const auto position = item.toObject();
-            valid = valid && keys(item, {"ordinal", "weekday"})
-                && (integer(position.value("ordinal"), 1, 5) || integer(position.value("ordinal"), -1, -1))
-                && integer(position.value("weekday"), 0, 6);
+            valid               = valid && keys(item, {"ordinal", "weekday"}) && (integer(position.value("ordinal"), 1, 5) || integer(position.value("ordinal"), -1, -1)) && integer(position.value("weekday"), 0, 6);
         }
     } else if (frequency == "yearly") {
         valid = keys(patternValue, {"dates"}) && pattern.value("dates").isArray() && !pattern.value("dates").toArray().isEmpty();
         for (const auto &item : pattern.value("dates").toArray()) {
             const auto pair = item.toObject();
-            valid = valid && keys(item, {"month", "day"}) && integer(pair.value("month"), 1, 12)
-                && integer(pair.value("day"), 1, 31) && QDate(2000, pair.value("month").toInt(), pair.value("day").toInt()).isValid();
+            valid           = valid && keys(item, {"month", "day"}) && integer(pair.value("month"), 1, 12) && integer(pair.value("day"), 1, 31) && QDate(2000, pair.value("month").toInt(), pair.value("day").toInt()).isValid();
         }
     }
     if (!valid)
         return fail(error, "Recurrence pattern is invalid");
     const auto endsValue = rule.value("ends");
-    const auto ends = endsValue.toObject();
-    valid = (keys(endsValue, {"mode"}) && ends.value("mode") == "never")
-        || (keys(endsValue, {"mode", "count"}) && ends.value("mode") == "count" && integer(ends.value("count"), 1, 2147483647))
-        || (keys(endsValue, {"mode", "date"}) && ends.value("mode") == "date" && date(ends.value("date")).isValid() && date(ends.value("date")) >= boundary(rule));
+    const auto ends      = endsValue.toObject();
+    valid                = (keys(endsValue, {"mode"}) && ends.value("mode") == "never") || (keys(endsValue, {"mode", "count"}) && ends.value("mode") == "count" && integer(ends.value("count"), 1, 2147483647)) || (keys(endsValue, {"mode", "date"}) && ends.value("mode") == "date" && date(ends.value("date")).isValid() && date(ends.value("date")) >= boundary(rule));
     return valid || fail(error, "Recurrence end condition is invalid");
 }
 
 icaltimetype dayTime(const QDate &day) {
-    auto value = icaltime_null_time();
-    value.year = day.year();
-    value.month = day.month();
-    value.day = day.day();
+    auto value    = icaltime_null_time();
+    value.year    = day.year();
+    value.month   = day.month();
+    value.day     = day.day();
     value.is_date = 1;
     return value;
 }
@@ -125,16 +119,16 @@ class Dates {
 
     QDate nextPhase(const QDate &day) const {
         const QString frequency = rule.value("frequency").toString();
-        const qint64 interval = rule.value("interval").toInt();
-        qint64 phase = 0;
+        const qint64 interval   = rule.value("interval").toInt();
+        qint64 phase            = 0;
         QDate cycle;
         if (frequency == "daily") {
             phase = anchor.daysTo(day);
             cycle = day;
         } else if (frequency == "weekly") {
             const QDate first = anchor.addDays(1 - anchor.dayOfWeek());
-            cycle = day.addDays(1 - day.dayOfWeek());
-            phase = first.daysTo(cycle) / 7;
+            cycle             = day.addDays(1 - day.dayOfWeek());
+            phase             = first.daysTo(cycle) / 7;
         } else if (frequency == "monthly") {
             cycle = QDate(day.year(), day.month(), 1);
             phase = (day.year() - anchor.year()) * 12LL + day.month() - anchor.month();
@@ -145,9 +139,10 @@ class Dates {
         if (phase % interval == 0)
             return day;
         const qint64 jump = interval - phase % interval;
-        return frequency == "daily" ? cycle.addDays(jump)
-             : frequency == "weekly" ? cycle.addDays(jump * 7)
-             : frequency == "monthly" ? cycle.addMonths(jump) : cycle.addYears(jump);
+        return frequency == "daily"     ? cycle.addDays(jump)
+               : frequency == "weekly"  ? cycle.addDays(jump * 7)
+               : frequency == "monthly" ? cycle.addMonths(jump)
+                                        : cycle.addYears(jump);
     }
 
     void advance(Cursor &cursor) {
@@ -172,7 +167,7 @@ class Dates {
   public:
     explicit Dates(const QJsonObject &value, QDate seek = {}) : rule(value), anchor(boundary(value)) {
         const QString frequency = rule.value("frequency").toString();
-        const auto pattern = rule.value("pattern").toObject();
+        const auto pattern      = rule.value("pattern").toObject();
         const QStringList weekdays{"MO", "TU", "WE", "TH", "FR", "SA", "SU"};
         QStringList rules;
         QString text = "FREQ=" + frequency.toUpper() + ";WKST=MO";
@@ -242,11 +237,11 @@ QString icalText(icalcomponent *component, icalproperty_kind kind) {
     auto *property = icalcomponent_get_first_property(component, kind);
     if (!property)
         return {};
-    const char *value = kind == ICAL_SUMMARY_PROPERTY ? icalproperty_get_summary(property)
-        : kind == ICAL_DESCRIPTION_PROPERTY ? icalproperty_get_description(property)
-        : kind == ICAL_LOCATION_PROPERTY ? icalproperty_get_location(property)
-        : kind == ICAL_UID_PROPERTY ? icalproperty_get_uid(property)
-        : icalproperty_get_value_as_string(property);
+    const char *value = kind == ICAL_SUMMARY_PROPERTY       ? icalproperty_get_summary(property)
+                        : kind == ICAL_DESCRIPTION_PROPERTY ? icalproperty_get_description(property)
+                        : kind == ICAL_LOCATION_PROPERTY    ? icalproperty_get_location(property)
+                        : kind == ICAL_UID_PROPERTY         ? icalproperty_get_uid(property)
+                                                            : icalproperty_get_value_as_string(property);
     return value ? QString::fromUtf8(value) : QString{};
 }
 
@@ -261,7 +256,7 @@ QDateTime icalInstant(icalcomponent *calendar, icalproperty *property, icaltimet
     if (value.is_date)
         return QDateTime(day, QTime(0, 0), QTimeZone::systemTimeZone());
     const auto *parameter = property ? icalproperty_get_first_parameter(property, ICAL_TZID_PARAMETER) : nullptr;
-    const char *tzid = parameter ? icalparameter_get_tzid(parameter) : nullptr;
+    const char *tzid      = parameter ? icalparameter_get_tzid(parameter) : nullptr;
     if (icaltime_is_utc(value) && (!tzid || !*tzid))
         return QDateTime(day, clock, QTimeZone::utc());
     const icaltimezone *zone = icaltime_is_utc(value) ? icaltimezone_get_utc_timezone() : nullptr;
@@ -276,10 +271,9 @@ QDateTime icalInstant(icalcomponent *calendar, icalproperty *property, icaltimet
         const QDateTime result(day, clock, QTimeZone::systemTimeZone());
         return result.date() == day && result.time() == clock ? result : QDateTime{};
     }
-    const auto seconds = icaltime_as_timet_with_zone(value, zone);
+    const auto seconds   = icaltime_as_timet_with_zone(value, zone);
     const auto roundTrip = icaltime_from_timet_with_zone(seconds, 0, zone);
-    if (roundTrip.year != value.year || roundTrip.month != value.month || roundTrip.day != value.day
-            || roundTrip.hour != value.hour || roundTrip.minute != value.minute || roundTrip.second != value.second)
+    if (roundTrip.year != value.year || roundTrip.month != value.month || roundTrip.day != value.day || roundTrip.hour != value.hour || roundTrip.minute != value.minute || roundTrip.second != value.second)
         return {};
     return QDateTime::fromSecsSinceEpoch(seconds, QTimeZone::utc());
 }
@@ -291,7 +285,7 @@ QString icalIdentity(icaltimetype value) {
 
 QDateTime icalDurationEnd(icalcomponent *calendar, icalproperty *property,
                           icaltimetype start, icaldurationtype duration) {
-    const qint64 days = qint64(duration.weeks) * 7 + duration.days;
+    const qint64 days    = qint64(duration.weeks) * 7 + duration.days;
     const qint64 seconds = qint64(duration.hours) * 3600 + qint64(duration.minutes) * 60 + duration.seconds;
     if (duration.is_neg || days > 3652058 || (start.is_date && seconds != 0))
         return {};
@@ -300,12 +294,37 @@ QDateTime icalDurationEnd(icalcomponent *calendar, icalproperty *property,
     return icalInstant(calendar, property, start).addSecs(seconds);
 }
 
+bool reminderLead(const QJsonObject &event, qint64 &leadMs, QString &error) {
+    if (!event.value("reminders").isArray())
+        return fail(error, "Reminder list is invalid");
+    for (const auto &value : event.value("reminders").toArray()) {
+        if (!keys(value, {"minutesBefore"}) || !integer(value.toObject().value("minutesBefore"), 0, 2147483647))
+            return fail(error, "Reminder lead is invalid");
+        leadMs = std::max(leadMs, qint64(value.toObject().value("minutesBefore").toInt()) * 60000);
+    }
+    return true;
+}
+
+bool reminderInRange(const QJsonObject &event, qint64 startMs, qint64 from, qint64 until) {
+    for (const auto &value : event.value("reminders").toArray()) {
+        const qint64 deadline = startMs - qint64(value.toObject().value("minutesBefore").toInt()) * 60000;
+        if (deadline >= from && deadline < until)
+            return true;
+    }
+    return false;
+}
+
 bool expandIcalMaster(const QJsonObject &master, qint64 rangeStart, qint64 rangeEnd,
-                      QJsonArray &output, QJsonArray &warnings, int &work, qint64 &outputBytes, QString &error) {
+                      QJsonArray &output, QJsonArray &warnings, int &work, qint64 &outputBytes, QString &error, bool forReminders) {
+    const qint64 deadlineEnd = rangeEnd;
+    qint64 leadMs = 0;
+    bool hasReminders = !master.value("reminders").toArray().isEmpty();
+    if (forReminders && !reminderLead(master, leadMs, error))
+        return false;
     const QString uid = master.value("uid").toString();
-    const auto warn = [&](const QString &message) {
+    const auto warn   = [&](const QString &message) {
         const QString warning = uid + ": " + message;
-        const auto bytes = QJsonDocument(QJsonArray{warning}).toJson(QJsonDocument::Compact).size();
+        const auto bytes      = QJsonDocument(QJsonArray{warning}).toJson(QJsonDocument::Compact).size();
         if (warnings.size() >= 100000 || outputBytes + bytes > 32 * 1024 * 1024 - 1024)
             return fail(error, "Occurrence query exceeds output limit");
         outputBytes += bytes;
@@ -316,13 +335,12 @@ bool expandIcalMaster(const QJsonObject &master, qint64 rangeStart, qint64 range
     if (input.isEmpty() || input.size() > 16 * 1024 * 1024 || input.contains('\0'))
         return warn("Invalid retained iCalendar data");
     std::unique_ptr<icalcomponent, decltype(&icalcomponent_free)> calendar(icalparser_parse_string(input.constData()), icalcomponent_free);
-    if (!calendar || icalcomponent_isa(calendar.get()) != ICAL_VCALENDAR_COMPONENT
-            || icalcomponent_count_errors(calendar.get()))
+    if (!calendar || icalcomponent_isa(calendar.get()) != ICAL_VCALENDAR_COMPONENT || icalcomponent_count_errors(calendar.get()))
         return warn("Malformed retained iCalendar data");
     icalcomponent *base = nullptr;
     QString sourceUid;
     std::vector<icalcomponent *> overrides;
-    for (auto *component = icalcomponent_get_first_component(calendar.get(), ICAL_VEVENT_COMPONENT);
+    for (auto *component      = icalcomponent_get_first_component(calendar.get(), ICAL_VEVENT_COMPONENT);
          component; component = icalcomponent_get_next_component(calendar.get(), ICAL_VEVENT_COMPONENT)) {
         const QString memberUid = icalText(component, ICAL_UID_PROPERTY);
         if (memberUid.isEmpty() || (!sourceUid.isEmpty() && sourceUid != memberUid))
@@ -339,33 +357,38 @@ bool expandIcalMaster(const QJsonObject &master, qint64 rangeStart, qint64 range
         return warn("Missing recurrence master");
     if (master.value("calendarId").isString() && uid != master.value("calendarId").toString() + ":" + sourceUid)
         return warn("Retained calendar UID does not match master");
-    if (icalcomponent_count_properties(base, ICAL_RRULE_PROPERTY) > 1
-            || icalcomponent_get_first_property(base, ICAL_EXRULE_PROPERTY))
+    if (icalcomponent_count_properties(base, ICAL_RRULE_PROPERTY) > 1 || icalcomponent_get_first_property(base, ICAL_EXRULE_PROPERTY))
         return warn("Multiple RRULE or EXRULE semantics are unsupported");
     if (icalText(base, ICAL_STATUS_PROPERTY) == "CANCELLED")
         return true;
-    auto *startProperty = icalcomponent_get_first_property(base, ICAL_DTSTART_PROPERTY);
-    auto *endProperty = icalcomponent_get_first_property(base, ICAL_DTEND_PROPERTY);
+    auto *startProperty    = icalcomponent_get_first_property(base, ICAL_DTSTART_PROPERTY);
+    auto *endProperty      = icalcomponent_get_first_property(base, ICAL_DTEND_PROPERTY);
     auto *durationProperty = icalcomponent_get_first_property(base, ICAL_DURATION_PROPERTY);
-    if (!startProperty || (!endProperty && !durationProperty) || (endProperty && durationProperty))
-        return warn("Recurrence master needs DTSTART and DTEND");
-    const auto startValue = icalproperty_get_dtstart(startProperty);
-    const auto endValue = endProperty ? icalproperty_get_dtend(endProperty) : icalcomponent_get_dtend(base);
-    const auto original = icalInstant(calendar.get(), startProperty, startValue);
+    if (!startProperty || (endProperty && durationProperty))
+        return warn("Recurrence master needs DTSTART and at most one end/duration");
+    const auto startValue  = icalproperty_get_dtstart(startProperty);
+    const bool implicitEnd = !endProperty && !durationProperty;
+    auto endValue         = endProperty ? icalproperty_get_dtend(endProperty) : implicitEnd ? startValue : icalcomponent_get_dtend(base);
+    if (implicitEnd && startValue.is_date) icaltime_adjust(&endValue, 1, 0, 0, 0);
+    const auto original    = icalInstant(calendar.get(), startProperty, startValue);
     const auto originalEnd = durationProperty
-        ? icalDurationEnd(calendar.get(), startProperty, startValue, icalproperty_get_duration(durationProperty))
-        : icalInstant(calendar.get(), endProperty, endValue);
-    if (!original.isValid() || !originalEnd.isValid() || originalEnd <= original || startValue.is_date != endValue.is_date)
+                                 ? icalDurationEnd(calendar.get(), startProperty, startValue, icalproperty_get_duration(durationProperty))
+                                  : icalInstant(calendar.get(), endProperty ? endProperty : startProperty, endValue);
+    if (!original.isValid() || !originalEnd.isValid() || originalEnd < original
+        || (originalEnd == original && !implicitEnd) || startValue.is_date != endValue.is_date)
         return warn("Invalid recurrence master dates/timezone");
-    const bool allDay = startValue.is_date;
-    const auto isFloating = [](icalproperty *property, icaltimetype value) {
-        return !value.is_date && !icaltime_is_utc(value)
-            && !icalproperty_get_first_parameter(property, ICAL_TZID_PARAMETER);
+    const bool allDay     = startValue.is_date;
+    const auto inRange = [&](const QDateTime &start, const QDateTime &end) {
+        const auto from = start.toMSecsSinceEpoch(), until = end.toMSecsSinceEpoch();
+        return from < rangeEnd && (until > rangeStart || (from == until && from >= rangeStart));
     };
-    const bool floating = isFloating(startProperty, startValue);
+    const auto isFloating = [](icalproperty *property, icaltimetype value) {
+        return !value.is_date && !icaltime_is_utc(value) && !icalproperty_get_first_parameter(property, ICAL_TZID_PARAMETER);
+    };
+    const bool floating   = isFloating(startProperty, startValue);
     const qint64 duration = original.msecsTo(originalEnd);
-    const qint64 days = QDate(startValue.year, startValue.month, startValue.day).daysTo(QDate(endValue.year, endValue.month, endValue.day));
-    const auto ending = [&](icalproperty *property, icaltimetype value, const QDateTime &from) {
+    const qint64 days     = QDate(startValue.year, startValue.month, startValue.day).daysTo(QDate(endValue.year, endValue.month, endValue.day));
+    const auto ending     = [&](icalproperty *property, icaltimetype value, const QDateTime &from) {
         if (durationProperty) {
             return icalDurationEnd(calendar.get(), property, value, icalproperty_get_duration(durationProperty));
         }
@@ -376,7 +399,7 @@ bool expandIcalMaster(const QJsonObject &master, qint64 rangeStart, qint64 range
         QDateTime start, end;
         QJsonObject data;
         bool cancelled = false;
-        bool floating = false;
+        bool floating  = false;
     };
     std::map<qint64, Replacement> replacements;
     for (auto *component : overrides) {
@@ -384,65 +407,83 @@ bool expandIcalMaster(const QJsonObject &master, qint64 rangeStart, qint64 range
         if (icalproperty_get_first_parameter(identityProperty, ICAL_RANGE_PARAMETER))
             return warn("RECURRENCE-ID RANGE overrides are unsupported");
         const auto identity = icalproperty_get_recurrenceid(identityProperty);
-        const auto when = icalInstant(calendar.get(), identityProperty, identity);
+        const auto when     = icalInstant(calendar.get(), identityProperty, identity);
         if (!when.isValid() || identity.is_date != allDay || replacements.count(when.toMSecsSinceEpoch()))
             return warn("Invalid or duplicate recurrence override");
         Replacement replacement;
-        replacement.identity = identity;
-        replacement.floating = isFloating(identityProperty, identity);
+        replacement.identity  = identity;
+        replacement.floating  = isFloating(identityProperty, identity);
         replacement.cancelled = icalText(component, ICAL_STATUS_PROPERTY) == "CANCELLED";
         if (!replacement.cancelled) {
-            auto *from = icalcomponent_get_first_property(component, ICAL_DTSTART_PROPERTY);
+            auto *from  = icalcomponent_get_first_property(component, ICAL_DTSTART_PROPERTY);
             auto *until = icalcomponent_get_first_property(component, ICAL_DTEND_PROPERTY);
-            auto *span = icalcomponent_get_first_property(component, ICAL_DURATION_PROPERTY);
-            if (!from || (!until && !span) || (until && span))
-                return warn("Override needs DTSTART and exactly one of DTEND or DURATION");
-            const auto fromValue = icalproperty_get_dtstart(from);
-            const auto untilValue = until ? icalproperty_get_dtend(until) : icaltime_null_time();
-            replacement.start = icalInstant(calendar.get(), from, fromValue);
-            replacement.end = span ? icalDurationEnd(calendar.get(), from, fromValue, icalproperty_get_duration(span))
-                                   : icalInstant(calendar.get(), until, untilValue);
-            if (!replacement.start.isValid() || !replacement.end.isValid() || replacement.end <= replacement.start
-                    || fromValue.is_date != allDay || (until && untilValue.is_date != allDay))
+            auto *span  = icalcomponent_get_first_property(component, ICAL_DURATION_PROPERTY);
+            if (!from || (until && span))
+                return warn("Override needs DTSTART and at most one end/duration");
+            const auto fromValue  = icalproperty_get_dtstart(from);
+            const bool implicit = !until && !span;
+            auto untilValue = until ? icalproperty_get_dtend(until) : fromValue;
+            if (implicit && fromValue.is_date) icaltime_adjust(&untilValue, 1, 0, 0, 0);
+            replacement.start     = icalInstant(calendar.get(), from, fromValue);
+            replacement.end       = span ? icalDurationEnd(calendar.get(), from, fromValue, icalproperty_get_duration(span))
+                                         : icalInstant(calendar.get(), until ? until : from, untilValue);
+            if (!replacement.start.isValid() || !replacement.end.isValid() || replacement.end < replacement.start
+                || (replacement.end == replacement.start && !implicit) || fromValue.is_date != allDay || (until && untilValue.is_date != allDay))
                 return warn("Invalid override dates/timezone");
             if (allDay) {
                 replacement.data["start"] = QDate(fromValue.year, fromValue.month, fromValue.day).toString(Qt::ISODate);
-                replacement.data["end"] = replacement.end.date().toString(Qt::ISODate);
+                replacement.data["end"]   = replacement.end.date().toString(Qt::ISODate);
             }
             for (const auto &[kind, name] : std::vector<std::pair<icalproperty_kind, const char *>>{
-                    {ICAL_SUMMARY_PROPERTY, "title"}, {ICAL_DESCRIPTION_PROPERTY, "description"}, {ICAL_LOCATION_PROPERTY, "location"}})
+                     {ICAL_SUMMARY_PROPERTY, "title"}, {ICAL_DESCRIPTION_PROPERTY, "description"}, {ICAL_LOCATION_PROPERTY, "location"}})
                 if (icalcomponent_get_first_property(component, kind))
                     replacement.data[name] = icalText(component, kind);
+            QJsonArray reminders;
+            for (const int minutes : simpleDisplayReminders(component))
+                reminders.append(QJsonObject{{"minutesBefore", minutes}});
+            replacement.data["reminders"] = reminders;
+            hasReminders = hasReminders || !reminders.isEmpty();
+            if (forReminders && !reminderLead(replacement.data, leadMs, error))
+                return false;
         }
         replacements.emplace(when.toMSecsSinceEpoch(), std::move(replacement));
     }
+    if (forReminders && !hasReminders)
+        return true;
+    // ponytail: shared lead span stays under native work limits; group by lead if dense/long-lead series hit the cap.
+    if (forReminders)
+        rangeEnd = std::min(253402300800000LL, rangeEnd + leadMs);
     QSet<qint64> excluded;
-    for (auto *property = icalcomponent_get_first_property(base, ICAL_EXDATE_PROPERTY);
+    for (auto *property     = icalcomponent_get_first_property(base, ICAL_EXDATE_PROPERTY);
          property; property = icalcomponent_get_next_property(base, ICAL_EXDATE_PROPERTY)) {
         const auto value = icalproperty_get_exdate(property);
-        const auto when = icalInstant(calendar.get(), property, value);
+        const auto when  = icalInstant(calendar.get(), property, value);
         if (!when.isValid() || value.is_date != allDay)
             return warn("Invalid EXDATE date/timezone");
         excluded.insert(when.toMSecsSinceEpoch());
     }
-    struct Additional { icaltimetype value; QDateTime start, end; bool floating; };
+    struct Additional {
+        icaltimetype value;
+        QDateTime start, end;
+        bool floating;
+    };
     std::vector<Additional> additional;
     std::map<qint64, QDateTime> periodEnds;
-    for (auto *property = icalcomponent_get_first_property(base, ICAL_RDATE_PROPERTY);
+    for (auto *property     = icalcomponent_get_first_property(base, ICAL_RDATE_PROPERTY);
          property; property = icalcomponent_get_next_property(base, ICAL_RDATE_PROPERTY)) {
-        const auto value = icalproperty_get_rdate(property);
-        const bool period = icaltime_is_null_time(value.time);
+        const auto value     = icalproperty_get_rdate(property);
+        const bool period    = icaltime_is_null_time(value.time);
         const auto fromValue = period ? value.period.start : value.time;
-        const auto from = icalInstant(calendar.get(), property, fromValue);
+        const auto from      = icalInstant(calendar.get(), property, fromValue);
         QDateTime until;
         if (period) {
             until = icaltime_is_null_time(value.period.end)
-                ? icalDurationEnd(calendar.get(), property, fromValue, value.period.duration)
-                : icalInstant(calendar.get(), property, value.period.end);
+                        ? icalDurationEnd(calendar.get(), property, fromValue, value.period.duration)
+                        : icalInstant(calendar.get(), property, value.period.end);
         } else {
             until = ending(property, fromValue, from);
         }
-        if (!from.isValid() || !until.isValid() || until <= from || fromValue.is_date != allDay || (period && allDay))
+        if (!from.isValid() || !until.isValid() || until < from || (until == from && (period || !implicitEnd)) || fromValue.is_date != allDay || (period && allDay))
             return warn("Invalid RDATE date/period/timezone");
         if (period) {
             const auto [found, inserted] = periodEnds.emplace(from.toMSecsSinceEpoch(), until);
@@ -458,25 +499,26 @@ bool expandIcalMaster(const QJsonObject &master, qint64 rangeStart, qint64 range
         display["recurrenceSummary"] = "Custom dates";
     QSet<qint64> seen;
     const auto append = [&](icaltimetype identity, const QDateTime &start, const QDateTime &end, const QJsonObject &fields, qint64 identityMs, bool floatingId) {
-        if (!start.isValid() || !end.isValid() || end <= start || end.date().year() > 9999)
+        if (!start.isValid() || !end.isValid() || end < start || (end == start && allDay) || end.date().year() > 9999)
             return fail(error, "Occurrence end is outside supported dates");
-        if (start.toMSecsSinceEpoch() >= rangeEnd || end.toMSecsSinceEpoch() <= rangeStart)
+        if (!inRange(start, end))
             return true;
         QJsonObject occurrence = display;
         for (auto it = fields.begin(); it != fields.end(); ++it)
             occurrence[it.key()] = it.value();
+        if (forReminders && !reminderInRange(occurrence, start.toMSecsSinceEpoch(), rangeStart, deadlineEnd))
+            return true;
         if (!allDay) {
             occurrence["start"] = utcText(start);
-            occurrence["end"] = utcText(end);
+            occurrence["end"]   = utcText(end);
         }
-        const QString id = uid + "#" + (allDay || floatingId ? icalIdentity(identity)
-            : utcText(QDateTime::fromMSecsSinceEpoch(identityMs, QTimeZone::utc())));
-        occurrence["uid"] = id;
-        occurrence["masterUid"] = uid;
+        const QString id           = uid + "#" + (allDay || floatingId ? icalIdentity(identity) : utcText(QDateTime::fromMSecsSinceEpoch(identityMs, QTimeZone::utc())));
+        occurrence["uid"]          = id;
+        occurrence["masterUid"]    = uid;
         occurrence["occurrenceId"] = id;
-        occurrence["startMs"] = double(start.toMSecsSinceEpoch());
-        occurrence["endMs"] = double(end.toMSecsSinceEpoch());
-        const auto bytes = QJsonDocument(occurrence).toJson(QJsonDocument::Compact).size();
+        occurrence["startMs"]      = double(start.toMSecsSinceEpoch());
+        occurrence["endMs"]        = double(end.toMSecsSinceEpoch());
+        const auto bytes           = QJsonDocument(occurrence).toJson(QJsonDocument::Compact).size();
         if (output.size() >= 100000 || outputBytes + bytes > 32 * 1024 * 1024 - 1024)
             return fail(error, "Occurrence query exceeds output limit");
         outputBytes += bytes;
@@ -485,8 +527,8 @@ bool expandIcalMaster(const QJsonObject &master, qint64 rangeStart, qint64 range
     };
     const auto candidate = [&](icaltimetype value, const QDateTime &start, const QDateTime &defaultEnd, bool floatingId) {
         const auto period = periodEnds.find(start.toMSecsSinceEpoch());
-        const auto &end = period == periodEnds.end() ? defaultEnd : period->second;
-        if (start.toMSecsSinceEpoch() >= rangeEnd || end.toMSecsSinceEpoch() <= rangeStart)
+        const auto &end   = period == periodEnds.end() ? defaultEnd : period->second;
+        if (!inRange(start, end))
             return true;
         const auto key = start.toMSecsSinceEpoch();
         if (seen.contains(key) || excluded.contains(key) || replacements.count(key))
@@ -501,30 +543,30 @@ bool expandIcalMaster(const QJsonObject &master, qint64 rangeStart, qint64 range
         auto *rule = icalproperty_get_rrule(ruleProperty);
         if (!rule)
             return warn("Malformed RRULE");
-        const auto count = rule->count;
-        const auto frequency = rule->freq;
-        const auto interval = rule->interval;
+        const auto count      = rule->count;
+        const auto frequency  = rule->freq;
+        const auto interval   = rule->interval;
         const auto untilValue = rule->until;
-        auto *iterRule = icalrecurrencetype_clone(rule);
-        iterRule->count = 0; // Count valid start times, not nonexistent DST clock times.
-        iterRule->until = icaltime_null_time(); // Compare UTC UNTIL after resolving each local start.
+        auto *iterRule        = icalrecurrencetype_clone(rule);
+        iterRule->count       = 0;                    // Count valid start times, not nonexistent DST clock times.
+        iterRule->until       = icaltime_null_time(); // Compare UTC UNTIL after resolving each local start.
         std::unique_ptr<icalrecur_iterator, decltype(&icalrecur_iterator_free)> iterator(icalrecur_iterator_new(iterRule, startValue), icalrecur_iterator_free);
         icalrecurrencetype_unref(iterRule);
 #else
-        auto rule = icalproperty_get_rrule(ruleProperty);
-        const auto count = rule.count;
-        const auto frequency = rule.freq;
-        const auto interval = rule.interval;
+        auto rule             = icalproperty_get_rrule(ruleProperty);
+        const auto count      = rule.count;
+        const auto frequency  = rule.freq;
+        const auto interval   = rule.interval;
         const auto untilValue = rule.until;
-        rule.count = 0;
-        rule.until = icaltime_null_time();
+        rule.count            = 0;
+        rule.until            = icaltime_null_time();
         std::unique_ptr<icalrecur_iterator, decltype(&icalrecur_iterator_free)> iterator(icalrecur_iterator_new(rule, startValue), icalrecur_iterator_free);
         icalrecurrencetype_clear(&rule);
 #endif
         if (!iterator)
             return warn("Unsupported RRULE");
         const bool hasUntil = !icaltime_is_null_time(untilValue);
-        const auto cutoff = hasUntil ? icalInstant(calendar.get(), icaltime_is_utc(untilValue) ? nullptr : startProperty, untilValue) : QDateTime{};
+        const auto cutoff   = hasUntil ? icalInstant(calendar.get(), icaltime_is_utc(untilValue) ? nullptr : startProperty, untilValue) : QDateTime{};
         if (hasUntil && !cutoff.isValid())
             return warn("Invalid RRULE UNTIL date/timezone");
         const QStringList units{"seconds", "minutes", "hours", "days", "weeks", "months", "years"};
@@ -532,28 +574,31 @@ bool expandIcalMaster(const QJsonObject &master, qint64 rangeStart, qint64 range
         const int frequencyIndex = int(frequency);
         if (frequencyIndex >= 0 && frequencyIndex < units.size())
             display["recurrenceSummary"] = interval == 1 ? labels[frequencyIndex]
-                : "Every " + QString::number(interval) + " " + units[frequencyIndex];
+                                                         : "Every " + QString::number(interval) + " " + units[frequencyIndex];
         // Never-ending rules seek near the range. COUNT rules retain full-series counting.
         // ponytail: libical subdaily INTERVAL seek can change seed phase; iterate
         // under existing work cap until phase-safe native seeking is available.
         const bool phaseSafeSeek = interval == 1 || frequency > ICAL_HOURLY_RECURRENCE;
         if (count == 0 && phaseSafeSeek && rangeStart > original.toMSecsSinceEpoch() + duration) {
-            auto seek = startValue;
+            auto seek         = startValue;
             const auto target = QDateTime::fromMSecsSinceEpoch(rangeStart - duration, QTimeZone::utc());
-            const auto span = durationProperty ? icalproperty_get_duration(durationProperty) : icaldurationtype_null_duration();
-            if (icaltime_is_utc(startValue) && !icalproperty_get_first_parameter(startProperty, ICAL_TZID_PARAMETER)
-                    && span.days == 0 && span.weeks == 0) {
+            const auto span   = durationProperty ? icalproperty_get_duration(durationProperty) : icaldurationtype_null_duration();
+            if (icaltime_is_utc(startValue) && !icalproperty_get_first_parameter(startProperty, ICAL_TZID_PARAMETER) && span.days == 0 && span.weeks == 0) {
                 seek = icaltime_from_timet_with_zone(target.toSecsSinceEpoch(), 0, icaltimezone_get_utc_timezone());
                 if (target.time() < original.time()) {
                     // ponytail: libical seek before seed clock needs up to one day's work;
                     // retain work limit, use a phase-safe subdaily iterator if this ceiling matters.
                     const auto day = target.date().addDays(-1);
-                    seek = startValue;
-                    seek.year = day.year(); seek.month = day.month(); seek.day = day.day();
+                    seek           = startValue;
+                    seek.year      = day.year();
+                    seek.month     = day.month();
+                    seek.day       = day.day();
                 }
             } else {
                 const auto day = target.date().addDays(-2);
-                seek.year = day.year(); seek.month = day.month(); seek.day = day.day();
+                seek.year      = day.year();
+                seek.month     = day.month();
+                seek.day       = day.day();
             }
             if (!icalrecur_iterator_set_start(iterator.get(), seek))
                 return warn("Could not seek recurrence range");
@@ -598,22 +643,21 @@ bool validateRecurrenceMaster(const QJsonObject &master, QString &error) {
     error.clear();
     if (!master.value("uid").isString() || master.value("uid").toString().isEmpty() || !master.value("allDay").isBool())
         return fail(error, "Event identity or timing is invalid");
-    if (master.contains("ical") && (!master.value("ical").isString() || master.value("ical").toString().isEmpty()
-            || master.contains("recurrence")))
+    if (master.contains("ical") && (!master.value("ical").isString() || master.value("ical").toString().isEmpty() || master.contains("recurrence")))
         return fail(error, "External recurrence metadata is invalid");
     if (master.contains("recurrence") && !validateRule(master.value("recurrence"), error))
         return false;
     if (master.value("allDay").toBool()) {
         const auto start = date(master.value("start"));
-        const auto end = date(master.value("end"));
+        const auto end   = date(master.value("end"));
         return (start.isValid() && end.isValid() && end > start) || fail(error, "All-day dates are invalid");
     }
     const auto start = timestamp(master.value("start"));
-    const auto end = timestamp(master.value("end"));
-    if (!start.isValid() || !end.isValid() || end <= start)
+    const auto end   = timestamp(master.value("end"));
+    if (!start.isValid() || !end.isValid() || end < start
+        || (end == start && !(master.contains("ical") && master.value("readOnly").toBool())))
         return fail(error, "Event dates or duration are invalid");
-    if ((master.contains("recurrence") || master.contains("timezone"))
-            && (!master.value("timezone").isString() || !QTimeZone(master.value("timezone").toString().toUtf8()).isValid()))
+    if ((master.contains("recurrence") || master.contains("timezone")) && (!master.value("timezone").isString() || !QTimeZone(master.value("timezone").toString().toUtf8()).isValid()))
         return fail(error, "Saved timezone is invalid");
     return true;
 }
@@ -625,13 +669,13 @@ bool normalizeRecurrenceMaster(const QJsonObject &master, QJsonObject &result, Q
     result = master;
     if (!master.contains("recurrence"))
         return true;
-    auto rule = master.value("recurrence").toObject();
-    rule["startsOn"] = boundary(rule).toString(Qt::ISODate);
+    auto rule            = master.value("recurrence").toObject();
+    rule["startsOn"]     = boundary(rule).toString(Qt::ISODate);
     result["recurrence"] = rule;
     Dates dates(rule);
     const bool allDay = master.value("allDay").toBool();
     const QTimeZone zone(master.value("timezone").toString().toUtf8());
-    const auto original = timestamp(master.value("start")).toTimeZone(zone);
+    const auto original    = timestamp(master.value("start")).toTimeZone(zone);
     const auto originalEnd = timestamp(master.value("end")).toTimeZone(zone);
     QDate first;
     QDateTime start;
@@ -646,33 +690,34 @@ bool normalizeRecurrenceMaster(const QJsonObject &master, QJsonObject &result, Q
         return fail(error, "Repeat rule has no valid occurrence within supported dates/work limit");
     if (allDay) {
         result["start"] = first.toString(Qt::ISODate);
-        result["end"] = first.addDays(1).toString(Qt::ISODate);
+        result["end"]   = first.addDays(1).toString(Qt::ISODate);
     } else {
         const auto end = preserveElapsedDuration ? start.addMSecs(original.msecsTo(originalEnd))
-            : QDateTime(first.addDays(original.date().daysTo(originalEnd.date())), originalEnd.time(), zone);
+                                                 : QDateTime(first.addDays(original.date().daysTo(originalEnd.date())), originalEnd.time(), zone);
         if (!end.isValid() || end <= start || (!preserveElapsedDuration && end.time() != originalEnd.time()))
             return fail(error, "First occurrence end time is invalid in saved timezone");
         result["start"] = utcText(start);
-        result["end"] = utcText(end);
+        result["end"]   = utcText(end);
     }
     return true;
 }
 
 bool expandCalendarRange(const QJsonObject &request, QJsonObject &result, QString &error) {
     error.clear();
-    const double from = request.value("rangeStartMs").toDouble(NAN);
-    const double until = request.value("rangeEndMs").toDouble(NAN);
+    if (request.contains("forReminders") && !request.value("forReminders").isBool())
+        return fail(error, "Reminder query mode is invalid");
+    const bool forReminders = request.value("forReminders").toBool();
+    const double from          = request.value("rangeStartMs").toDouble(NAN);
+    const double until         = request.value("rangeEndMs").toDouble(NAN);
     constexpr double dateLimit = 253402300800000.0;
-    if (!request.value("requestId").isString() || !request.value("events").isArray()
-            || !std::isfinite(from) || !std::isfinite(until) || std::floor(from) != from || std::floor(until) != until
-            || from < -62135596800000.0 || until > dateLimit || until <= from)
+    if (!request.value("requestId").isString() || !request.value("events").isArray() || !std::isfinite(from) || !std::isfinite(until) || std::floor(from) != from || std::floor(until) != until || from < -62135596800000.0 || until > dateLimit || until <= from)
         return fail(error, "Occurrence range/request is invalid");
     const qint64 rangeStart = qint64(from), rangeEnd = qint64(until);
     QJsonArray occurrences;
     QJsonArray warnings;
-    int work = 0;
+    int work           = 0;
     qint64 outputBytes = 0;
-    bool outputLimit = false;
+    bool outputLimit   = false;
     QSet<QString> identities;
     for (const auto &value : request.value("events").toArray()) {
         if (++work > maxSteps)
@@ -685,21 +730,28 @@ bool expandCalendarRange(const QJsonObject &request, QJsonObject &result, QStrin
             return fail(error, "Duplicate master identity");
         identities.insert(uid);
         if (master.contains("ical")) {
-            if (!expandIcalMaster(master, rangeStart, rangeEnd, occurrences, warnings, work, outputBytes, error))
+            if (!expandIcalMaster(master, rangeStart, rangeEnd, occurrences, warnings, work, outputBytes, error, forReminders))
                 return false;
             continue;
         }
-        const bool allDay = master.value("allDay").toBool();
-        const QTimeZone zone = allDay ? QTimeZone::systemTimeZone()
-                                    : QTimeZone(master.value("timezone").toString().toUtf8());
-        const QDateTime original = allDay ? QDateTime(date(master.value("start")), QTime(0, 0), zone)
-                                         : timestamp(master.value("start"));
-        const QDateTime originalEnd = allDay ? QDateTime(date(master.value("end")), QTime(0, 0), zone)
-                                            : timestamp(master.value("end"));
-        const qint64 duration = original.msecsTo(originalEnd);
+        qint64 leadMs = 0;
+        if (forReminders && !reminderLead(master, leadMs, error))
+            return false;
+        if (forReminders && master.value("reminders").toArray().isEmpty())
+            continue;
+        const qint64 masterRangeEnd = forReminders ? std::min(253402300800000LL, rangeEnd + leadMs) : rangeEnd;
+        const bool allDay            = master.value("allDay").toBool();
+        const QTimeZone zone         = allDay ? QTimeZone::systemTimeZone()
+                                              : QTimeZone(master.value("timezone").toString().toUtf8());
+        const QDateTime original     = allDay ? QDateTime(date(master.value("start")), QTime(0, 0), zone)
+                                              : timestamp(master.value("start"));
+        const QDateTime originalEnd  = allDay ? QDateTime(date(master.value("end")), QTime(0, 0), zone)
+                                              : timestamp(master.value("end"));
+        const qint64 duration        = original.msecsTo(originalEnd);
         const qint64 occurrenceBytes = QJsonDocument(master).toJson(QJsonDocument::Compact).size() + 256 + uid.toUtf8().size() * 3;
-        const auto append = [&](const QDateTime &start, const QDateTime &end, const QDate &day, bool recurring) {
-            if (start.toMSecsSinceEpoch() >= rangeEnd || end.toMSecsSinceEpoch() <= rangeStart)
+        const auto append            = [&](const QDateTime &start, const QDateTime &end, const QDate &day, bool recurring) {
+            if (start.toMSecsSinceEpoch() >= masterRangeEnd || end.toMSecsSinceEpoch() <= rangeStart
+                || (forReminders && !reminderInRange(master, start.toMSecsSinceEpoch(), rangeStart, rangeEnd)))
                 return;
             if (occurrences.size() >= 100000 || outputBytes + occurrenceBytes > 32 * 1024 * 1024 - 1024) {
                 outputLimit = true;
@@ -709,13 +761,13 @@ bool expandCalendarRange(const QJsonObject &request, QJsonObject &result, QStrin
             QJsonObject occurrence = master;
             if (recurring) {
                 occurrence["start"] = allDay ? day.toString(Qt::ISODate) : utcText(start);
-                occurrence["end"] = allDay ? day.addDays(1).toString(Qt::ISODate) : utcText(end);
-                occurrence["uid"] = uid + "#" + day.toString(Qt::ISODate);
+                occurrence["end"]   = allDay ? day.addDays(1).toString(Qt::ISODate) : utcText(end);
+                occurrence["uid"]   = uid + "#" + day.toString(Qt::ISODate);
             }
-            occurrence["masterUid"] = uid;
+            occurrence["masterUid"]    = uid;
             occurrence["occurrenceId"] = occurrence.value("uid");
-            occurrence["startMs"] = double(start.toMSecsSinceEpoch());
-            occurrence["endMs"] = double(end.toMSecsSinceEpoch());
+            occurrence["startMs"]      = double(start.toMSecsSinceEpoch());
+            occurrence["endMs"]        = double(end.toMSecsSinceEpoch());
             occurrences.append(occurrence);
         };
         if (!master.contains("recurrence")) {
@@ -724,10 +776,10 @@ bool expandCalendarRange(const QJsonObject &request, QJsonObject &result, QStrin
                 return fail(error, "Occurrence query exceeds output limit");
             continue;
         }
-        const auto rule = master.value("recurrence").toObject();
-        const auto ends = rule.value("ends").toObject();
-        const bool counted = ends.value("mode") == "count";
-        const int count = ends.value("count").toInt();
+        const auto rule     = master.value("recurrence").toObject();
+        const auto ends     = rule.value("ends").toObject();
+        const bool counted  = ends.value("mode") == "count";
+        const int count     = ends.value("count").toInt();
         const QDate endDate = date(ends.value("date"));
         const auto lookback = QDateTime::fromMSecsSinceEpoch(rangeStart - (allDay ? 2 * 86400000LL : duration), zone).date();
         Dates dates(rule, counted ? QDate{} : lookback);
@@ -742,7 +794,7 @@ bool expandCalendarRange(const QJsonObject &request, QJsonObject &result, QStrin
             const QDateTime start(day, allDay ? QTime(0, 0) : clock, zone);
             if (!start.isValid() || (!allDay && (start.date() != day || start.time() != clock)))
                 continue;
-            if (start.toMSecsSinceEpoch() >= rangeEnd)
+            if (start.toMSecsSinceEpoch() >= masterRangeEnd)
                 break;
             if (counted && emitted >= count)
                 break;

@@ -8,8 +8,7 @@ QtObject {
     required property var calendarService
     required property double rangeStartMs
     required property double rangeEndMs
-    readonly property var recurringMasters: calendarService.rawEvents.concat(calendarService.holidayStore ? calendarService.holidayStore.rawEvents : [])
-        .filter(event => event.recurrence || event.ical)
+    readonly property var recurringMasters: calendarService.rawEvents.concat(calendarService.holidayStore ? calendarService.holidayStore.rawEvents : []).filter(event => event.recurrence || event.ical)
     readonly property string signature: JSON.stringify([rangeStartMs, rangeEndMs, recurringMasters])
     property string activeSignature: ""
     property string attemptedSignature: ""
@@ -39,23 +38,18 @@ QtObject {
         } catch (error) {
             return false;
         }
-        if (!response || response.requestId !== root.activeId || !Array.isArray(response.occurrences)
-                || response.occurrences.length > 100000 || !Array.isArray(response.warnings)
-                || response.warnings.some(warning => typeof warning !== "string"))
+        if (!response || response.requestId !== root.activeId || !Array.isArray(response.occurrences) || response.occurrences.length > 100000 || !Array.isArray(response.warnings) || response.warnings.some(warning => typeof warning !== "string"))
             return false;
         const seen = new Set();
         const masters = new Map(root.recurringMasters.map(master => [master.uid, master]));
         for (const event of response.occurrences) {
             const master = event && masters.get(event.masterUid);
-            if (!master || event.calendarId !== master.calendarId || event.uid !== event.occurrenceId
-                    || typeof event.uid !== "string" || seen.has(event.uid))
+            if (!master || event.calendarId !== master.calendarId || event.uid !== event.occurrenceId || typeof event.uid !== "string" || seen.has(event.uid))
                 return false;
             seen.add(event.uid);
         }
-        const normalized = root.calendarService.normalizeEvents(response.occurrences.filter(event => event.calendarId !== "holidays_fr"))
-            .concat(root.calendarService.normalizeHolidays(response.occurrences.filter(event => event.calendarId === "holidays_fr")));
-        if (normalized.length !== response.occurrences.length
-                || normalized.some(event => event.startMs >= root.rangeEndMs || event.endMs <= root.rangeStartMs))
+        const normalized = root.calendarService.normalizeEvents(response.occurrences.filter(event => event.calendarId !== "holidays_fr")).concat(root.calendarService.normalizeHolidays(response.occurrences.filter(event => event.calendarId === "holidays_fr")));
+        if (normalized.length !== response.occurrences.length || normalized.some(event => !CalendarMath.rangesOverlap(event.startMs, event.endMs, root.rangeStartMs, root.rangeEndMs)))
             return false;
         root.occurrences = normalized;
         root.resultSignature = root.activeSignature;
@@ -81,8 +75,12 @@ QtObject {
         root.pending = true;
         queryProcess.command = [root.calendarService.nativeHelperPath, "expand"];
         queryProcess.running = true;
-        queryProcess.write(JSON.stringify({ requestId: root.activeId, rangeStartMs: root.rangeStartMs,
-            rangeEndMs: root.rangeEndMs, events: root.recurringMasters }) + "\n");
+        queryProcess.write(JSON.stringify({
+            requestId: root.activeId,
+            rangeStartMs: root.rangeStartMs,
+            rangeEndMs: root.rangeEndMs,
+            events: root.recurringMasters
+        }) + "\n");
     }
 
     onSignatureChanged: Qt.callLater(root.startLatest)
@@ -90,8 +88,12 @@ QtObject {
 
     property Process queryProcess: Process {
         stdinEnabled: true
-        stdout: StdioCollector { id: output }
-        stderr: StdioCollector { id: diagnostics }
+        stdout: StdioCollector {
+            id: output
+        }
+        stderr: StdioCollector {
+            id: diagnostics
+        }
         onExited: (exitCode, exitStatus) => {
             root.pending = false;
             if (root.activeSignature === root.signature) {

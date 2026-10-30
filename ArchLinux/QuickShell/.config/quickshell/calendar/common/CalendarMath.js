@@ -49,7 +49,7 @@ function buildAgendaDays(events, startDate, dayCount) {
 
     for (const event of events) {
         if (!event || !Number.isFinite(event.startMs) || !Number.isFinite(event.endMs)
-                || event.endMs <= event.startMs)
+                || event.endMs < event.startMs)
             continue
         // ponytail: UI shows 14 days; index intervals if that range grows significantly.
         for (let index = 0; index < days.length; ++index) {
@@ -69,6 +69,8 @@ function addMonthsClamped(date, months) {
 }
 
 function rangesOverlap(startA, endA, startB, endB) {
+    if (startA === endA)
+        return startB <= startA && startA < endB
     return startA < endB && endA > startB
 }
 
@@ -104,7 +106,7 @@ function holidayLabel(holidays) {
 function eventDetails(event, calendars) {
     if (!event || typeof event !== "object"
             || !Number.isFinite(event.startMs) || !Number.isFinite(event.endMs)
-            || event.endMs <= event.startMs)
+            || event.endMs < event.startMs)
         return null
 
     const calendar = Array.isArray(calendars)

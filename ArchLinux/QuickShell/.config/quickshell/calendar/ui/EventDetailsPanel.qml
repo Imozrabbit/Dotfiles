@@ -68,8 +68,7 @@ Rectangle {
         const index = ["daily", "weekly", "monthly", "yearly"].indexOf(rule.frequency);
         if (index < 0)
             return "";
-        return rule.interval === 1 ? ["Daily", "Weekly", "Monthly", "Yearly"][index]
-            : "Every " + rule.interval + " " + ["days", "weeks", "months", "years"][index];
+        return rule.interval === 1 ? ["Daily", "Weekly", "Monthly", "Yearly"][index] : "Every " + rule.interval + " " + ["days", "weeks", "months", "years"][index];
     }
 
     function timeLabel() {

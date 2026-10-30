@@ -1,162 +1,100 @@
 # Calendar
 
-Desktop calendar for Quickshell and Hyprland, with Week, Month and 14-day Agenda
-views. Supports editable local calendars, read-only ICS imports, CalDAV sync through
-pimsync, reminders, holiday labels and whole-event Local/Remote conflict review.
+Desktop calendar for **Quickshell and Hyprland on Linux**, with Week, Month and 14-day
+Agenda views, recurring events, reminders and holiday labels. Use local calendars,
+read-only calendar files/links, or editable online calendars through CalDAV.
 
-## Recurring events
+## Requirements
 
-Local and Personal calendars support Daily, Weekly with multiple weekdays, Monthly
-dates or ordinal weekdays, and Yearly month/date pairs. Each supports an interval
-and Never, inclusive Until, or total Count ending. Missing dates and nonexistent DST
-start times are skipped; duplicate matches count once.
+- **Linux x86_64**, **Quickshell**, **Hyprland**, **Qt 6** and **Python 3.11+**.
+- pimsync for online calendars; `notify-send` and a desktop notification service for reminders.
+- Compatible system libraries and fonts: see [exact requirements](docs/installation.md#requirements).
 
-Timed events retain their creation timezone and duration; views use local time.
-All-day events occupy one date. Editing/deletion applies to the whole series.
-Imported exceptions and foreign rules that cannot be edited losslessly stay
-read-only. Incomplete or conflicting synced groups stay protected until reviewed.
-
-## How it works
-
-`shell.qml` connects storage services to the window and exposes `calendar.toggle`.
-Local events are JSON; imports are converted from ICS; synced ICS files are canonical
-and their JSON cache is rebuildable. Native C++/libical helpers expand only requested
-ranges. QML renders occurrences, rather than implementing recurrence arithmetic.
-
-Yearly date pairs may span several standard ICS resources but appear as one series.
-The broker pauses sync and journals grouped writes; conflicts choose a complete
-Local or Remote series. Local journaling does not make remote synchronization atomic.
-
-Data defaults to `~/.local/share/calendars`; sync configuration/credentials and
-recovery state remain outside the module. Installation does not reset existing
-calendar data. [Storage, recovery and cleanup](https://github.com/Imozrabbit/Dotfiles/blob/master/ArchLinux/QuickShell/.config/quickshell/calendar/docs/maintenance.md).
-
-## Dependencies
-
-| Purpose | Required |
-| --- | --- |
-| Desktop | Quickshell, Hyprland, Qt 6 |
-| Native helpers | libical, Qt6Core, C++17 compiler, Make, pkg-config |
-| Installer | curl, tar, systemd, standard POSIX/coreutils tools |
-| Sync/import services | pimsync, systemd user services, util-linux `flock` |
-| Updater | jq, systemd `busctl`, existing desktop-session environment |
-| Fonts | Atkinson Hyperlegible Next, JetBrainsMono Nerd Font |
-
-PC-local tests additionally use Node.js, jq and Python/PySide6. Tests/editor/agent tooling
-are intentionally excluded from Git and client installations. See
-[development checks](https://github.com/Imozrabbit/Dotfiles/blob/master/ArchLinux/QuickShell/.config/quickshell/calendar/docs/development.md#checks).
+Install Python first. On Arch Linux, the installer can offer other missing runtime
+packages with your approval. No client compilation or third-party Python packages are needed.
+**The supplied archive does not run on every Linux distribution**; the installer checks compatibility.
 
 ## Install
 
-Download and inspect the installer, then run it:
+Version **`0.1`** is prepared locally but not yet published. Use a reviewed local archive
+and matching checksum from `dist/releases/` until publication. Published packages come from
+a [Calendar-specific GitHub Release](https://github.com/Imozrabbit/Dotfiles/releases),
+not Dotfiles' unrelated latest release or a standalone script from `master`.
+
+Put the `.tar.gz` and matching `.sha256` file in one folder and open a terminal there.
+**Only extract packages from a trusted publisher:** checksums detect changed downloads,
+not publisher compromise. Use a new temporary directory outside the install target.
+Run commands one at a time; continue only if each succeeds and the checksum reports **OK**:
 
 ```sh
-curl -fsSLo calendar-install.sh 'https://raw.githubusercontent.com/Imozrabbit/Dotfiles/master/ArchLinux/QuickShell/.config/quickshell/calendar/install.sh'
-sh calendar-install.sh
+sha256sum -c calendar-v0.1-linux-x86_64.tar.gz.sha256
+mkdir -m 700 calendar-install
+tar -xzf calendar-v0.1-linux-x86_64.tar.gz -C calendar-install
+sh calendar-install/calendar/install.sh --archive "$PWD/calendar-v0.1-linux-x86_64.tar.gz"
 ```
 
-It downloads GitHub's `master` archive, extracts only this module into
-`~/.config/quickshell/calendar`, and builds both native helpers before replacing an
-existing module. Development tests/tools, docs, Git policy, prebuilt PC binaries,
-generated output and archives/logs/caches are excluded from deployment; native build
-sources and runtime scripts remain. Docs and `.gitignore` stay tracked in Git.
-Replacement and timestamped backup require your choices. Missing
-packages can be installed with approval; sync sources are selected interactively.
-Supply your own feed URL/CalDAV credentials for selected sources.
-
-Setup installs user sync/import services and a recovery startup guard. Existing
-custom configuration and non-empty unmanaged directories require review rather
-than silent replacement. Failed setup can be rerun; receipts track completed steps.
-No `.git` checkout is needed in the installed module.
+This installs to `~/.config/quickshell/calendar` with no calendars. It does not launch
+Calendar, start services or edit Hyprland. Existing calendar data is not reset.
+**If existing data or settings block installation, stop and review the warning—do not delete them.**
+For Git-based installations, updates, confirmation or rollback, use the
+[installation guide](docs/installation.md).
 
 ## Run
 
-For a source checkout, first build both helpers:
+Start Calendar:
 
 ```sh
-make -C parse convert calendar-sync-helper
 quickshell -c "$HOME/.config/quickshell/calendar"
 ```
 
-Toggle the running window:
+Show or hide its window while it is running:
 
 ```sh
 quickshell -c "$HOME/.config/quickshell/calendar" ipc call calendar toggle
 ```
 
-Use these commands in your existing startup/keybind configuration. The installer
-does not edit Hyprland settings. Single-click selects; double-click opens details or
-conflict review. Ctrl-wheel adjusts zoom in each view; ordinary wheel scrolls.
+Use the toggle command instead of starting a second instance. Add these commands to
+your startup/keyboard-shortcut settings yourself if wanted; the installer does not do it.
 
-## Update
+## Your first calendar and event
 
-**PC:** publish reviewed changes to GitHub `master` first. Uncommitted/unpushed work
-is not available to the updater. Git-tracked calendars and symlinked modules are
-not updater targets; maintain the source checkout normally.
+1. Open the settings gear (**Manage calendars**) → **New calendar**.
+2. Enter a name, a unique ID such as `work-calendar`, and a color. Choose **local**, then **Save**.
+3. Click the calendar-plus icon beside **Today** to open **New event**.
+4. Choose your calendar, enter a title and dates/times, then **Create**. Repetition and
+   reminders are available in the same form.
 
-**Client installation:** standalone calendars and ignored, untracked calendars
-inside a Git checkout are supported. The Quickshell parent may be a symlink;
-`calendar/` itself must be a real directory without a nested Git repository.
-Both the index and `HEAD` must have no tracked calendar files, so staged removal
-alone is insufficient: commit the removal on the client's branch first.
+The ID is an internal name that stays fixed when you rename the calendar. Imported files
+and URL subscriptions are read-only; creating events requires a local or synced calendar.
+**Editing or deleting a recurring event affects the whole series.** Reminders work only
+while this Quickshell configuration runs, even if its window/calendar is hidden.
 
-For Git-local clients, put these rules in Quickshell's **parent-level** `.gitignore`
-(outside `calendar/`), or equivalent anchored rules in the repository policy:
+- Choose Week (**週**), Month (**月**) or Agenda (**程**); navigate with arrows or **Today**.
+- Click an event to select it; double-click for details or conflict review.
+- Scroll normally to move through a view; hold **Ctrl** while scrolling to zoom.
+- Click a calendar name in the main window's list to show or hide its events.
 
-```gitignore
-/calendar/
-/.calendar-install.*/
-/calendar.update-rollback-*/
-```
+## Guides
 
-Keep that policy on the client's branch only; do not merge calendar's removal into
-the publishing branch. Later merges or branch switches can reintroduce tracking
-or conflict with local files. Do not change Git tracking or ignore rules while an
-update is running or awaiting confirmation. Updater checks them again before
-replacement and cleanup; other Quickshell projects remain untouched.
+- [Import a calendar file](docs/maintenance.md#one-time-import-workspace)—successful import moves the selected original.
+- [Subscribe to an online calendar link](docs/subscriptions.md).
+- [Connect an editable CalDAV calendar](docs/maintenance.md#panel-added-caldav).
+- [Conversion, removal and recovery](docs/maintenance.md)—read before changing a connection or deleting data.
+- [Conversion walkthrough](docs/conversion-testing.md)—optional; disposable calendars only.
+- [Development, recurrence rules and reminder limits](docs/development.md).
 
-From a desktop-session terminal:
+## Roadmap
 
-```sh
-sh "$HOME/.config/quickshell/calendar/update.sh"
-```
+### Implemented in 0.1
 
-For an older installation without `update.sh`, bootstrap after publication:
+- [x] Editable local calendars, read-only ICS imports and read-only URL subscriptions.
+- [x] Two-way CalDAV sync, server-calendar creation and conflict review.
+- [x] Conversion between local and synced calendars; keep-local recovery when a server calendar is unavailable.
+- [x] Local deletion, or server-calendar deletion that keeps a reviewed local copy.
+- [x] Recurring events and reminders.
+- [x] Release-package installation, updates, confirmation and rollback without resetting calendar data.
 
-```sh
-sh -eu -c 'work=$(mktemp -d "${XDG_RUNTIME_DIR:?Run from your desktop session}/calendar-bootstrap.XXXXXXXX")
-cleanup() { rm -rf -- "$work"; }
-trap cleanup EXIT
-trap "exit 129" HUP
-trap "exit 130" INT
-trap "exit 143" TERM
-curl -fsSLo "$work/update.sh" https://raw.githubusercontent.com/Imozrabbit/Dotfiles/master/ArchLinux/QuickShell/.config/quickshell/calendar/update.sh
-sh "$work/update.sh"'
-```
+### Planned features
 
-Updater fetches current installer, builds the complete module in staging and keeps
-a temporary rollback copy. Source/credential setup is skipped. Only calendar's
-running instance and relevant services are paused/restarted; disabled/inactive units
-are not enabled. A running import watcher gets a one-shot cache refresh. Compatible
-manual service definitions are preserved; changed import definitions need approval.
-Pending recovery or unsafe/custom guard settings stop the update.
-
-Open calendar and verify it, then answer **yes** to permanent rollback cleanup.
-Previous module (including its old transfer archives), temporary downloads and
-object files are removed. Local edits inside the module are replaced; event stores,
-credentials and pimsync status remain outside it and are not replaced.
-
-If not ready to confirm, answer no; verify later and run:
-
-```sh
-sh "$HOME/.config/quickshell/calendar/update.sh" --confirm
-```
-
-Another replacement is blocked while confirmation/recovery is pending. Ordinary
-failures restore prior code/runtime when safe; uncertain recovery retains files for
-review. Never delete recovery receipts or bypass guards to force an update.
-If Git tracking/ignore rules or the parent link change mid-update, recovery may
-leave services paused and retain protected artifacts for manual review rather
-than overwrite or delete newly tracked files.
-
-[Development, recurrence contracts and verification limits](https://github.com/Imozrabbit/Dotfiles/blob/master/ArchLinux/QuickShell/.config/quickshell/calendar/docs/development.md).
+- [ ] Portable export/import for profiles, events, recurrence, source settings,
+  credentials and machine-specific recovery/state—not just ICS files.

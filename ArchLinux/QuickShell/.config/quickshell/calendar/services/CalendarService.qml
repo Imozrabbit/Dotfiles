@@ -4,16 +4,26 @@ import Quickshell
 import Quickshell.Io
 import "../common/CalendarMath.js" as CalendarMath
 import "../common/EventMutation.js" as EventMutation
-import "../common/ProfileMutation.js" as ProfileMutation
 
 QtObject {
     id: root
 
     property ProfileRegistryStore registry: ProfileRegistryStore {}
-    property CalendarConflictService conflictService: CalendarConflictService {}
+    property CalendarConflictManager conflictService: CalendarConflictManager {
+        profiles: root.registry.ready ? root.registry.profiles : []
+        caldav: root.caldav
+        mutationBlocked: root.caldavRemovalBusy
+    }
     property var profileStoreObjects: []
-    property var pendingImport: null
+    readonly property bool importBusy: root.importer.busy
     property var importResult: null
+    readonly property bool subscriptionBusy: root.subscriptions.busy
+    property var subscriptionResult: null
+    readonly property bool caldavBusy: root.caldav.busy
+    readonly property bool caldavRemovalBusy: root.caldav.pending?.action === "remove"
+    property var caldavResult: null
+    readonly property bool localRemovalBusy: root.registry.localRemovalPending !== null
+    readonly property var localRemovalResult: root.registry.localRemovalResult
     property var pendingEventMutation: null
     property var pendingLocalMutation: null
     property string systemTimezone: ""
@@ -21,6 +31,8 @@ QtObject {
     readonly property string syncBrokerPath: Quickshell.env("HOME") + "/.config/quickshell/calendar/parse/conflict-broker.sh"
     readonly property string nativeHelperPath: Quickshell.env("HOME") + "/.config/quickshell/calendar/parse/calendar-sync-helper"
     signal eventMutationFinished(var result)
+    signal calendarRemoved(string calendarId)
+    signal calendarConverted(string calendarId)
     readonly property var calendars: root.registry.profiles.map(profile => {
         const store = root.storeForId(profile.id);
         return Object.assign({}, profile, {
@@ -77,6 +89,11 @@ QtObject {
     }
 
     function setCalendarVisible(calendarId, visible) {
+        if (root.caldav.conversionBlocked(calendarId))
+            return {
+                ok: false,
+                message: "Calendar conversion is running"
+            };
         return root.registry.setVisible(calendarId, visible);
     }
 
@@ -96,9 +113,27 @@ QtObject {
         };
     }
 
-    function persistStore(store, rawEvents) {
+    function persistStore(store, rawEvents, sourceCalendarId) {
+        if (root.caldavRemovalBusy)
+            return {
+                ok: false,
+                field: "storage",
+                message: "Another calendar change is running"
+            };
+        if (root.localRemovalBusy)
+            return {
+                ok: false,
+                field: "storage",
+                message: "Local calendar removal is running"
+            };
         if (!store || !store.ready)
             return root.storageUnavailable();
+        if (root.caldav.conversionBlocked(store.profile.id) || (sourceCalendarId && root.caldav.conversionBlocked(sourceCalendarId)))
+            return {
+                ok: false,
+                field: "storage",
+                message: "Calendar conversion is running"
+            };
         return store.persist(rawEvents.filter(event => event.calendarId === store.profile.id));
     }
 
@@ -120,9 +155,7 @@ QtObject {
         const retainedMember = pending.store.rawEvents.some(candidate => memberUids.includes(candidate.sourceUid));
         const grouped = expected && expected.recurrence && expected.recurrence.frequency === "yearly" && expected.recurrence.pattern.dates.length > 1;
         const groupReflected = !retainedMember && (grouped ? event && event.seriesGroup && event.seriesGroup.members.length === expected.recurrence.pattern.dates.length : !event || !event.seriesGroup);
-        const reflected = normalized && expected && ["title", "description", "location", "allDay", "startMs", "endMs"].every(key => normalized[key] === expected[key]) && JSON.stringify(normalized.reminders) === JSON.stringify(expected.reminders)
-            && JSON.stringify(normalized.recurrence || null) === JSON.stringify(expected.recurrence || null)
-            && (!expected.recurrence || expected.allDay || normalized.timezone === expected.timezone);
+        const reflected = normalized && expected && ["title", "description", "location", "allDay", "startMs", "endMs"].every(key => normalized[key] === expected[key]) && JSON.stringify(normalized.reminders) === JSON.stringify(expected.reminders) && JSON.stringify(normalized.recurrence || null) === JSON.stringify(expected.recurrence || null) && (!expected.recurrence || expected.allDay || normalized.timezone === expected.timezone);
         if (pending.operation === "delete" ? present || retainedMember : !reflected || !groupReflected) {
             if (root.syncReloadAttempts++ < 50)
                 return;
@@ -146,22 +179,28 @@ QtObject {
     }
 
     function syncedMutation(operation, uid, eventData) {
-        if (root.pendingLocalMutation || root.pendingEventMutation || syncProcess.running)
+        const conversionId = eventData.calendarId || root.rawEvents.find(event => event.uid === uid)?.calendarId;
+        if (root.caldav.conversionBlocked(conversionId))
+            return {
+                ok: false,
+                field: "storage",
+                message: "Calendar conversion is running"
+            };
+        if (root.pendingLocalMutation || root.pendingEventMutation || syncProcess.running || root.caldavRemovalBusy)
             return {
                 ok: false,
                 field: "storage",
                 message: "Another calendar change is running"
             };
-        if (!root.conflictService.stateValid)
+        const current = uid ? root.rawEvents.find(event => event.uid === uid) : null;
+        if (!root.conflictService.stateValidForId(current ? current.calendarId : eventData.calendarId))
             return {
                 ok: false,
                 field: "storage",
                 message: root.conflictService.errorMessage || "Calendar conflict state is not ready"
             };
 
-        const current = uid ? root.rawEvents.find(event => event.uid === uid) : null;
-        if (current && (root.conflictService.isConflicted(current.sourceUid || uid)
-                || current.seriesGroup && current.seriesGroup.members.some(member => root.conflictService.isConflicted(member.uid))))
+        if (current && (root.conflictService.isConflicted(current) || current.seriesGroup && current.seriesGroup.members.some(member => root.conflictService.isConflicted(member.uid, current.calendarId))))
             return {
                 ok: false,
                 field: "event",
@@ -204,6 +243,10 @@ QtObject {
             }
         };
         syncProcess.command = [root.syncBrokerPath, grouped ? "mutate-group" : "mutate", root.syncDirectoryForId(store.profile.id), store.filePath, store.profile.id, operation];
+        if (grouped)
+            syncProcess.command = syncProcess.command.concat([root.pendingEventMutation.sourceUid]);
+        if (root.caldav.recordForId(store.profile.id))
+            syncProcess.command = ["/usr/bin/env", "CALENDAR_ID=" + store.profile.id].concat(syncProcess.command);
         syncProcess.running = true;
         const request = operation === "delete" ? {
             uid: event.sourceUid || uid.replace(store.profile.id + ":", ""),
@@ -220,8 +263,12 @@ QtObject {
     }
 
     function createEvent(eventData, normalized) {
-        if (root.pendingLocalMutation || root.pendingEventMutation)
-            return { ok: false, field: "storage", message: "Another calendar change is running" };
+        if (root.pendingLocalMutation || root.pendingEventMutation || root.caldavRemovalBusy)
+            return {
+                ok: false,
+                field: "storage",
+                message: "Another calendar change is running"
+            };
         const store = root.storeForId(eventData.calendarId);
         if (store && store.profile.type === "synced" && eventData.recurrence && !normalized)
             return root.prepareLocalMutation("create", "", eventData);
@@ -244,8 +291,12 @@ QtObject {
     }
 
     function updateEvent(uid, eventData, normalized) {
-        if (root.pendingLocalMutation || root.pendingEventMutation)
-            return { ok: false, field: "storage", message: "Another calendar change is running" };
+        if (root.pendingLocalMutation || root.pendingEventMutation || root.caldavRemovalBusy)
+            return {
+                ok: false,
+                field: "storage",
+                message: "Another calendar change is running"
+            };
         const current = root.rawEvents.find(event => event.uid === uid);
         const oldStore = current ? root.storeForId(current.calendarId) : null;
         if (oldStore && oldStore.profile.type === "synced" && (eventData.recurrence || (eventData.recurrence === undefined && current.recurrence)) && !normalized)
@@ -265,7 +316,7 @@ QtObject {
         const destinationEvents = newStore === oldStore ? [] : newStore.rawEvents.slice();
         const destinationSaved = newStore === oldStore ? {
             ok: true
-        } : root.persistStore(newStore, result.rawEvents);
+        } : root.persistStore(newStore, result.rawEvents, oldStore.profile.id);
         if (!destinationSaved.ok)
             return destinationSaved;
         const saved = root.persistStore(oldStore, result.rawEvents);
@@ -285,8 +336,12 @@ QtObject {
     }
 
     function deleteEvent(uid, revision) {
-        if (root.pendingLocalMutation || root.pendingEventMutation)
-            return { ok: false, field: "storage", message: "Another calendar change is running" };
+        if (root.pendingLocalMutation || root.pendingEventMutation || root.caldavRemovalBusy)
+            return {
+                ok: false,
+                field: "storage",
+                message: "Another calendar change is running"
+            };
         const current = root.rawEvents.find(event => event.uid === uid);
         const store = current ? root.storeForId(current.calendarId) : null;
         if (store && store.profile.type === "synced")
@@ -314,22 +369,33 @@ QtObject {
     }
 
     function prepareLocalMutation(operation, uid, eventData) {
-        if (root.pendingLocalMutation || root.pendingEventMutation)
-            return { ok: false, field: "storage", message: "Another calendar change is running" };
+        if (root.pendingLocalMutation || root.pendingEventMutation || root.localRemovalBusy || root.caldavRemovalBusy)
+            return {
+                ok: false,
+                field: "storage",
+                message: "Another calendar change is running"
+            };
         const data = Object.assign({}, eventData);
         if (data.allDay !== true && !data.timezone) {
             const current = root.rawEvents.find(event => event.uid === uid);
             data.timezone = current && current.timezone || root.systemTimezone;
         }
-        const candidate = operation === "create" ? EventMutation.createEvent(root.rawEvents, root.calendars, data, root.availableUid())
-            : EventMutation.updateEvent(root.rawEvents, root.calendars, uid, data);
+        const candidate = operation === "create" ? EventMutation.createEvent(root.rawEvents, root.calendars, data, root.availableUid()) : EventMutation.updateEvent(root.rawEvents, root.calendars, uid, data);
         if (!candidate.ok)
             return candidate;
-        root.pendingLocalMutation = { operation, uid: candidate.event.uid, revision: eventData.revision, snapshot: JSON.stringify(root.rawEvents) };
+        root.pendingLocalMutation = {
+            operation,
+            uid: candidate.event.uid,
+            revision: eventData.revision,
+            snapshot: JSON.stringify(root.rawEvents)
+        };
         normalizeProcess.command = [root.nativeHelperPath, "normalize"];
         normalizeProcess.running = true;
         normalizeProcess.write(JSON.stringify(candidate.event) + "\n");
-        return { ok: true, pending: true };
+        return {
+            ok: true,
+            pending: true
+        };
     }
 
     function finishLocalNormalization(exitCode, text, detail) {
@@ -338,19 +404,30 @@ QtObject {
             return;
         root.pendingLocalMutation = null;
         if (exitCode !== 0 || pending.snapshot !== JSON.stringify(root.rawEvents)) {
-            root.eventMutationFinished({ ok: false, field: "storage", message: exitCode !== 0 ? detail || "Could not prepare repeating event"
-                : "Calendar changed while preparing event; reopen it" });
+            root.eventMutationFinished({
+                ok: false,
+                field: "storage",
+                message: exitCode !== 0 ? detail || "Could not prepare repeating event" : "Calendar changed while preparing event; reopen it"
+            });
             return;
         }
         let event;
         try {
             event = JSON.parse(text);
         } catch (error) {
-            root.eventMutationFinished({ ok: false, field: "storage", message: "Repeating event helper returned invalid data" });
+            root.eventMutationFinished({
+                ok: false,
+                field: "storage",
+                message: "Repeating event helper returned invalid data"
+            });
             return;
         }
         if (!event || event.uid !== pending.uid) {
-            root.eventMutationFinished({ ok: false, field: "storage", message: "Repeating event identity changed unexpectedly" });
+            root.eventMutationFinished({
+                ok: false,
+                field: "storage",
+                message: "Repeating event identity changed unexpectedly"
+            });
             return;
         }
         if (pending.revision !== undefined)
@@ -363,7 +440,9 @@ QtObject {
     property Process timezoneProcess: Process {
         command: [root.nativeHelperPath, "system-timezone"]
         running: true
-        stdout: StdioCollector { id: timezoneOutput }
+        stdout: StdioCollector {
+            id: timezoneOutput
+        }
         onExited: (exitCode, exitStatus) => {
             if (exitCode !== 0)
                 return;
@@ -380,8 +459,12 @@ QtObject {
     property Process normalizeProcess: Process {
         id: normalizeProcess
         stdinEnabled: true
-        stdout: StdioCollector { id: normalizedOutput }
-        stderr: StdioCollector { id: normalizationError }
+        stdout: StdioCollector {
+            id: normalizedOutput
+        }
+        stderr: StdioCollector {
+            id: normalizationError
+        }
         onExited: (exitCode, exitStatus) => root.finishLocalNormalization(exitCode, normalizedOutput.text, normalizationError.text.trim())
     }
 
@@ -394,157 +477,166 @@ QtObject {
     }
 
     function createProfile(draft) {
+        if (draft && draft.type === "synced")
+            return {
+                ok: false,
+                field: "source",
+                message: "Connect and add synced calendars through calendar manager"
+            };
+        if (draft && draft.type === "subscription")
+            return {
+                ok: false,
+                field: "source",
+                message: "Add subscriptions through subscription settings with a direct URL"
+            };
         return root.registry.createProfile(draft);
     }
 
     function updateProfile(id, changes) {
-        return root.registry.updateProfile(id, changes);
-    }
-
-    function importIcsProfile(draft, sourcePath, replacingId) {
-        if (importProcess.running || importCommitProcess.running || importCleanupProcess.running)
+        if (root.caldav.conversionBlocked(id))
+            return {
+                ok: false,
+                message: "Calendar conversion is running"
+            };
+        if (root.conflictService.conflicts.some(conflict => conflict.calendarId === id))
             return {
                 ok: false,
                 field: "storage",
-                message: "Another calendar import is running"
+                message: "Resolve calendar conflicts first"
             };
-        if (typeof sourcePath !== "string" || sourcePath.length === 0)
+        if (root.registry.profiles.find(profile => profile.id === id)?.type === "subscription")
             return {
                 ok: false,
                 field: "source",
-                message: "Choose an ICS file or folder"
+                message: "Edit subscription settings through calendar manager"
             };
+        return root.registry.updateProfile(id, changes);
+    }
 
-        const target = ProfileMutation.validateImportTarget(root.registry.profiles, draft.id, replacingId || "");
-        if (!target.ok)
-            return target;
-        const existing = target.replacing ? target.profile : null;
-        const candidate = existing ? Object.assign({}, existing, {
-            name: draft.name,
-            color: draft.color
-        }) : Object.assign({
-            visible: true
-        }, draft);
-        const validation = ProfileMutation.validateProfile(candidate);
-        if (!validation.ok)
-            return validation;
-
-        const registryPath = root.registry.filePath.replace(/\/profiles\.json$/, "");
-        const outputPath = registryPath + "/" + validation.profile.id + ".json";
-        const temporaryPath = outputPath + ".importing-" + Date.now();
-        root.pendingImport = {
-            draft: validation.profile,
-            existing: Boolean(existing),
-            previousProfile: existing ? Object.assign({}, existing) : null,
-            sourcePath,
-            outputPath,
-            temporaryPath
-        };
-        root.importResult = null;
-        importProcess.command = [root.converterPath, sourcePath, temporaryPath, validation.profile.id];
-        importProcess.running = true;
-        return {
-            ok: true,
-            pending: true
-        };
+    function importIcsProfile(draft, sourcePath, replacingId, sourceKind) {
+        const result = root.importer.begin(draft, sourcePath, replacingId, sourceKind);
+        if (result.pending)
+            root.importResult = null;
+        return result;
     }
 
     readonly property string converterPath: Quickshell.env("HOME") + "/.config/quickshell/calendar/parse/convert"
 
-    function removeProfile(id) {
+    function removeProfile(id, expectedProfile, expectedRevision) {
+        if (root.caldav.conversionBlocked(id))
+            return {
+                ok: false,
+                message: "Calendar conversion is running"
+            };
+        const type = root.registry.profiles.find(profile => profile.id === id)?.type;
+        if (expectedProfile?.type === "synced" && type !== "synced")
+            return {
+                ok: false,
+                field: "storage",
+                message: "Calendar profile changed; confirm removal again"
+            };
+        if (type === "synced") {
+            if (root.pendingLocalMutation || root.pendingEventMutation || root.conflictService.busy)
+                return {
+                    ok: false,
+                    field: "storage",
+                    message: "Another calendar change is running"
+                };
+            const result = root.caldav.removeSynced(id, expectedProfile, expectedRevision);
+            if (result.pending)
+                root.caldavResult = null;
+            return result;
+        }
+        if (type === "imported")
+            return root.registry.removeLocalProfile(id, root.nativeHelperPath);
+        if (type === "local") {
+            const store = root.storeForId(id);
+            if (root.pendingLocalMutation || root.pendingEventMutation || !store || store.initializing || (!store.ready && !store.errorMessage))
+                return {
+                    ok: false,
+                    field: "storage",
+                    message: "Another calendar change is running"
+                };
+            return root.registry.removeLocalProfile(id, root.nativeHelperPath);
+        }
+        if (type === "subscription") {
+            const result = root.subscriptions.remove(id);
+            if (result.pending)
+                root.subscriptionResult = null;
+            return result;
+        }
         return root.registry.removeProfile(id);
     }
 
-    property Process importProcess: Process {
-        id: importProcess
-        command: []
-        // qmllint disable signal-handler-parameters
-        onExited: (exitCode, exitStatus) => {
-            const pending = root.pendingImport;
-            if (!pending)
-                return;
-            if (exitCode !== 0) {
-                root.cleanupImport({
-                    ok: false,
-                    field: "source",
-                    message: "Could not import ICS source"
-                });
-                return;
-            }
-            root.prepareImportCommit(pending);
-        }
-        // qmllint enable signal-handler-parameters
-    }
-
-    function prepareImportCommit(pending) {
-        const registered = pending.existing ? root.registry.updateProfile(pending.draft.id, {
-            name: pending.draft.name,
-            color: pending.draft.color
-        }) : root.registry.createProfile(pending.draft);
-        if (!registered.ok) {
-            root.cleanupImport(registered);
-            return;
-        }
-        pending.registryResult = registered;
-        importCommitProcess.command = [root.converterPath, "commit", pending.temporaryPath, pending.outputPath, pending.existing ? "replace" : "create"];
-        importCommitProcess.running = true;
-    }
-
-    function cleanupImport(result) {
-        root.importCleanupResult = result;
-        importCleanupProcess.command = ["rm", "-f", "--", root.pendingImport.temporaryPath];
-        importCleanupProcess.running = true;
-    }
-
-    property var importCleanupResult: null
-
-    property Process importCommitProcess: Process {
-        id: importCommitProcess
-        command: []
-        stderr: StdioCollector {
-            id: importCommitDiagnostics
-        }
-        // qmllint disable signal-handler-parameters
-        onExited: (exitCode, exitStatus) => {
-            const pending = root.pendingImport;
-            if (!pending)
-                return;
-            if (exitCode === 0) {
-                root.pendingImport = null;
-                root.importResult = pending.registryResult;
-                return;
-            }
-            const rollback = pending.existing ? root.registry.updateProfile(pending.previousProfile.id, {
-                name: pending.previousProfile.name,
-                color: pending.previousProfile.color
-            }) : root.registry.removeProfile(pending.draft.id);
-            const detail = importCommitDiagnostics.text.trim();
-            root.cleanupImport({
+    function beginConversion(id) {
+        if (root.pendingLocalMutation || root.pendingEventMutation || root.conflictService.busy || root.localRemovalBusy)
+            return {
                 ok: false,
-                field: "storage",
-                message: "Could not commit imported calendar" + (detail.length > 0 ? ": " + detail : "")
-                    + (rollback.ok ? "" : "; could not restore imported calendar metadata: " + rollback.message)
-            });
-        }
-        // qmllint enable signal-handler-parameters
+                message: "Another calendar change is running"
+            };
+        return root.caldav.beginConversion(id);
     }
 
-    property Process importCleanupProcess: Process {
-        id: importCleanupProcess
-        command: []
-        // qmllint disable signal-handler-parameters
-        onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0 && root.importCleanupResult.ok)
-                root.importCleanupResult = {
-                    ok: false,
-                    field: "storage",
-                    message: "Could not remove temporary imported calendar file"
-                };
-            root.importResult = root.importCleanupResult;
-            root.importCleanupResult = null;
-            root.pendingImport = null;
+    function beginAttachment(id, connection, intervalSeconds, expectedProfile, expectedRevision) {
+        const store = root.storeForId(id);
+        if (root.pendingLocalMutation || root.pendingEventMutation || root.conflictService.busy || root.localRemovalBusy || !store?.ready || store.initializing)
+            return {
+                ok: false,
+                message: "Local calendar is not ready or another change is running"
+            };
+        return root.caldav.beginAttachment(id, connection, intervalSeconds, expectedProfile, expectedRevision);
+    }
+
+    function beginRemoteDeletion(id) {
+        if (root.pendingLocalMutation || root.pendingEventMutation || root.conflictService.busy || root.localRemovalBusy)
+            return {
+                ok: false,
+                message: "Another calendar change is running"
+            };
+        return root.caldav.beginRemoteDeletion(id);
+    }
+
+    function subscriptionForId(id) {
+        return root.subscriptions.recordForId(id);
+    }
+
+    function saveSubscription(draft, url, intervalSeconds, replacingId, expectedRevision, expectedProfile) {
+        const result = root.subscriptions.save(draft, url, intervalSeconds, replacingId, expectedRevision, expectedProfile);
+        if (result.pending)
+            root.subscriptionResult = null;
+        return result;
+    }
+
+    function refreshSubscription(id) {
+        const result = root.subscriptions.refresh(id);
+        if (result.pending)
+            root.subscriptionResult = null;
+        return result;
+    }
+
+    property CalendarSubscriptionService subscriptions: CalendarSubscriptionService {
+        registry: root.registry
+        helperPath: root.nativeHelperPath
+        onFinished: result => root.subscriptionResult = result
+    }
+
+    property CalendarCalDavService caldav: CalendarCalDavService {
+        registry: root.registry
+        helperPath: root.nativeHelperPath
+        conflicts: root.conflictService.conflicts
+        onFinished: result => {
+            root.caldavResult = result;
+            if (result.ok && result.action === "remove" && result.removed)
+                root.calendarRemoved(result.id);
+            if (result.converted && ((result.ok && result.disconnected) || result.kind === "local-to-synced"))
+                root.calendarConverted(result.id);
         }
-        // qmllint enable signal-handler-parameters
+    }
+
+    property CalendarImportService importer: CalendarImportService {
+        registry: root.registry
+        helperPath: root.nativeHelperPath
+        onFinished: result => root.importResult = result
     }
 
     property Process syncProcess: Process {
@@ -599,6 +691,7 @@ QtObject {
         delegate: CalendarProfileStore {
             required property var modelData
             profile: modelData
+            mutationBlocked: !root.caldav.ready || root.caldav.conversionBlocked(modelData.id)
         }
         onObjectAdded: (index, object) => {
             const stores = root.profileStoreObjects.slice();

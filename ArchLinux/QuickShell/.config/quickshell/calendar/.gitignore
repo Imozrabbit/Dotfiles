@@ -1,18 +1,19 @@
 # Keep this module's policy publishable despite the parent repository's rule.
 !/.gitignore
 
-# Client helpers are built locally; generated output never belongs in Git.
+# Generated native helpers and release artifacts never belong in Git.
 /parse/calendar-sync-helper
 /parse/convert
 /parse/output/
+/dist/
 
-# Main-machine-only tests and editor tooling.
+# Maintained local tests, current release preparation and editor tooling.
 /dev/
 /parse/test/
 /parse/.clangd
 AGENTS.md
 
-# Disposable module-local fixtures, archives, logs and caches.
+# Disposable fixtures, archives, logs and caches; do not retain obsolete task history.
 /.installer*-test.*/
 /.updater-test.*/
 /.update-bootstrap-test.*/

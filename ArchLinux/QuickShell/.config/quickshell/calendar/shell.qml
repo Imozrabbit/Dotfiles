@@ -8,6 +8,10 @@ ShellRoot {
         id: calendarBackend
     }
 
+    ReminderService {
+        calendarService: calendarBackend
+    }
+
     CalendarWindow {
         id: calendarWindow
         calendarService: calendarBackend

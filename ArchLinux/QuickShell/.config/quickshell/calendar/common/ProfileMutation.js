@@ -3,15 +3,12 @@ function failure(field, message) {
 }
 
 const profileKeys = ["id", "name", "color", "type", "visible"]
-const profileTypes = new Set(["local", "imported", "synced"])
-const idPattern = /^[a-z0-9][a-z0-9_-]*$/
+const profileTypes = new Set(["local", "imported", "synced", "subscription"])
+const idPattern = /^[a-z0-9][a-z0-9_-]{0,127}$/
 const colorPattern = /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i
 
 function defaultProfiles() {
-    return [
-        { id: "edt_unistra", name: "University", color: "#7b9acc", type: "imported", visible: true },
-        { id: "personal", name: "Personal", color: "#b58bc8", type: "local", visible: true }
-    ]
+    return []
 }
 
 function validateProfile(profile) {
@@ -20,7 +17,7 @@ function validateProfile(profile) {
             || Object.keys(profile).some(key => !profileKeys.includes(key)))
         return failure("profile", "Profile schema is invalid")
     if (typeof profile.id !== "string" || !idPattern.test(profile.id))
-        return failure("id", "Profile ID must use lowercase letters, numbers, _ or -")
+        return failure("id", "Profile ID must be 1–128 characters using lowercase letters, numbers, _ or -")
     if (typeof profile.name !== "string" || profile.name.trim().length === 0)
         return failure("name", "Profile name is required")
     if (typeof profile.color !== "string" || !colorPattern.test(profile.color))
@@ -39,8 +36,8 @@ function validateProfile(profile) {
 }
 
 function validateProfiles(profiles) {
-    if (!Array.isArray(profiles) || profiles.length === 0)
-        return failure("profiles", "At least one calendar profile is required")
+    if (!Array.isArray(profiles))
+        return failure("profiles", "Calendar profiles must be an array")
     const seen = new Set()
     const result = []
     for (const profile of profiles) {
@@ -52,8 +49,6 @@ function validateProfiles(profiles) {
         seen.add(validation.profile.id)
         result.push(validation.profile)
     }
-    if (!result.some(profile => profile.type === "local" || profile.type === "synced"))
-        return failure("profiles", "At least one writable profile is required")
     return { ok: true, profiles: result }
 }
 
@@ -135,9 +130,6 @@ function removeProfile(profiles, id) {
     const profile = current.profiles.find(candidate => candidate.id === id)
     if (!profile)
         return failure("id", "Profile not found")
-    const writableProfiles = current.profiles.filter(candidate => candidate.type === "local" || candidate.type === "synced")
-    if (writableProfiles.length === 1 && (profile.type === "local" || profile.type === "synced"))
-        return failure("profiles", "Cannot remove last writable profile")
     return { ok: true, profile, profiles: current.profiles.filter(candidate => candidate.id !== id) }
 }
 

@@ -12,6 +12,8 @@ struct Event {
     std::string endTime;
     bool allDay = false;
     std::vector<int> reminders;
+    // Complete alarm snapshot for an editable, unambiguous all-day nominal-one-day reminder.
+    std::string nominalOneDayAlarmRevision;
     // Per-UID source calendar for external recurrence/timezone fidelity.
     std::string ical;
     // Verified ordinary authored rule; retained ICS still participates in revision.
@@ -29,6 +31,9 @@ struct ParseResult {
 };
 
 ParseResult parseCalendar(std::string_view source);
+struct icalcomponent_impl;
+// Existing strict DISPLAY-alarm model, without editable nominal-day extensions.
+std::vector<int> simpleDisplayReminders(icalcomponent_impl *event);
 std::string serializeEvent(const Event &event);
 bool writeEventFile(const std::string &path, const Event &event, std::string &error);
 bool writeAtomicallyFile(const std::string &path, const std::string &contents, std::string &error);

@@ -39,10 +39,12 @@ QtObject {
 
     property FileView importedFile: FileView {
         path: root.filePath
+        printErrors: false
         preload: true
         watchChanges: true
 
         onLoaded: root.loadText(text())
+        onFileChanged: root.importedFile.reload()
         onLoadFailed: error => {
             if (error === FileViewError.FileNotFound) {
                 root.ready = false;

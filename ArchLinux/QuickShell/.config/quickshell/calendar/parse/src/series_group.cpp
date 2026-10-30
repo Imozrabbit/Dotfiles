@@ -1,35 +1,35 @@
 #include "series_group.h"
+#include "calendar_json.h"
+#include "calendar_lock.h"
 #include "helper.h"
 #include "recurrence.h"
-#include "calendar_json.h"
 #include "synced_recurrence.h"
-#include "calendar_lock.h"
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
-#include <QDateTime>
-#include <QTimeZone>
 #include <QRegularExpression>
-#include <libical/ical.h>
+#include <QTimeZone>
+#include <algorithm>
 #include <cerrno>
+#include <cmath>
 #include <cstdlib>
 #include <fcntl.h>
 #include <filesystem>
-#include <set>
+#include <libical/ical.h>
 #include <map>
-#include <cmath>
 #include <memory>
-#include <algorithm>
+#include <set>
 #include <sys/stat.h>
 #include <unistd.h>
 
 namespace fs = std::filesystem;
 namespace {
-constexpr size_t maxFileBytes = 32 * 1024 * 1024;
-constexpr size_t maxSourceBytes = 16 * 1024 * 1024;
-constexpr size_t maxJournalBytes = 64 * 1024 * 1024; // Before + after + Base64 overhead.
+constexpr size_t maxFileBytes     = 32 * 1024 * 1024;
+constexpr size_t maxSourceBytes   = 16 * 1024 * 1024;
+constexpr size_t maxJournalBytes  = 64 * 1024 * 1024; // Before + after + Base64 overhead.
 constexpr const char *journalName = ".calendar-series-transaction.json";
 
 bool validDirectory(const fs::path &directory, QString &error) {
@@ -51,11 +51,10 @@ bool validCacheTarget(const fs::path &root, const std::string &output, const QSt
     }
     struct stat outputInfo{};
     const int outputStatus = lstat(output.c_str(), &outputInfo);
-    const int outputError = errno;
+    const int outputError  = errno;
     std::error_code pathError;
     const auto cachePath = fs::weakly_canonical(output, pathError);
-    if (pathError || (outputStatus == 0 && !S_ISREG(outputInfo.st_mode))
-            || (outputStatus < 0 && outputError != ENOENT)) {
+    if (pathError || (outputStatus == 0 && !S_ISREG(outputInfo.st_mode)) || (outputStatus < 0 && outputError != ENOENT)) {
         error = "group cache output is unavailable or unsafe";
         return false;
     }
@@ -69,6 +68,10 @@ bool validCacheTarget(const fs::path &root, const std::string &output, const QSt
 
 fs::path memberPath(const fs::path &directory, const std::string &uid) {
     return directory / (QCryptographicHash::hash(QByteArray::fromStdString(uid), QCryptographicHash::Sha256).toHex().toStdString() + ".ics");
+}
+
+fs::path changePath(const fs::path &directory, const SeriesFileChange &change) {
+    return change.filename.empty() ? memberPath(directory, change.uid) : directory / change.filename;
 }
 
 // Read a regular file without following symlinks, including dangling symlinks.
@@ -108,7 +111,7 @@ bool readFile(const fs::path &path, std::optional<std::string> &result, QString 
 }
 
 bool syncPath(const fs::path &path, bool directory, QString &error) {
-    const int fd = open(path.c_str(), O_RDONLY | O_NOFOLLOW | O_CLOEXEC | (directory ? O_DIRECTORY : 0));
+    const int fd  = open(path.c_str(), O_RDONLY | O_NOFOLLOW | O_CLOEXEC | (directory ? O_DIRECTORY : 0));
     const bool ok = fd >= 0 && fsync(fd) == 0;
     if (fd >= 0)
         close(fd);
@@ -144,8 +147,7 @@ bool decoded(const QJsonValue &value, std::optional<std::string> &contents) {
     if (!value.isString())
         return false;
     const auto bytes = QByteArray::fromBase64Encoding(value.toString().toLatin1(), QByteArray::AbortOnBase64DecodingErrors);
-    if (!bytes || bytes.decoded.size() > static_cast<qsizetype>(maxFileBytes)
-            || QString::fromLatin1(bytes.decoded.toBase64()) != value.toString())
+    if (!bytes || bytes.decoded.size() > static_cast<qsizetype>(maxFileBytes) || QString::fromLatin1(bytes.decoded.toBase64()) != value.toString())
         return false;
     contents = bytes.decoded.toStdString();
     return true;
@@ -153,14 +155,27 @@ bool decoded(const QJsonValue &value, std::optional<std::string> &contents) {
 
 bool validChanges(const std::vector<SeriesFileChange> &changes, QString &error) {
     std::set<std::string> uids;
+    std::set<std::string> filenames;
     size_t beforeBytes = 0, afterBytes = 0;
     if (changes.empty() || changes.size() > 366) {
         error = "transaction member count is invalid";
         return false;
     }
     for (const auto &change : changes) {
-        if (change.uid.empty() || change.uid.size() > 1024 || change.uid.find('\0') != std::string::npos
-                || !uids.insert(change.uid).second || (!change.before && !change.after)) {
+        const auto filename = changePath({}, change).filename().string();
+        if (!filenames.insert(filename).second || (!change.filename.empty()
+            && (change.filename.size() > 255 || change.filename != filename || change.filename.find('\\') != std::string::npos
+                || QRegularExpression("[\\x00-\\x1f\\x7f]").match(QString::fromStdString(change.filename)).hasMatch()
+                || fs::path(filename).extension() != ".ics" || !change.before))) {
+            error = "transaction member path is invalid"; return false;
+        }
+        if (!change.filename.empty()) {
+            const auto parsed = parseCalendar(*change.before);
+            if (!parsed.error.empty() || parsed.events.size() != 1 || parsed.events.front().uid != change.uid) {
+                error = "transaction source path does not match member UID"; return false;
+            }
+        }
+        if (change.uid.empty() || change.uid.size() > 1024 || change.uid.find('\0') != std::string::npos || !uids.insert(change.uid).second || (!change.before && !change.after)) {
             error = "transaction member identity is invalid";
             return false;
         }
@@ -204,11 +219,10 @@ bool loadJournal(const fs::path &root, QJsonObject &journal, std::vector<SeriesF
         return true;
     QJsonParseError parseError;
     const auto document = QJsonDocument::fromJson(QByteArray::fromStdString(*text), &parseError);
-    journal = document.object();
-    const auto phase = journal.value("phase").toString();
-    if (parseError.error != QJsonParseError::NoError || !document.isObject() || journal.size() != 3
-            || journal.value("version") != 1 || (phase != "prepared" && phase != "committed")
-            || !journal.value("changes").isArray()) {
+    journal             = document.object();
+    const auto phase    = journal.value("phase").toString();
+    const bool named = journal.value("version") == 2;
+    if (parseError.error != QJsonParseError::NoError || !document.isObject() || journal.size() != 3 || (!named && journal.value("version") != 1) || (phase != "prepared" && phase != "committed") || !journal.value("changes").isArray()) {
         error = "transaction journal schema is invalid";
         return false;
     }
@@ -216,8 +230,8 @@ bool loadJournal(const fs::path &root, QJsonObject &journal, std::vector<SeriesF
         const auto item = value.toObject();
         SeriesFileChange change;
         change.uid = item.value("uid").toString().toStdString();
-        if (!value.isObject() || item.size() != 3 || !decoded(item.value("before"), change.before)
-                || !decoded(item.value("after"), change.after)) {
+        if (named) change.filename = item.value("filename").toString().toStdString();
+        if (!value.isObject() || item.size() != (named ? 4 : 3) || (named && !item.value("filename").isString()) || !decoded(item.value("before"), change.before) || !decoded(item.value("after"), change.after)) {
             error = "transaction journal member is invalid";
             return false;
         }
@@ -242,7 +256,7 @@ bool recoverSeriesGroups(const std::string &directory, QString &error) {
         // Check the entire set first; never undo some members then discover newer data.
         for (const auto &change : changes) {
             std::optional<std::string> current;
-            if (!readFile(memberPath(root, change.uid), current, error))
+            if (!readFile(changePath(root, change), current, error))
                 return false;
             if (current != change.before && current != change.after) {
                 error = "transaction recovery blocked by newer member content";
@@ -251,7 +265,7 @@ bool recoverSeriesGroups(const std::string &directory, QString &error) {
         }
         for (size_t index = 0; index < changes.size(); ++index) {
             const auto &change = changes[index];
-            const auto path = memberPath(root, change.uid);
+            const auto path    = changePath(root, change);
             std::optional<std::string> current;
             if (!readFile(path, current, error))
                 return false;
@@ -275,17 +289,20 @@ bool prepareSeriesFiles(const std::string &directory, const std::vector<SeriesFi
     if (!validChanges(changes, error) || !recoverSeriesGroups(directory, error))
         return false;
     QJsonArray entries;
+    const bool named = std::any_of(changes.begin(), changes.end(), [](const auto &change) { return !change.filename.empty(); });
     for (const auto &change : changes) {
         std::optional<std::string> current;
-        if (!readFile(memberPath(root, change.uid), current, error))
+        if (!readFile(changePath(root, change), current, error))
             return false;
         if (current != change.before) {
             error = "group member changed; reopen series";
             return false;
         }
-        entries.append(QJsonObject{{"uid", QString::fromStdString(change.uid)}, {"before", encoded(change.before)}, {"after", encoded(change.after)}});
+        QJsonObject entry{{"uid", QString::fromStdString(change.uid)}, {"before", encoded(change.before)}, {"after", encoded(change.after)}};
+        if (named) entry["filename"] = QString::fromStdString(change.filename);
+        entries.append(entry);
     }
-    QJsonObject journal{{"version", 1}, {"phase", "prepared"}, {"changes", entries}};
+    QJsonObject journal{{"version", named ? 2 : 1}, {"phase", "prepared"}, {"changes", entries}};
     const auto serialized = QJsonDocument(journal).toJson(QJsonDocument::Compact);
     if (serialized.size() > qsizetype(maxJournalBytes)) {
         error = "transaction journal exceeds limit";
@@ -309,7 +326,7 @@ bool checkPreparedSeriesFiles(const std::string &directory, QString &error) {
     }
     for (const auto &change : changes) {
         std::optional<std::string> current;
-        if (!readFile(memberPath(directory, change.uid), current, error))
+        if (!readFile(changePath(directory, change), current, error))
             return false;
         if (current != change.before && current != change.after) {
             error = "prepared group changed; recovery requires review";
@@ -331,19 +348,19 @@ bool finishSeriesFiles(const std::string &directory, QString &error, bool &sourc
         return false;
     for (const auto &change : changes) {
         std::optional<std::string> current;
-        if (!readFile(memberPath(root, change.uid), current, error))
+        if (!readFile(changePath(root, change), current, error))
             return false;
         if (current != change.after) {
             error = "group replacement set is incomplete";
             return false;
         }
-        if (change.after && !syncPath(memberPath(root, change.uid), false, error))
+        if (change.after && !syncPath(changePath(root, change), false, error))
             return false;
     }
     if (!syncPath(root, true, error))
         return false;
     journal["phase"] = "committed";
-    sourceCommitted = true;
+    sourceCommitted  = true;
     if (!replace(root, root / journalName, QJsonDocument(journal).toJson(QJsonDocument::Compact).toStdString(), error)) {
         error += "; recovery required";
         return false;
@@ -360,7 +377,7 @@ bool commitSeriesFiles(const std::string &directory, const std::vector<SeriesFil
         return false;
     for (size_t index = 0; index < changes.size(); ++index) {
         const auto &change = changes[index];
-        const auto path = memberPath(root, change.uid);
+        const auto path    = changePath(root, change);
         std::optional<std::string> current;
         if (!readFile(path, current, error) || current != change.before || injectedFailure(index) || !replace(root, path, change.after, error)) {
             if (error.isEmpty())
@@ -377,7 +394,7 @@ bool commitSeriesFiles(const std::string &directory, const std::vector<SeriesFil
 
 bool buildSeriesGroup(const QJsonObject &input, QJsonObject &result, QString &error) {
     error.clear();
-    result = {};
+    result         = {};
     const auto uid = input.value("uid").toString();
     static const QRegularExpression identity("^[A-Za-z0-9@_.:-]{1,256}$");
     if (!identity.match(uid).hasMatch() || input.contains("ical")) {
@@ -401,17 +418,16 @@ bool buildSeriesGroup(const QJsonObject &input, QJsonObject &result, QString &er
     }
     std::set<int> reminders;
     for (const auto &value : master.value("reminders").toArray()) {
-        const auto item = value.toObject();
+        const auto item      = value.toObject();
         const double minutes = item.value("minutesBefore").toDouble(-1);
-        if (!value.isObject() || item.size() != 1 || !std::isfinite(minutes) || std::floor(minutes) != minutes
-                || minutes < 0 || minutes > 2147483647 || !reminders.insert(static_cast<int>(minutes)).second) {
+        if (!value.isObject() || item.size() != 1 || !std::isfinite(minutes) || std::floor(minutes) != minutes || minutes < 0 || minutes > 2147483647 || !reminders.insert(static_cast<int>(minutes)).second) {
             error = "group reminders are invalid";
             return false;
         }
     }
     if (!validateRecurrenceMaster(master, error))
         return false;
-    auto rule = master.value("recurrence").toObject();
+    auto rule        = master.value("recurrence").toObject();
     const auto dates = rule.value("pattern").toObject().value("dates").toArray();
     if (rule.value("frequency") != "yearly" || dates.isEmpty() || dates.size() > 366) {
         error = "group requires bounded yearly date pairs";
@@ -419,7 +435,7 @@ bool buildSeriesGroup(const QJsonObject &input, QJsonObject &result, QString &er
     }
     std::map<int, QJsonObject> pairs;
     for (const auto &value : dates) {
-        const auto pair = value.toObject();
+        const auto pair                                                     = value.toObject();
         pairs[pair.value("month").toInt() * 32 + pair.value("day").toInt()] = pair;
     }
     QJsonArray selections;
@@ -432,17 +448,17 @@ bool buildSeriesGroup(const QJsonObject &input, QJsonObject &result, QString &er
         const auto memberUid = QString::fromLatin1(QCryptographicHash::hash(seed, QCryptographicHash::Sha256).toHex()) + "@quickshell-group";
         membership.append(QJsonObject{{"uid", memberUid}, {"month", pair.value("month")}, {"day", pair.value("day")}});
     }
-    rule["pattern"] = QJsonObject{{"dates", selections}};
+    rule["pattern"]      = QJsonObject{{"dates", selections}};
     master["recurrence"] = rule;
     QJsonObject normalized;
     if (!normalizeRecurrenceMaster(master, normalized, error))
         return false;
-    master = normalized;
-    rule = master.value("recurrence").toObject();
+    master            = normalized;
+    rule              = master.value("recurrence").toObject();
     const bool allDay = master.value("allDay").toBool();
     const QTimeZone zone(master.value("timezone").toString().toUtf8());
     const auto start = QDateTime::fromString(master.value("start").toString(), Qt::ISODate);
-    const auto end = QDateTime::fromString(master.value("end").toString(), Qt::ISODate);
+    const auto end   = QDateTime::fromString(master.value("end").toString(), Qt::ISODate);
     if (!allDay && (start.time().msec() != 0 || end.time().msec() != 0)) {
         error = "iCalendar recurrence requires whole-second timestamps";
         return false;
@@ -455,8 +471,7 @@ bool buildSeriesGroup(const QJsonObject &input, QJsonObject &result, QString &er
                 queryMaster[key] = master.value(key);
         }
         QJsonObject expanded;
-        if (!expandCalendarRange(QJsonObject{{"requestId", "group-cutoff"}, {"rangeStartMs", -62135596800000.0},
-                {"rangeEndMs", 253402300800000.0}, {"events", QJsonArray{queryMaster}}}, expanded, error))
+        if (!expandCalendarRange(QJsonObject{{"requestId", "group-cutoff"}, {"rangeStartMs", -62135596800000.0}, {"rangeEndMs", 253402300800000.0}, {"events", QJsonArray{queryMaster}}}, expanded, error))
             return false;
         const auto occurrences = expanded.value("occurrences").toArray();
         if (occurrences.size() != memberEnds.value("count").toInt() || !expanded.value("warnings").toArray().isEmpty()) {
@@ -464,9 +479,9 @@ bool buildSeriesGroup(const QJsonObject &input, QJsonObject &result, QString &er
             return false;
         }
         const auto lastStart = occurrences.last().toObject().value("start").toString();
-        const auto cutoff = allDay ? QDate::fromString(lastStart, Qt::ISODate)
-            : QDateTime::fromString(lastStart, Qt::ISODate).toTimeZone(zone).date();
-        memberEnds = QJsonObject{{"mode", "date"}, {"date", cutoff.toString(Qt::ISODate)}};
+        const auto cutoff    = allDay ? QDate::fromString(lastStart, Qt::ISODate)
+                                      : QDateTime::fromString(lastStart, Qt::ISODate).toTimeZone(zone).date();
+        memberEnds           = QJsonObject{{"mode", "date"}, {"date", cutoff.toString(Qt::ISODate)}};
     }
     const auto metadata = QJsonDocument(QJsonObject{{"version", 1}, {"master", master}, {"members", membership}}).toJson(QJsonDocument::Compact);
     if (metadata.size() > 128 * 1024) {
@@ -476,30 +491,30 @@ bool buildSeriesGroup(const QJsonObject &input, QJsonObject &result, QString &er
     QJsonArray members;
     size_t bytes = 0;
     for (const auto &value : membership) {
-        auto member = value.toObject();
-        auto memberMaster = master;
-        auto memberRule = rule;
-        memberRule["pattern"] = QJsonObject{{"dates", QJsonArray{QJsonObject{{"month", member.value("month")}, {"day", member.value("day")}}}}};
-        memberRule["ends"] = memberEnds;
-        memberMaster["uid"] = member.value("uid");
+        auto member                = value.toObject();
+        auto memberMaster          = master;
+        auto memberRule            = rule;
+        memberRule["pattern"]      = QJsonObject{{"dates", QJsonArray{QJsonObject{{"month", member.value("month")}, {"day", member.value("day")}}}}};
+        memberRule["ends"]         = memberEnds;
+        memberMaster["uid"]        = member.value("uid");
         memberMaster["recurrence"] = memberRule;
         if (!normalizeRecurrenceMaster(memberMaster, normalized, error, true))
             return false;
         Event event;
-        event.uid = member.value("uid").toString().toStdString();
-        event.summary = master.value("title").toString().toStdString();
+        event.uid         = member.value("uid").toString().toStdString();
+        event.summary     = master.value("title").toString().toStdString();
         event.description = master.value("description").toString().toStdString();
-        event.location = master.value("location").toString().toStdString();
-        event.allDay = allDay;
-        event.startTime = normalized.value("start").toString().toStdString();
-        event.endTime = normalized.value("end").toString().toStdString();
+        event.location    = master.value("location").toString().toStdString();
+        event.allDay      = allDay;
+        event.startTime   = normalized.value("start").toString().toStdString();
+        event.endTime     = normalized.value("end").toString().toStdString();
         for (const auto &reminder : master.value("reminders").toArray())
             event.reminders.push_back(reminder.toObject().value("minutesBefore").toInt());
-        event.recurrence = QJsonDocument(memberRule).toJson(QJsonDocument::Compact).toStdString();
-        event.timezone = master.value("timezone").toString().toStdString();
+        event.recurrence  = QJsonDocument(memberRule).toJson(QJsonDocument::Compact).toStdString();
+        event.timezone    = master.value("timezone").toString().toStdString();
         const auto source = serializeEvent(event);
-        auto *calendar = source.empty() ? nullptr : icalparser_parse_string(source.c_str());
-        auto *component = calendar ? icalcomponent_get_first_component(calendar, ICAL_VEVENT_COMPONENT) : nullptr;
+        auto *calendar    = source.empty() ? nullptr : icalparser_parse_string(source.c_str());
+        auto *component   = calendar ? icalcomponent_get_first_component(calendar, ICAL_VEVENT_COMPONENT) : nullptr;
         if (!component) {
             if (calendar)
                 icalcomponent_free(calendar);
@@ -516,12 +531,12 @@ bool buildSeriesGroup(const QJsonObject &input, QJsonObject &result, QString &er
             property = next;
         }
         for (const auto &[name, data] : std::vector<std::pair<const char *, QByteArray>>{{"X-QUICKSHELL-GROUP-ID", uid.toUtf8()},
-                {"X-QUICKSHELL-GROUP-RULE", metadata.toBase64()}}) {
+                                                                                         {"X-QUICKSHELL-GROUP-RULE", metadata.toBase64()}}) {
             auto *item = icalproperty_new_x(data.constData());
             icalproperty_set_x_name(item, name);
             icalcomponent_add_property(component, item);
         }
-        char *text = icalcomponent_as_ical_string_r(calendar);
+        char *text                  = icalcomponent_as_ical_string_r(calendar);
         const QByteArray serialized = text ? QByteArray(text) : QByteArray{};
         if (text)
             icalmemory_free_buffer(text);
@@ -555,7 +570,7 @@ bool validateSeriesSources(const std::map<std::string, std::string> &input, cons
         int idCount = 0, ruleCount = 0, groupCount = 0;
         QByteArray encodedRule;
         for (auto *property = icalcomponent_get_first_property(event, ICAL_X_PROPERTY); property;
-             property = icalcomponent_get_next_property(event, ICAL_X_PROPERTY)) {
+             property       = icalcomponent_get_next_property(event, ICAL_X_PROPERTY)) {
             const auto name = QString::fromUtf8(icalproperty_get_x_name(property));
             if (!name.startsWith("X-QUICKSHELL-GROUP-", Qt::CaseInsensitive))
                 continue;
@@ -570,24 +585,19 @@ bool validateSeriesSources(const std::map<std::string, std::string> &input, cons
         }
         if (!matches)
             continue;
-        if (idCount != 1 || ruleCount != 1 || groupCount != 2 || encodedRule.size() > 192 * 1024
-                || icalcomponent_get_next_component(calendar.get(), ICAL_VEVENT_COMPONENT)) {
+        if (idCount != 1 || ruleCount != 1 || groupCount != 2 || encodedRule.size() > 192 * 1024 || icalcomponent_get_next_component(calendar.get(), ICAL_VEVENT_COMPONENT)) {
             error = "group metadata or membership is inconsistent";
             return false;
         }
         const auto decodedRule = QByteArray::fromBase64Encoding(encodedRule, QByteArray::AbortOnBase64DecodingErrors);
         QJsonParseError parseError;
-        const auto document = decodedRule ? QJsonDocument::fromJson(decodedRule.decoded, &parseError) : QJsonDocument{};
+        const auto document  = decodedRule ? QJsonDocument::fromJson(decodedRule.decoded, &parseError) : QJsonDocument{};
         const auto candidate = document.object();
-        if (!decodedRule || parseError.error != QJsonParseError::NoError || !document.isObject()
-                || candidate.size() != 3 || candidate.value("version") != 1
-                || !candidate.value("master").isObject() || !candidate.value("members").isArray()
-                || candidate.value("master").toObject().value("uid") != uid
-                || (!metadata.isEmpty() && metadata != candidate)) {
+        if (!decodedRule || parseError.error != QJsonParseError::NoError || !document.isObject() || candidate.size() != 3 || candidate.value("version") != 1 || !candidate.value("master").isObject() || !candidate.value("members").isArray() || candidate.value("master").toObject().value("uid") != uid || (!metadata.isEmpty() && metadata != candidate)) {
             error = "group metadata is invalid or divergent";
             return false;
         }
-        metadata = candidate;
+        metadata          = candidate;
         const auto parsed = parseCalendar(raw);
         if (!parsed.error.empty() || parsed.events.size() != 1) {
             error = "group member source is invalid";
@@ -608,24 +618,22 @@ bool validateSeriesSources(const std::map<std::string, std::string> &input, cons
         return false;
     QJsonArray membership, members, revisions;
     for (const auto &value : expected.value("members").toArray()) {
-        auto member = value.toObject();
+        auto member          = value.toObject();
         const auto memberUid = member.value("uid").toString().toStdString();
-        const auto found = sources.find(memberUid);
+        const auto found     = sources.find(memberUid);
         if (found == sources.end()) {
             error = "group member is missing";
             return false;
         }
         const auto generated = parseCalendar(member.value("ical").toString().toStdString());
-        const auto current = parseCalendar(found->second);
+        const auto current   = parseCalendar(found->second);
         if (!generated.error.empty() || !current.error.empty() || generated.events.size() != 1 || current.events.size() != 1) {
             error = "group member source is invalid";
             return false;
         }
         const auto &a = generated.events.front();
         const auto &b = current.events.front();
-        if (a.uid != b.uid || a.summary != b.summary || a.description != b.description || a.location != b.location
-                || a.allDay != b.allDay || a.reminders != b.reminders
-                || recurrenceSourceSignature(member.value("ical").toString().toStdString()) != recurrenceSourceSignature(found->second)) {
+        if (a.uid != b.uid || a.summary != b.summary || a.description != b.description || a.location != b.location || a.allDay != b.allDay || a.reminders != b.reminders || recurrenceSourceSignature(member.value("ical").toString().toStdString()) != recurrenceSourceSignature(found->second)) {
             error = "group member was edited externally; group is protected";
             return false;
         }
@@ -634,32 +642,31 @@ bool validateSeriesSources(const std::map<std::string, std::string> &input, cons
         membership.append(identity);
         const auto revision = QString::fromStdString(eventRevision(b));
         revisions.append(QJsonObject{{"uid", member.value("uid")}, {"revision", revision}});
-        member["ical"] = QString::fromStdString(found->second);
+        member["ical"]     = QString::fromStdString(found->second);
         member["revision"] = revision;
         members.append(member);
     }
-    if (sources.size() != static_cast<size_t>(members.size()) || metadata.value("master") != expected.value("master")
-            || metadata.value("members") != membership) {
+    if (sources.size() != static_cast<size_t>(members.size()) || metadata.value("master") != expected.value("master") || metadata.value("members") != membership) {
         error = "group membership is inconsistent or spoofed";
         return false;
     }
     const auto revision = QString::fromLatin1(QCryptographicHash::hash(QJsonDocument(revisions).toJson(QJsonDocument::Compact), QCryptographicHash::Sha256).toHex());
-    result = QJsonObject{{"master", expected.value("master")}, {"members", members}, {"revision", revision}};
+    result              = QJsonObject{{"master", expected.value("master")}, {"members", members}, {"revision", revision}};
     return true;
 }
 
 std::set<QString> groupIds(const Event &event, bool &tagged, int *propertyCount = nullptr) {
     std::set<QString> ids;
-    int count = 0;
-    tagged = false;
+    int count      = 0;
+    tagged         = false;
     using Calendar = std::unique_ptr<icalcomponent, decltype(&icalcomponent_free)>;
     Calendar calendar(event.ical.empty() ? nullptr : icalparser_parse_string(event.ical.c_str()), icalcomponent_free);
-    for (auto *component = calendar ? icalcomponent_get_first_component(calendar.get(), ICAL_VEVENT_COMPONENT) : nullptr;
+    for (auto *component      = calendar ? icalcomponent_get_first_component(calendar.get(), ICAL_VEVENT_COMPONENT) : nullptr;
          component; component = icalcomponent_get_next_component(calendar.get(), ICAL_VEVENT_COMPONENT)) {
         for (auto *property = icalcomponent_get_first_property(component, ICAL_X_PROPERTY); property;
-             property = icalcomponent_get_next_property(component, ICAL_X_PROPERTY)) {
+             property       = icalcomponent_get_next_property(component, ICAL_X_PROPERTY)) {
             const auto name = QString::fromUtf8(icalproperty_get_x_name(property));
-            tagged = tagged || name.startsWith("X-QUICKSHELL-GROUP-", Qt::CaseInsensitive);
+            tagged          = tagged || name.startsWith("X-QUICKSHELL-GROUP-", Qt::CaseInsensitive);
             if (name.compare("X-QUICKSHELL-GROUP-ID", Qt::CaseInsensitive) == 0) {
                 ++count;
                 ids.insert(QString::fromUtf8(icalproperty_get_x(property)));
@@ -680,9 +687,9 @@ bool inspectSeriesSources(const std::map<std::string, std::string> &sources, con
 }
 
 QString seriesSourceGroup(const Event &event, bool &tagged, bool &ambiguous) {
-    int count = 0;
+    int count      = 0;
     const auto ids = groupIds(event, tagged, &count);
-    ambiguous = tagged && (count != 1 || ids.size() != 1 || ids.begin()->isEmpty());
+    ambiguous      = tagged && (count != 1 || ids.size() != 1 || ids.begin()->isEmpty());
     return tagged && !ambiguous ? *ids.begin() : QString{};
 }
 
@@ -712,6 +719,15 @@ bool inspectSeriesGroup(const std::string &directory, const QString &uid,
             return false;
         if (!raw)
             continue;
+        // Retain the extra-member safety scan, but do not parse unrelated calendars.
+        QString header = QString::fromUtf8(raw->data(), qsizetype(raw->size()));
+        header.replace(QRegularExpression("\\r?\\n[ \\t]"), "");
+        const QRegularExpression property("^X-QUICKSHELL-GROUP-ID(?:;[^:\\r\\n]*)?:([^\\r\\n]*)\\r?$",
+                                           QRegularExpression::CaseInsensitiveOption | QRegularExpression::MultilineOption);
+        auto properties = property.globalMatch(header);
+        bool candidate = false;
+        while (properties.hasNext()) if (properties.next().captured(1) == uid) candidate = true;
+        if (!candidate) continue;
         const auto parsed = parseCalendar(*raw);
         for (const auto &event : parsed.events) {
             bool tagged;
@@ -734,7 +750,7 @@ bool inspectSeriesGroup(const std::string &directory, const QString &uid,
         const auto memberUid = value.toObject().value("uid").toString().toStdString();
         if (paths[memberUid].filename() != memberPath(root, memberUid).filename()) {
             result = {};
-            error = "group member path is invalid";
+            error  = "group member path is invalid";
             return false;
         }
     }
@@ -774,15 +790,15 @@ void reconstructSeriesGroups(std::vector<Event> &events, std::vector<std::string
         }
         const auto master = verified.value("master").toObject();
         Event event;
-        event.uid = id.toStdString();
-        event.summary = master.value("title").toString().toStdString();
+        event.uid         = id.toStdString();
+        event.summary     = master.value("title").toString().toStdString();
         event.description = master.value("description").toString().toStdString();
-        event.location = master.value("location").toString().toStdString();
-        event.startTime = master.value("start").toString().toStdString();
-        event.endTime = master.value("end").toString().toStdString();
-        event.allDay = master.value("allDay").toBool();
-        event.timezone = master.value("timezone").toString().toStdString();
-        event.recurrence = QJsonDocument(master.value("recurrence").toObject()).toJson(QJsonDocument::Compact).toStdString();
+        event.location    = master.value("location").toString().toStdString();
+        event.startTime   = master.value("start").toString().toStdString();
+        event.endTime     = master.value("end").toString().toStdString();
+        event.allDay      = master.value("allDay").toBool();
+        event.timezone    = master.value("timezone").toString().toStdString();
+        event.recurrence  = QJsonDocument(master.value("recurrence").toObject()).toJson(QJsonDocument::Compact).toStdString();
         for (const auto &reminder : master.value("reminders").toArray())
             event.reminders.push_back(reminder.toObject().value("minutesBefore").toInt());
         QJsonArray members;
@@ -791,9 +807,9 @@ void reconstructSeriesGroups(std::vector<Event> &events, std::vector<std::string
             members.append(QJsonObject{{"uid", member.value("uid")}, {"revision", member.value("revision")}});
             consumed.insert(member.value("uid").toString().toStdString());
         }
-        event.seriesGroup = QJsonDocument(QJsonObject{{"version", 1}, {"members", members}}).toJson(QJsonDocument::Compact).toStdString();
+        event.seriesGroup   = QJsonDocument(QJsonObject{{"version", 1}, {"members", members}}).toJson(QJsonDocument::Compact).toStdString();
         event.groupRevision = verified.value("revision").toString().toStdString();
-        event.readOnly = false;
+        event.readOnly      = false;
         logical.push_back(std::move(event));
     }
     events.erase(std::remove_if(events.begin(), events.end(), [&](const Event &event) { return consumed.count(event.uid); }), events.end());
@@ -814,36 +830,43 @@ bool mutateSeriesGroup(const std::string &directory, const std::string &output,
         return false;
     }
     const auto operation = request.value("operation").toString();
-    const auto sourceId = request.value("sourceId").toString();
+    const auto sourceId  = request.value("sourceId").toString();
     if (!QStringList{"create", "update", "delete"}.contains(operation)) {
         error = "group request operation is invalid";
         return false;
     }
     if (!validCacheTarget(root, output, sourceId, error))
         return false;
+    std::string cacheError;
+    if (!validateSyncedCache(output, sourceId.toStdString(), cacheError, operation == "create")) {
+        error = QString::fromStdString(cacheError); return false;
+    }
     if (!recoverSeriesGroups(directory, error))
         return false;
     const auto event = request.value("event").toObject();
-    const auto uid = operation == "delete" ? request.value("uid").toString() : event.value("uid").toString();
+    const auto uid   = operation == "delete" ? request.value("uid").toString() : event.value("uid").toString();
     QJsonObject current;
-    bool exists = inspectSeriesGroup(directory, uid, current, error);
+    bool exists         = inspectSeriesGroup(directory, uid, current, error);
     bool ordinarySource = false;
+    std::string ordinaryPath;
     if (!exists && error == "group not found") {
         std::optional<std::string> raw;
-        if (!readFile(memberPath(root, uid.toStdString()), raw, error))
+        std::string detail;
+        if (!syncedSourcePath(directory, uid.toStdString(), ordinaryPath, detail)) {
+            error = QString::fromStdString(detail); return false;
+        }
+        if (!ordinaryPath.empty() && !readFile(ordinaryPath, raw, error))
             return false;
         if (raw) {
             const auto parsed = parseCalendar(*raw);
-            if (!parsed.error.empty() || parsed.events.size() != 1 || parsed.events.front().uid != uid.toStdString()
-                    || (!parsed.events.front().ical.empty() && parsed.events.front().recurrence.empty())) {
+            if (!parsed.error.empty() || parsed.events.size() != 1 || parsed.events.front().uid != uid.toStdString() || (!parsed.events.front().ical.empty() && parsed.events.front().recurrence.empty())) {
                 error = "ordinary source is invalid or read-only";
                 return false;
             }
             const auto revision = QString::fromStdString(eventRevision(parsed.events.front()));
-            current = QJsonObject{{"revision", revision}, {"members", QJsonArray{QJsonObject{{"uid", uid},
-                {"ical", QString::fromStdString(*raw)}, {"revision", revision}}}}};
-            exists = true;
-            ordinarySource = true;
+            current             = QJsonObject{{"revision", revision}, {"members", QJsonArray{QJsonObject{{"uid", uid}, {"ical", QString::fromStdString(*raw)}, {"revision", revision}}}}};
+            exists              = true;
+            ordinarySource      = true;
             error.clear();
         }
     }
@@ -854,8 +877,7 @@ bool mutateSeriesGroup(const std::string &directory, const std::string &output,
             return false;
         }
         error.clear();
-    } else if (!exists || request.value("revision").toString().isEmpty()
-            || request.value("revision") != current.value("revision")) {
+    } else if (!exists || request.value("revision").toString().isEmpty() || request.value("revision") != current.value("revision")) {
         if (exists)
             error = "group changed; reopen series";
         return false;
@@ -865,7 +887,7 @@ bool mutateSeriesGroup(const std::string &directory, const std::string &output,
     std::string ordinaryGenerated;
     if (operation != "delete") {
         const auto rule = event.value("recurrence").toObject();
-        groupedTarget = rule.value("frequency") == "yearly" && rule.value("pattern").toObject().value("dates").toArray().size() > 1;
+        groupedTarget   = rule.value("frequency") == "yearly" && rule.value("pattern").toObject().value("dates").toArray().size() > 1;
         if (groupedTarget) {
             if (!buildSeriesGroup(event, built, error))
                 return false;
@@ -881,16 +903,18 @@ bool mutateSeriesGroup(const std::string &directory, const std::string &output,
     }
     std::map<std::string, SeriesFileChange> changes;
     for (const auto &value : current.value("members").toArray()) {
-        const auto member = value.toObject();
+        const auto member    = value.toObject();
         const auto memberUid = member.value("uid").toString().toStdString();
-        changes[memberUid] = {memberUid, member.value("ical").toString().toStdString(), {}};
+        changes[memberUid]   = {memberUid, member.value("ical").toString().toStdString(), {}};
+        if (ordinarySource && fs::path(ordinaryPath).filename() != memberPath(root, memberUid).filename())
+            changes[memberUid].filename = fs::path(ordinaryPath).filename().string();
     }
     std::string transitionSource;
     if (operation == "update" && ordinarySource && groupedTarget)
         transitionSource = current.value("members").toArray().first().toObject().value("ical").toString().toStdString();
     if (operation == "update" && !ordinarySource && groupedTarget) {
         const auto neutral = built.value("members").toArray().first().toObject().value("ical").toString().toStdString();
-        const auto digest = [](const std::string &source) {
+        const auto digest  = [](const std::string &source) {
             return QCryptographicHash::hash(QByteArray::fromStdString(source), QCryptographicHash::Sha256);
         };
         std::set<std::string> targetUids;
@@ -905,7 +929,7 @@ bool mutateSeriesGroup(const std::string &directory, const std::string &output,
                 return false;
             }
             const auto signature = digest(merged);
-            opaque[memberUid] = signature;
+            opaque[memberUid]    = signature;
             signatures.insert(signature);
             if (targetUids.count(memberUid))
                 surviving.insert(signature);
@@ -938,11 +962,11 @@ bool mutateSeriesGroup(const std::string &directory, const std::string &output,
         built = QJsonObject{{"members", QJsonArray{QJsonObject{{"uid", uid}, {"ical", QString::fromStdString(*lossless)}}}}};
     }
     for (const auto &value : built.value("members").toArray()) {
-        const auto member = value.toObject();
+        const auto member    = value.toObject();
         const auto memberUid = member.value("uid").toString().toStdString();
-        auto &change = changes[memberUid];
-        change.uid = memberUid;
-        std::string source = member.value("ical").toString().toStdString();
+        auto &change         = changes[memberUid];
+        change.uid           = memberUid;
+        std::string source   = member.value("ical").toString().toStdString();
         if (change.before || !transitionSource.empty()) {
             std::string detail, merged;
             if (!mergeEventSource(change.before ? *change.before : transitionSource, source, merged, detail)) {
@@ -959,7 +983,17 @@ bool mutateSeriesGroup(const std::string &directory, const std::string &output,
     if (!commitSeriesFiles(directory, prepared, error, sourceCommitted))
         return false;
     std::string detail;
-    if (!rebuildSyncedCache(directory, output, sourceId.toStdString(), detail)) {
+    std::vector<std::string> affected{uid.toStdString()};
+    std::vector<Event> replacements;
+    for (const auto &change : prepared) {
+        affected.push_back(change.uid);
+        if (change.after) {
+            auto parsed = parseCalendar(*change.after);
+            if (!parsed.error.empty()) { error = "group saved but cache parse failed"; return false; }
+            replacements.insert(replacements.end(), parsed.events.begin(), parsed.events.end());
+        }
+    }
+    if (!updateSyncedCache(output, sourceId.toStdString(), affected, std::move(replacements), detail, operation == "create")) {
         error = "group committed but cache rebuild failed: " + QString::fromStdString(detail);
         return false;
     }
@@ -967,7 +1001,7 @@ bool mutateSeriesGroup(const std::string &directory, const std::string &output,
 }
 
 bool recoverSeriesCache(const std::string &directory, const std::string &output,
-                        const QString &sourceId, QString &error, bool &sourcesSafe) {
+                        const QString &sourceId, QString &error, bool &sourcesSafe, const QString &uid) {
     error.clear();
     sourcesSafe = false;
     const fs::path root(directory);
@@ -983,7 +1017,8 @@ bool recoverSeriesCache(const std::string &directory, const std::string &output,
         return false;
     sourcesSafe = true;
     std::string detail;
-    if (!rebuildSyncedCache(directory, output, sourceId.toStdString(), detail)) {
+    if (!(uid.isEmpty() ? rebuildSyncedCache(directory, output, sourceId.toStdString(), detail)
+                       : refreshSyncedCacheEntry(directory, output, sourceId.toStdString(), uid.toStdString(), detail))) {
         error = "group sources recovered but cache rebuild failed: " + QString::fromStdString(detail);
         return false;
     }

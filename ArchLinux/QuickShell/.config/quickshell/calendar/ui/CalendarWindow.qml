@@ -28,6 +28,7 @@ PanelWindow { //qmllint disable uncreatable-type
     property bool revealed: false
     property bool managerOpen: false
     property bool conflictOpen: false
+    property bool conversionConflictOpen: false
     readonly property ShellScreen displayScreen: root.screen
 
     visible: root.surfaceVisible
@@ -110,23 +111,20 @@ PanelWindow { //qmllint disable uncreatable-type
         property real buttonWidth: label === "Today" ? 45 : 34
         property bool selected: false
         property bool alert: false
-        property int alertCount: 0
         signal clicked
         signal rightClicked
 
         implicitWidth: buttonWidth
         implicitHeight: 30
         radius: Theme.radius
-        color: textOnly ? "transparent" : navTap.pressed ? Qt.darker(Theme.surfaceRaised, 1.2)
-            : selected || hover.hovered ? Theme.surfaceRaised : Theme.surface
+        color: textOnly ? "transparent" : navTap.pressed ? Qt.darker(Theme.surfaceRaised, 1.2) : selected || hover.hovered ? Theme.surfaceRaised : Theme.surface
         border.width: textOnly ? 0 : 1
         border.color: selected ? Theme.accent : Theme.border
 
         Text {
             anchors.centerIn: parent
             text: button.label
-            color: navTap.pressed ? Qt.darker(button.alert ? Theme.currentTime : button.selected ? Theme.accent : Theme.text, 1.2)
-                : button.textOnly ? button.alert ? hover.hovered ? Qt.lighter(Theme.currentTime, 1.2) : Theme.currentTime : button.selected ? Theme.accent : hover.hovered ? Theme.text : Theme.textMuted : Theme.text
+            color: navTap.pressed ? Qt.darker(button.alert ? Theme.warning : button.selected ? Theme.accent : Theme.text, 1.2) : button.textOnly ? button.alert ? hover.hovered ? Qt.lighter(Theme.warning, 1.2) : Theme.warning : button.selected ? Theme.accent : hover.hovered ? Theme.text : Theme.textMuted : Theme.text
             font.pixelSize: button.label === "" ? 19 : button.label === "" ? 16 : parent.label === "Today" ? 15 : 13
             font.weight: parent.label === "<" || parent.label === ">" ? Font.Bold : Font.Medium
         }
@@ -147,28 +145,6 @@ PanelWindow { //qmllint disable uncreatable-type
                     button.clicked();
             }
         }
-
-        Rectangle {
-            visible: button.alert && button.alertCount > 0
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            anchors.rightMargin: -7
-            anchors.bottomMargin: 3
-            width: badgeText.implicitWidth + 6
-            height: badgeText.implicitHeight + 2
-            radius: 7
-            color: Theme.currentTime
-            z: 1
-
-            Text {
-                id: badgeText
-                anchors.centerIn: parent
-                text: button.alertCount > 99 ? "99+" : String(button.alertCount)
-                color: Theme.background
-                font.pixelSize: 8
-                font.weight: Font.DemiBold
-            }
-        }
     }
 
     Timer {
@@ -182,6 +158,27 @@ PanelWindow { //qmllint disable uncreatable-type
     function clearViewSelection() {
         if (root.loadedView)
             root.loadedView.clearSelection();
+    }
+
+    function retireCalendar(calendarId) {
+        const selected = root.selectedEvent?.calendarId === calendarId;
+        const editing = root.editorRequest?.eventData?.calendarId === calendarId || root.editorRequest?.defaults?.calendarId === calendarId;
+        if (selected)
+            root.selectedEvent = null;
+        if (editing)
+            root.editorRequest = null;
+        if (selected || editing)
+            root.clearViewSelection();
+    }
+
+    Connections {
+        target: root.calendarService
+        function onCalendarRemoved(calendarId) {
+            root.retireCalendar(calendarId);
+        }
+        function onCalendarConverted(calendarId) {
+            root.retireCalendar(calendarId);
+        }
     }
 
     function navigate(direction) {
@@ -506,13 +503,29 @@ PanelWindow { //qmllint disable uncreatable-type
                                 }
                             }
                             NavButton {
+                                id: managerButton
                                 label: ""
                                 textOnly: true
                                 buttonWidth: 12
-                                selected: root.managerOpen || root.conflictOpen
+                                activeFocusOnTab: true
+                                border.width: activeFocus ? 1 : 0
+                                border.color: managerButton.alert ? Theme.warning : Theme.accent
+                                selected: root.managerOpen && !root.conflictOpen
                                 alert: root.calendarService.conflictService.hasConflict
-                                alertCount: root.calendarService.conflictService.conflicts.length
-                                onClicked: root.calendarService.conflictService.hasConflict ? root.openConflicts() : root.managerOpen = true
+                                Accessible.role: Accessible.Button
+                                Accessible.name: root.calendarService.conflictService.hasConflict ? "Manage calendars (" + root.calendarService.conflictService.conflicts.length + " unresolved conflicts)" : "Manage calendars"
+                                Accessible.onPressAction: managerButton.clicked()
+                                Keys.onPressed: event => {
+                                    if (event.key !== Qt.Key_Space && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
+                                        return;
+                                    managerButton.clicked();
+                                    event.accepted = true;
+                                }
+                                onClicked: {
+                                    root.conflictOpen = false;
+                                    root.conversionConflictOpen = false;
+                                    root.managerOpen = true;
+                                }
                             }
                         }
                     }
@@ -705,6 +718,14 @@ PanelWindow { //qmllint disable uncreatable-type
         CalendarManagerPanel {
             calendarService: root.calendarService
             onCloseRequested: root.managerOpen = false
+            onConflictResolutionRequested: {
+                root.conversionConflictOpen = false;
+                root.openConflicts();
+            }
+            onConversionReviewRequested: {
+                root.conversionConflictOpen = true;
+                root.conflictOpen = true;
+            }
         }
     }
 
@@ -712,7 +733,11 @@ PanelWindow { //qmllint disable uncreatable-type
         id: conflictPanelComponent
         ConflictResolutionPanel {
             conflictService: root.calendarService.conflictService
-            onCloseRequested: root.conflictOpen = false
+            conversionService: root.conversionConflictOpen ? root.calendarService.caldav : null
+            onCloseRequested: {
+                root.conflictOpen = false;
+                root.conversionConflictOpen = false;
+            }
         }
     }
 }

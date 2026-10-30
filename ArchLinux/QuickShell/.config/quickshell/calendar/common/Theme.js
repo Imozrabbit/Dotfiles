@@ -8,6 +8,7 @@ var grid = "#252b35"
 var text = "#e7e9ee"
 var textMuted = "#969daa"
 var accent = "#8ba7d6"
+var warning = "#c9ad7b"
 var currentTime = "#d98282"
 var radius = 7
 var spacing = 8

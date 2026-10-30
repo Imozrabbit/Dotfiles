@@ -16,8 +16,8 @@ Item {
     property bool invalid: false
     property bool padNumbers: false
     property bool trimModelEnds: true
-    property string chevronText: "v"
-    property int chevronPixelSize: 9
+    property string chevronText: ""
+    property int chevronPixelSize: 17
     readonly property int labelHeight: root.label.length > 0 ? 14 : 0
     readonly property int collapsedHeight: 34
     readonly property int availableRowsAbove: Math.max(0, currentIndex)

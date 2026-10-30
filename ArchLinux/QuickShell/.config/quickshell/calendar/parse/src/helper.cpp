@@ -1,11 +1,11 @@
 #include "helper.h"
 #include "synced_recurrence.h"
+#include <QDateTime>
 #include <QFileDevice>
 #include <QFileInfo>
-#include <QDateTime>
-#include <QTimeZone>
-#include <QString>
 #include <QSaveFile>
+#include <QString>
+#include <QTimeZone>
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
@@ -13,9 +13,10 @@
 #include <ctime>
 #include <filesystem>
 #include <iomanip>
-#include <sstream>
+#include <limits>
 #include <map>
 #include <set>
+#include <sstream>
 #include <string>
 
 #include <libical/ical.h>
@@ -45,13 +46,13 @@ void referencedTimezones(icalcomponent *component, std::set<std::string> &zones)
     while (!pending.empty()) {
         auto *current = pending.back();
         pending.pop_back();
-        for (auto *property = icalcomponent_get_first_property(current, ICAL_ANY_PROPERTY);
+        for (auto *property     = icalcomponent_get_first_property(current, ICAL_ANY_PROPERTY);
              property; property = icalcomponent_get_next_property(current, ICAL_ANY_PROPERTY)) {
             const auto *parameter = icalproperty_get_first_parameter(property, ICAL_TZID_PARAMETER);
             if (parameter && icalparameter_get_tzid(parameter))
                 zones.insert(icalparameter_get_tzid(parameter));
         }
-        for (auto *child = icalcomponent_get_first_component(current, ICAL_ANY_COMPONENT);
+        for (auto *child  = icalcomponent_get_first_component(current, ICAL_ANY_COMPONENT);
              child; child = icalcomponent_get_next_component(current, ICAL_ANY_COMPONENT))
             pending.push_back(child);
     }
@@ -186,22 +187,30 @@ std::string currentUtc() {
 // -------------------------------------------------------------------------------------- //
 bool propertyTime(icalcomponent *calendar, icalcomponent *component, icalproperty_kind kind,
                   std::string &result, bool &allDay, std::string &error) {
-    icalproperty *property = icalcomponent_get_first_property(component, kind);
+    icalproperty *property       = icalcomponent_get_first_property(component, kind);
     const auto *durationProperty = kind == ICAL_DTEND_PROPERTY
-        ? icalcomponent_get_first_property(component, ICAL_DURATION_PROPERTY) : nullptr;
-    if (!property && !durationProperty) {
-        error = kind == ICAL_DTSTART_PROPERTY ? "VEVENT is missing DTSTART" : "VEVENT is missing DTEND";
+                                       ? icalcomponent_get_first_property(component, ICAL_DURATION_PROPERTY)
+                                        : nullptr;
+    if (property && durationProperty) {
+        error = "VEVENT has both DTEND and DURATION";
         return false;
     }
+    if (!property && kind != ICAL_DTEND_PROPERTY) {
+        error = kind == ICAL_DTSTART_PROPERTY ? "VEVENT is missing DTSTART" : "VEVENT is missing RECURRENCE-ID";
+        return false;
+    }
+    const bool implicitEnd = !property && !durationProperty;
 
-    icaltimetype value = !property ? icalcomponent_get_dtstart(component) : kind == ICAL_DTSTART_PROPERTY
-                                    ? icalproperty_get_dtstart(property)
-                                    : icalproperty_get_dtend(property);
+    icaltimetype value    = !property ? icalcomponent_get_dtstart(component) : kind == ICAL_RECURRENCEID_PROPERTY ? icalproperty_get_recurrenceid(property)
+                                                                             : kind == ICAL_DTSTART_PROPERTY ? icalproperty_get_dtstart(property)
+                                                                                                             : icalproperty_get_dtend(property);
     qint64 elapsedSeconds = 0;
-    if (!property) {
-        const auto duration = icalproperty_get_duration(durationProperty);
+    if (implicitEnd && value.is_date)
+        icaltime_adjust(&value, 1, 0, 0, 0);
+    if (durationProperty) {
+        const auto duration      = icalproperty_get_duration(durationProperty);
         const qint64 nominalDays = qint64(duration.weeks) * 7 + duration.days;
-        elapsedSeconds = qint64(duration.hours) * 3600 + qint64(duration.minutes) * 60 + duration.seconds;
+        elapsedSeconds           = qint64(duration.hours) * 3600 + qint64(duration.minutes) * 60 + duration.seconds;
         if (duration.is_neg || nominalDays > 3652058 || (value.is_date && elapsedSeconds)) {
             error = "VEVENT contains an invalid duration";
             return false;
@@ -221,10 +230,10 @@ bool propertyTime(icalcomponent *calendar, icalcomponent *component, icalpropert
 
     const icalparameter *parameter =
         icalproperty_get_first_parameter(property ? property : icalcomponent_get_first_property(component, ICAL_DTSTART_PROPERTY), ICAL_TZID_PARAMETER);
-    const char *tzid         = parameter ? icalparameter_get_tzid(parameter) : nullptr;
+    const char *tzid = parameter ? icalparameter_get_tzid(parameter) : nullptr;
     if (icaltime_is_utc(value) && (!tzid || !*tzid)) {
         const QDateTime instant(QDate(value.year, value.month, value.day),
-                               QTime(value.hour, value.minute, value.second), QTimeZone::utc());
+                                QTime(value.hour, value.minute, value.second), QTimeZone::utc());
         if (!instant.isValid()) {
             error = "invalid UTC date-time";
             return false;
@@ -268,18 +277,54 @@ bool propertyTime(icalcomponent *calendar, icalcomponent *component, icalpropert
     return !result.empty();
 }
 
+bool eventRange(icalcomponent *calendar, icalcomponent *component, Event &event, std::string &error) {
+    bool startAllDay = false, endAllDay = false;
+    if (!propertyTime(calendar, component, ICAL_DTSTART_PROPERTY, event.startTime, startAllDay, error)
+        || !propertyTime(calendar, component, ICAL_DTEND_PROPERTY, event.endTime, endAllDay, error)) return false;
+    if (startAllDay && endAllDay && event.endTime == event.startTime) {
+        icaltimetype endDate = icaltime_from_string(event.endTime.c_str());
+        icaltime_adjust(&endDate, 1, 0, 0, 0);
+        event.endTime = dateString(endDate);
+    }
+    const bool implicitEnd = !icalcomponent_get_first_property(component, ICAL_DTEND_PROPERTY)
+                             && !icalcomponent_get_first_property(component, ICAL_DURATION_PROPERTY);
+    if (startAllDay != endAllDay || event.endTime < event.startTime
+        || (event.endTime == event.startTime && !implicitEnd)) {
+        error = "VEVENT has an invalid time range"; return false;
+    }
+    event.allDay = startAllDay;
+    return true;
+}
+
 // Only the simple reminder model is managed. Rich/parameterized alarms stay
 // opaque and must not be regenerated or duplicated by the editor.
-int supportedReminderMinutes(icalcomponent *alarm) {
-    if (!alarm || icalcomponent_isa(alarm) != ICAL_VALARM_COMPONENT
-            || icalcomponent_get_first_component(alarm, ICAL_ANY_COMPONENT))
+bool utcReminderStart(icalcomponent *event) {
+    if (!event || icalcomponent_count_properties(event, ICAL_DTSTART_PROPERTY) != 1)
+        return false;
+    auto *start = icalcomponent_get_first_property(event, ICAL_DTSTART_PROPERTY);
+    return icaltime_is_utc(icalproperty_get_dtstart(start)) && !icalproperty_get_first_parameter(start, ICAL_TZID_PARAMETER);
+}
+
+bool hasOneDayTrigger(icalcomponent *alarm) {
+    for (auto *trigger = icalcomponent_get_first_property(alarm, ICAL_TRIGGER_PROPERTY); trigger;
+         trigger = icalcomponent_get_next_property(alarm, ICAL_TRIGGER_PROPERTY)) {
+        const auto value = icalproperty_get_trigger(trigger);
+        const auto &duration = value.duration;
+        const qint64 seconds = (qint64(duration.weeks) * 7 + duration.days) * 86400
+            + qint64(duration.hours) * 3600 + qint64(duration.minutes) * 60 + duration.seconds;
+        if (icaltime_is_null_time(value.time) && duration.is_neg && seconds == 86400) return true;
+    }
+    return false;
+}
+
+int supportedReminderMinutes(icalcomponent *alarm, bool utcStart, bool allowNominalOneDay = false) {
+    if (!alarm || icalcomponent_isa(alarm) != ICAL_VALARM_COMPONENT || icalcomponent_get_first_component(alarm, ICAL_ANY_COMPONENT))
         return -1;
     std::set<icalproperty_kind> seen;
     for (auto *property = icalcomponent_get_first_property(alarm, ICAL_ANY_PROPERTY); property;
-         property = icalcomponent_get_next_property(alarm, ICAL_ANY_PROPERTY)) {
+         property       = icalcomponent_get_next_property(alarm, ICAL_ANY_PROPERTY)) {
         const auto kind = icalproperty_isa(property);
-        if ((kind != ICAL_ACTION_PROPERTY && kind != ICAL_TRIGGER_PROPERTY && kind != ICAL_DESCRIPTION_PROPERTY)
-                || !seen.insert(kind).second || icalproperty_get_first_parameter(property, ICAL_ANY_PARAMETER))
+        if ((kind != ICAL_ACTION_PROPERTY && kind != ICAL_TRIGGER_PROPERTY && kind != ICAL_DESCRIPTION_PROPERTY) || !seen.insert(kind).second || icalproperty_get_first_parameter(property, ICAL_ANY_PARAMETER))
             return -1;
     }
     if (propertyText(alarm, ICAL_ACTION_PROPERTY) != "DISPLAY")
@@ -288,14 +333,32 @@ int supportedReminderMinutes(icalcomponent *alarm) {
     if (!trigger)
         return -1;
     const auto value = icalproperty_get_trigger(trigger);
-    // Nominal civil days/weeks cannot be flattened into elapsed minutes across DST.
-    if (value.duration.days != 0 || value.duration.weeks != 0)
-        return -1;
-    const int seconds = icaldurationtype_as_seconds(value.duration);
-    return icaltime_is_null_time(value.time) && seconds <= 0 && seconds % 60 == 0 ? -(seconds / 60) : -1;
+    // Only explicit UTC starts make civil days/weeks exact elapsed minutes.
+    if ((value.duration.days != 0 || value.duration.weeks != 0) && !utcStart) {
+        // ponytail: model only a single unambiguous all-day -P1D; richer civil offsets need a typed reminder schema.
+        if (!allowNominalOneDay || !value.duration.is_neg || value.duration.days != 1 || value.duration.weeks != 0
+            || value.duration.hours != 0 || value.duration.minutes != 0 || value.duration.seconds != 0)
+            return -1;
+    }
+    const qint64 seconds = (qint64(value.duration.weeks) * 7 + value.duration.days) * 86400
+        + qint64(value.duration.hours) * 3600 + qint64(value.duration.minutes) * 60 + value.duration.seconds;
+    return icaltime_is_null_time(value.time) && seconds >= 0 && (value.duration.is_neg || seconds == 0)
+        && seconds % 60 == 0 && seconds / 60 <= std::numeric_limits<int>::max() ? int(seconds / 60) : -1;
 }
 
 } // namespace
+
+std::vector<int> simpleDisplayReminders(icalcomponent *event) {
+    std::vector<int> result;
+    const bool utcStart = utcReminderStart(event);
+    for (auto *alarm = icalcomponent_get_first_component(event, ICAL_VALARM_COMPONENT); alarm;
+         alarm = icalcomponent_get_next_component(event, ICAL_VALARM_COMPONENT)) {
+        const int minutes = supportedReminderMinutes(alarm, utcStart);
+        if (minutes >= 0 && std::find(result.begin(), result.end(), minutes) == result.end())
+            result.push_back(minutes);
+    }
+    return result;
+}
 
 // -------------------------------------------------------------------------------------- //
 // Parse VCALENDAR input into independent event records
@@ -318,11 +381,17 @@ ParseResult parseCalendar(std::string_view source) {
         icalcomponent_free(calendar);
         return result;
     }
+    if (icalcomponent_count_errors(calendar)) {
+        result.error = "invalid iCalendar syntax";
+        icalcomponent_free(calendar);
+        return result;
+    }
 
     std::map<std::string, std::vector<icalcomponent *>> series;
     std::vector<icalcomponent *> components;
     for (icalcomponent *component = icalcomponent_get_first_component(
-             calendar, ICAL_VEVENT_COMPONENT); component;
+             calendar, ICAL_VEVENT_COMPONENT);
+         component;
          component = icalcomponent_get_next_component(calendar, ICAL_VEVENT_COMPONENT)) {
         const std::string uid = propertyText(component, ICAL_UID_PROPERTY);
         if (uid.empty()) {
@@ -330,8 +399,39 @@ ParseResult parseCalendar(std::string_view source) {
             icalcomponent_free(calendar);
             return result;
         }
+        if (icalcomponent_get_first_property(component, ICAL_RECURRENCEID_PROPERTY)
+            && icalcomponent_get_status(component) != ICAL_STATUS_CANCELLED) {
+            Event override;
+            if (!eventRange(calendar, component, override, result.error)) {
+                icalcomponent_free(calendar); return result;
+            }
+        }
         series[uid].push_back(component);
         components.push_back(component);
+    }
+    for (const auto &[uid, members] : series) {
+        (void)uid;
+        icalcomponent *master = nullptr;
+        for (auto *member : members)
+            if (!icalcomponent_get_first_property(member, ICAL_RECURRENCEID_PROPERTY)) master = member;
+        if (!master) continue; // Missing masters are rejected below.
+        const bool allDay = icalcomponent_get_dtstart(master).is_date;
+        std::set<std::string> identities;
+        for (auto *member : members) {
+            if (!icalcomponent_get_first_property(member, ICAL_RECURRENCEID_PROPERTY)) continue;
+            std::string identity;
+            bool dateOnly = false;
+            if (!propertyTime(calendar, member, ICAL_RECURRENCEID_PROPERTY, identity, dateOnly, result.error)) {
+                icalcomponent_free(calendar); return result;
+            }
+            if (dateOnly != allDay || !identities.insert(identity).second
+                || icalcomponent_count_properties(member, ICAL_RECURRENCEID_PROPERTY) != 1
+                || (icalcomponent_get_first_property(member, ICAL_DTSTART_PROPERTY)
+                    && bool(icalcomponent_get_dtstart(member).is_date) != allDay)) {
+                result.error = "invalid or duplicate recurrence override";
+                icalcomponent_free(calendar); return result;
+            }
+        }
     }
     std::set<std::string> retained;
     size_t retainedBytes = 0;
@@ -356,25 +456,37 @@ ParseResult parseCalendar(std::string_view source) {
         event.uid = uid;
 
         bool extended = series[uid].size() > 1;
+        int timezoneHints = 0;
+        std::string oneoffTimezone;
+        bool timezoneParameters = false;
         for (const auto kind : {ICAL_RRULE_PROPERTY, ICAL_RDATE_PROPERTY, ICAL_EXDATE_PROPERTY, ICAL_EXRULE_PROPERTY})
             extended = extended || icalcomponent_get_first_property(component, kind);
         for (auto *property = icalcomponent_get_first_property(component, ICAL_X_PROPERTY); property;
-             property = icalcomponent_get_next_property(component, ICAL_X_PROPERTY)) {
+             property       = icalcomponent_get_next_property(component, ICAL_X_PROPERTY)) {
             const auto name = QString::fromUtf8(icalproperty_get_x_name(property));
-            extended = extended || name.compare("X-QUICKSHELL-RECURRENCE", Qt::CaseInsensitive) == 0
-                || name.startsWith("X-QUICKSHELL-GROUP-", Qt::CaseInsensitive);
+            if (name.compare("X-QUICKSHELL-TIMEZONE", Qt::CaseInsensitive) == 0) {
+                ++timezoneHints;
+                const auto *value = icalproperty_get_x(property);
+                oneoffTimezone = value ? value : "";
+                timezoneParameters = timezoneParameters || icalproperty_get_first_parameter(property, ICAL_ANY_PARAMETER);
+            }
+            extended        = extended || name.compare("X-QUICKSHELL-RECURRENCE", Qt::CaseInsensitive) == 0 || name.startsWith("X-QUICKSHELL-GROUP-", Qt::CaseInsensitive);
         }
+        const bool oneoffZone = timezoneHints == 1 && !extended && !timezoneParameters && !oneoffTimezone.empty()
+            && !icalcomponent_get_dtstart(component).is_date && QTimeZone(QByteArray::fromStdString(oneoffTimezone)).isValid();
+        if (timezoneHints && !oneoffZone) extended = true; // Retain ambiguous/invalid metadata read-only.
+        if (oneoffZone) event.timezone = oneoffTimezone;
         if (extended) {
             icalcomponent *single = icalcomponent_new_vcalendar();
             for (icalproperty *property = icalcomponent_get_first_property(calendar, ICAL_ANY_PROPERTY);
-                 property; property = icalcomponent_get_next_property(calendar, ICAL_ANY_PROPERTY))
+                 property; property     = icalcomponent_get_next_property(calendar, ICAL_ANY_PROPERTY))
                 icalcomponent_add_property(single, cloneProperty(property));
             std::set<std::string> zones;
             for (auto *member : series[uid]) {
                 icalcomponent_add_component(single, cloneComponent(member));
                 referencedTimezones(member, zones);
             }
-            for (auto *definition = icalcomponent_get_first_component(calendar, ICAL_VTIMEZONE_COMPONENT);
+            for (auto *definition       = icalcomponent_get_first_component(calendar, ICAL_VTIMEZONE_COMPONENT);
                  definition; definition = icalcomponent_get_next_component(calendar, ICAL_VTIMEZONE_COMPONENT)) {
                 if (zones.count(propertyText(definition, ICAL_TZID_PROPERTY)))
                     icalcomponent_add_component(single, cloneComponent(definition));
@@ -404,36 +516,46 @@ ParseResult parseCalendar(std::string_view source) {
             !location.empty())
             event.location = location;
 
-        bool startAllDay = false;
-        bool endAllDay   = false;
-        if (!propertyTime(calendar, component, ICAL_DTSTART_PROPERTY, event.startTime,
-                          startAllDay, result.error) ||
-            !propertyTime(calendar, component, ICAL_DTEND_PROPERTY, event.endTime,
-                          endAllDay, result.error)) {
+        if (!eventRange(calendar, component, event, result.error)) {
             result.events.clear();
             icalcomponent_free(calendar);
             return result;
         }
-        if (startAllDay && endAllDay && event.endTime == event.startTime) {
-            icaltimetype endDate = icaltime_from_string(event.endTime.c_str());
-            icaltime_adjust(&endDate, 1, 0, 0, 0);
-            event.endTime = dateString(endDate);
+        const bool utcStart = utcReminderStart(component);
+        auto *start = icalcomponent_get_first_property(component, ICAL_DTSTART_PROPERTY);
+        const bool nominalCandidate = event.allDay && !extended && icalcomponent_count_properties(component, ICAL_DTSTART_PROPERTY) == 1
+            && start && !icalproperty_get_first_parameter(start, ICAL_TZID_PARAMETER);
+        int oneDayMatches = 0, nominalMatches = 0;
+        if (nominalCandidate) {
+            for (auto *alarm = icalcomponent_get_first_component(component, ICAL_VALARM_COMPONENT); alarm;
+                 alarm = icalcomponent_get_next_component(component, ICAL_VALARM_COMPONENT)) {
+                if (hasOneDayTrigger(alarm)) ++oneDayMatches;
+                const int strict = supportedReminderMinutes(alarm, utcStart);
+                const int extendedMinutes = supportedReminderMinutes(alarm, utcStart, true);
+                if (strict < 0 && extendedMinutes == 1440) ++nominalMatches;
+            }
         }
-        if (startAllDay != endAllDay || event.endTime <= event.startTime) {
-            result.error = "VEVENT has an invalid time range";
-            result.events.clear();
-            icalcomponent_free(calendar);
-            return result;
-        }
-        event.allDay = startAllDay;
+        const bool nominalOneDay = nominalCandidate && oneDayMatches == 1 && nominalMatches == 1;
         for (icalcomponent *alarm = icalcomponent_get_first_component(
                  component, ICAL_VALARM_COMPONENT);
              alarm;
              alarm = icalcomponent_get_next_component(component, ICAL_VALARM_COMPONENT)) {
-            const int minutes = supportedReminderMinutes(alarm);
+            const int minutes = supportedReminderMinutes(alarm, utcStart, nominalOneDay);
             if (minutes >= 0) {
                 if (std::find(event.reminders.begin(), event.reminders.end(), minutes) == event.reminders.end())
                     event.reminders.push_back(minutes);
+            }
+            if (nominalOneDay) {
+                char *alarmText = icalcomponent_as_ical_string_r(alarm);
+                if (!alarmText) {
+                    result.error = "could not retain nominal alarm revision";
+                    result.events.clear();
+                    icalcomponent_free(calendar);
+                    return result;
+                }
+                const std::string snapshot(alarmText);
+                icalmemory_free_buffer(alarmText);
+                event.nominalOneDayAlarmRevision += std::to_string(snapshot.size()) + ":" + snapshot;
             }
         }
         restoreSyncedRecurrence(event);
@@ -460,6 +582,9 @@ std::string serializeEvent(const Event &event) {
     output += "DTSTAMP:" + currentUtc() + "\r\n";
     output += event.allDay ? "DTSTART;VALUE=DATE:" + start + "\r\n" : "DTSTART:" + start + "\r\n";
     output += event.allDay ? "DTEND;VALUE=DATE:" + end + "\r\n" : "DTEND:" + end + "\r\n";
+    // UTC keeps one-off instants unambiguous through DST folds; retain editor's zone separately.
+    if (!event.allDay && event.recurrence.empty() && !event.timezone.empty())
+        output += "X-QUICKSHELL-TIMEZONE:" + escapeText(event.timezone) + "\r\n";
     if (!event.summary.empty())
         output += "SUMMARY:" + escapeText(event.summary) + "\r\n";
     if (!event.description.empty())
@@ -538,18 +663,22 @@ bool writeAtomicallyFile(const std::string &path, const std::string &contents, s
     return true;
 }
 
-bool supportedDisplayAlarm(const std::vector<std::string> &alarm) {
+bool supportedDisplayAlarm(const std::vector<std::string> &alarm, bool utcStart, bool allowNominalOneDay = false) {
     std::string source;
     for (const auto &line : alarm)
         source += line + "\r\n";
-    auto *component = icalparser_parse_string(source.c_str());
-    const bool supported = supportedReminderMinutes(component) >= 0;
+    auto *component      = icalparser_parse_string(source.c_str());
+    const bool supported = supportedReminderMinutes(component, utcStart, allowNominalOneDay) >= 0;
     if (component)
         icalcomponent_free(component);
     return supported;
 }
 
-std::string preservedProperties(const std::string &source) {
+std::string preservedProperties(const std::string &source, bool extractNominalOneDay, std::string &nominalAlarm) {
+    auto *calendar = icalparser_parse_string(source.c_str());
+    const bool utcStart = calendar && utcReminderStart(icalcomponent_get_first_component(calendar, ICAL_VEVENT_COMPONENT));
+    if (calendar)
+        icalcomponent_free(calendar);
     std::istringstream input(source);
     std::string line;
     std::string result;
@@ -574,9 +703,10 @@ std::string preservedProperties(const std::string &source) {
         if (inAlarm) {
             alarm.push_back(line);
             if (equalsIgnoreCase(line, "END:VALARM")) {
-                if (!supportedDisplayAlarm(alarm)) {
+                if (!supportedDisplayAlarm(alarm, utcStart)) {
+                    std::string &destination = extractNominalOneDay && supportedDisplayAlarm(alarm, utcStart, true) ? nominalAlarm : result;
                     for (const std::string &alarmLine : alarm)
-                        result += alarmLine + "\r\n";
+                        destination += alarmLine + "\r\n";
                 }
                 inAlarm = false;
                 alarm.clear();
@@ -596,9 +726,7 @@ std::string preservedProperties(const std::string &source) {
             propertyName.erase(0, group + 1);
         std::transform(propertyName.begin(), propertyName.end(), propertyName.begin(),
                        [](unsigned char character) { return static_cast<char>(std::toupper(character)); });
-        skipFoldedProperty = propertyName == "UID" || propertyName == "DTSTAMP" || propertyName == "DTSTART" || propertyName == "DTEND" || propertyName == "SUMMARY" || propertyName == "DESCRIPTION" || propertyName == "LOCATION"
-            || propertyName == "DURATION" || propertyName == "RRULE" || propertyName == "RDATE" || propertyName == "EXDATE" || propertyName == "EXRULE" || propertyName == "RECURRENCE-ID" || propertyName == "X-QUICKSHELL-RECURRENCE"
-            || propertyName == "X-QUICKSHELL-GROUP-ID" || propertyName == "X-QUICKSHELL-GROUP-RULE";
+        skipFoldedProperty = propertyName == "UID" || propertyName == "DTSTAMP" || propertyName == "DTSTART" || propertyName == "DTEND" || propertyName == "SUMMARY" || propertyName == "DESCRIPTION" || propertyName == "LOCATION" || propertyName == "DURATION" || propertyName == "RRULE" || propertyName == "RDATE" || propertyName == "EXDATE" || propertyName == "EXRULE" || propertyName == "RECURRENCE-ID" || propertyName == "X-QUICKSHELL-RECURRENCE" || propertyName == "X-QUICKSHELL-TIMEZONE" || propertyName == "X-QUICKSHELL-GROUP-ID" || propertyName == "X-QUICKSHELL-GROUP-RULE";
         if (skipFoldedProperty)
             continue;
         result += line + "\r\n";
@@ -620,15 +748,14 @@ bool writeEventFile(const std::string &path, const Event &event, std::string &er
 }
 
 bool writeEventFilePreserving(const std::string &path, const Event &event,
-                               const std::string &existing, std::string &error) {
+                              const std::string &existing, std::string &error) {
     const auto parsed = parseCalendar(existing);
     if ((!event.ical.empty() && event.recurrence.empty()) || std::any_of(parsed.events.begin(), parsed.events.end(), [](const Event &source) { return !source.ical.empty() && source.recurrence.empty(); })) {
         error = "external recurrence is read-only";
         return false;
     }
     std::string result;
-    return mergeEventSource(existing, serializeEvent(event), result, error)
-        && writeAtomicallyFile(path, result, error);
+    return mergeEventSource(existing, serializeEvent(event), result, error) && writeAtomicallyFile(path, result, error);
 }
 
 bool mergeEventSource(const std::string &existing, const std::string &serialized,
@@ -661,7 +788,49 @@ bool mergeEventSource(const std::string &existing, const std::string &serialized
     }
     std::string eventBlock = serialized.substr(eventStart,
                                                eventEnd + std::string("END:VEVENT\r\n").size() - eventStart);
-    eventBlock.insert(eventEnd - eventStart, preservedProperties(existing));
+    const auto original = parseCalendar(existing);
+    const bool hasNominalOneDay = original.error.empty() && original.events.size() == 1 && !original.events[0].nominalOneDayAlarmRevision.empty();
+    std::string nominalAlarm;
+    const auto preserved = preservedProperties(existing, hasNominalOneDay, nominalAlarm);
+    if (hasNominalOneDay) {
+        if (nominalAlarm.empty()) { error = "could not retain original nominal one-day alarm"; return false; }
+        auto *target = icalparser_parse_string(serialized.c_str());
+        auto *component = target ? icalcomponent_get_first_component(target, ICAL_VEVENT_COMPONENT) : nullptr;
+        if (!component) {
+            if (target) icalcomponent_free(target);
+            error = "could not inspect replacement reminders";
+            return false;
+        }
+        int oneDayAlarms = 0;
+        for (auto *alarm = icalcomponent_get_first_component(component, ICAL_VALARM_COMPONENT); alarm;
+             alarm = icalcomponent_get_next_component(component, ICAL_VALARM_COMPONENT))
+            if (supportedReminderMinutes(alarm, true) == 1440) ++oneDayAlarms;
+        icalcomponent_free(target);
+        if (oneDayAlarms > 1) {
+            error = "replacement one-day reminder is ambiguous";
+            return false;
+        }
+        if (oneDayAlarms == 1) {
+            const auto replacement = parseCalendar(serialized);
+            if (!replacement.error.empty() || replacement.events.size() != 1 || !replacement.events[0].allDay
+                || !replacement.events[0].recurrence.empty() || !replacement.events[0].ical.empty()) {
+                error = "Remove the nominal one-day reminder before changing the event type or recurrence";
+                return false;
+            }
+            const std::string trigger = "\r\nTRIGGER:-PT1440M\r\n";
+            const auto triggerPos = eventBlock.find(trigger);
+            const auto alarmStart = triggerPos == std::string::npos ? std::string::npos : eventBlock.rfind("BEGIN:VALARM\r\n", triggerPos);
+            const auto alarmEnd = triggerPos == std::string::npos ? std::string::npos : eventBlock.find("END:VALARM\r\n", triggerPos);
+            if (alarmStart == std::string::npos || alarmEnd == std::string::npos || eventBlock.find(trigger, triggerPos + trigger.size()) != std::string::npos) {
+                error = "could not safely retain the nominal one-day reminder";
+                return false;
+            }
+            eventBlock.replace(alarmStart, alarmEnd + std::string("END:VALARM\r\n").size() - alarmStart, nominalAlarm);
+        }
+    }
+    const auto insertion = eventBlock.find("END:VEVENT\r\n");
+    if (insertion == std::string::npos) { error = "could not locate serialized VEVENT end"; return false; }
+    eventBlock.insert(insertion, preserved);
     result = existing.substr(0, originalStart) + eventBlock + existing.substr(originalTail);
     if (serialized.find("BEGIN:VTIMEZONE") != std::string::npos) {
         result = mergeRecurrenceTimezones(result, serialized);

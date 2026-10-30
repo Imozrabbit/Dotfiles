@@ -1,4 +1,6 @@
 #include "calendar_json.h"
+#include "import_source.h"
+#include <QCoreApplication>
 #include <algorithm>
 #include <cerrno>
 #include <chrono>
@@ -12,6 +14,7 @@
 #include <linux/fs.h>
 #include <set>
 #include <string>
+#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <system_error>
 #include <thread>
@@ -169,8 +172,33 @@ bool waitForStableFiles(const fs::path &directory, std::vector<FileStamp> &files
     return false;
 }
 
+bool writePrivateStage(const fs::path &path, const std::string &contents, std::string &error) {
+    const int descriptor = open(path.c_str(), O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC, 0600);
+    if (descriptor < 0) {
+        error = "could not create private staging file";
+        return false;
+    }
+    size_t offset = 0;
+    while (offset < contents.size()) {
+        const ssize_t count = write(descriptor, contents.data() + offset, contents.size() - offset);
+        if (count < 0 && errno == EINTR)
+            continue;
+        if (count <= 0) {
+            error = "could not write private staging file";
+            close(descriptor);
+            return false;
+        }
+        offset += static_cast<size_t>(count);
+    }
+    const bool flushed = fsync(descriptor) == 0;
+    const bool closed  = close(descriptor) == 0;
+    if (!flushed || !closed)
+        error = "could not finish private staging file";
+    return flushed && closed;
+}
+
 bool generate(const fs::path &inputPath, const fs::path &outputPath,
-              const std::string &sourceId) {
+              const std::string &sourceId, bool privateStage = false) {
     std::string error;
     for (int attempt = 0; attempt < 2; ++attempt) {
         std::vector<FileStamp> before;
@@ -186,15 +214,18 @@ bool generate(const fs::path &inputPath, const fs::path &outputPath,
             break;
         if (before == after) {
             const std::string contents = serializeCalendar(std::move(events), sourceId);
-            std::ifstream existing(outputPath, std::ios::binary);
-            if (existing) {
-                const std::string previous((std::istreambuf_iterator<char>(existing)), std::istreambuf_iterator<char>());
-                if (!existing.bad() && previous == contents) {
-                    std::cout << "Unchanged " << outputPath << "\n";
-                    return true;
+            if (!privateStage) {
+                std::ifstream existing(outputPath, std::ios::binary);
+                if (existing) {
+                    const std::string previous((std::istreambuf_iterator<char>(existing)), std::istreambuf_iterator<char>());
+                    if (!existing.bad() && previous == contents) {
+                        std::cout << "Unchanged " << outputPath << "\n";
+                        return true;
+                    }
                 }
             }
-            if (!writeAtomicallyFile(outputPath.string(), contents, error))
+            if (!(privateStage ? writePrivateStage(outputPath, contents, error)
+                               : writeAtomicallyFile(outputPath.string(), contents, error)))
                 break;
             std::cout << "Generated " << outputPath << "\n";
             return true;
@@ -208,6 +239,11 @@ bool generate(const fs::path &inputPath, const fs::path &outputPath,
 
 bool commitStagedOutput(const fs::path &staged, const fs::path &target,
                         const std::string &policy, std::string &error) {
+    std::error_code statusError;
+    if (!fs::is_regular_file(fs::symlink_status(staged, statusError)) || statusError) {
+        error = "staged output must be a regular file, not a symlink";
+        return false;
+    }
     if (policy == "replace") {
         std::error_code filesystemError;
         fs::rename(staged, target, filesystemError);
@@ -231,6 +267,22 @@ bool commitStagedOutput(const fs::path &staged, const fs::path &target,
 } // namespace
 
 int main(int argc, char **argv) {
+    if (argc >= 2 && std::string(argv[1]) == "prepare") {
+        if (argc != 5 || std::string(argv[4]).empty()) {
+            std::cerr << "Usage: convert prepare input-path private-json source-id\n";
+            return 2;
+        }
+        return generate(argv[2], argv[3], argv[4], true) ? 0 : 1;
+    }
+    if (argc >= 2 && std::string(argv[1]) == "import") {
+        if (argc != 5) {
+            std::cerr << "Usage: convert import data-directory source-id [file|url]\n";
+            return 2;
+        }
+        umask(0077);
+        QCoreApplication application(argc, argv);
+        return runImportSession(argv[2], argv[3], argv[4]);
+    }
     if (argc >= 2 && std::string(argv[1]) == "commit") {
         if (argc != 5) {
             std::cerr << "Usage: convert commit staged-json output-json [create|replace]\n";

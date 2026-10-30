@@ -255,8 +255,7 @@ Rectangle {
         }
         background: Rectangle {
             radius: Theme.radius
-            color: dayToggle.down ? Qt.darker(dayToggle.checked ? Theme.accent : Theme.surfaceRaised, 1.2)
-                : dayToggle.checked ? Theme.accent : dayToggle.hovered ? Theme.surfaceRaised : Theme.background
+            color: dayToggle.down ? Qt.darker(dayToggle.checked ? Theme.accent : Theme.surfaceRaised, 1.2) : dayToggle.checked ? Theme.accent : dayToggle.hovered ? Theme.surfaceRaised : Theme.background
             border.width: dayToggle.checked ? 0 : 1
             border.color: Theme.border
         }
@@ -502,7 +501,12 @@ Rectangle {
             return;
         if (root.repeatYearDates.some(value => value.month === month && value.day === day))
             return;
-        root.repeatYearDates = root.repeatYearDates.concat([{ month, day }]).sort((left, right) => left.month - right.month || left.day - right.day);
+        root.repeatYearDates = root.repeatYearDates.concat([
+            {
+                month,
+                day
+            }
+        ]).sort((left, right) => left.month - right.month || left.day - right.day);
     }
 
     function addRepeatMonthPosition() {
@@ -512,7 +516,12 @@ Rectangle {
             return;
         if (root.repeatMonthPositions.some(value => value.position === position && value.weekday === weekday))
             return;
-        root.repeatMonthPositions = root.repeatMonthPositions.concat([{ position, weekday }]);
+        root.repeatMonthPositions = root.repeatMonthPositions.concat([
+            {
+                position,
+                weekday
+            }
+        ]);
     }
 
     function removeRepeatMonthPosition(index) {
@@ -571,10 +580,20 @@ Rectangle {
         root.repeatMonthDays = [start.getDate()];
         root.repeatMonthPosition = Math.floor((start.getDate() - 1) / 7) + 1;
         root.repeatMonthWeekday = (start.getDay() + 6) % 7;
-        root.repeatMonthPositions = [{ position: root.repeatMonthPosition, weekday: root.repeatMonthWeekday }];
+        root.repeatMonthPositions = [
+            {
+                position: root.repeatMonthPosition,
+                weekday: root.repeatMonthWeekday
+            }
+        ];
         root.repeatYearMonth = start.getMonth();
         root.repeatYearDay = start.getDate();
-        root.repeatYearDates = [{ month: start.getMonth() + 1, day: start.getDate() }];
+        root.repeatYearDates = [
+            {
+                month: start.getMonth() + 1,
+                day: start.getDate()
+            }
+        ];
         root.startDateText = root.dateText(start);
         root.repeatStartDateText = root.startDateText;
         root.repeatUntilDateText = root.startDateText;
@@ -610,26 +629,59 @@ Rectangle {
             if (rule.pattern.mode === "dates")
                 root.repeatMonthDays = rule.pattern.days.slice();
             else
-                root.repeatMonthPositions = rule.pattern.positions.map(item => ({ position: item.ordinal, weekday: item.weekday }));
+                root.repeatMonthPositions = rule.pattern.positions.map(item => ({
+                            position: item.ordinal,
+                            weekday: item.weekday
+                        }));
         }
         if (rule.frequency === "yearly")
-            root.repeatYearDates = rule.pattern.dates.map(item => ({ month: item.month, day: item.day }));
+            root.repeatYearDates = rule.pattern.dates.map(item => ({
+                        month: item.month,
+                        day: item.day
+                    }));
     }
 
     function recurrenceDraft() {
         const frequency = root.repeatFrequency.toLowerCase();
         let pattern = {};
         if (frequency === "weekly")
-            pattern = { weekdays: root.repeatWeekdays.slice() };
+            pattern = {
+                weekdays: root.repeatWeekdays.slice()
+            };
         else if (frequency === "monthly")
-            pattern = root.repeatMonthPattern === "Month dates" ? { mode: "dates", days: root.repeatMonthDays.slice() }
-                : { mode: "positions", positions: root.repeatMonthPositions.map(item => ({ ordinal: item.position, weekday: item.weekday })) };
+            pattern = root.repeatMonthPattern === "Month dates" ? {
+                mode: "dates",
+                days: root.repeatMonthDays.slice()
+            } : {
+                mode: "positions",
+                positions: root.repeatMonthPositions.map(item => ({
+                            ordinal: item.position,
+                            weekday: item.weekday
+                        }))
+            };
         else if (frequency === "yearly")
-            pattern = { dates: root.repeatYearDates.map(item => ({ month: item.month, day: item.day })) };
-        const ends = root.repeatEnd === "Until date" ? { mode: "date", date: root.repeatUntilDateText }
-            : root.repeatEnd === "After N occurrences" ? { mode: "count", count: Number(root.repeatCountText) } : { mode: "never" };
-        const result = Recurrence.canonicalRule({ frequency, interval: Number(root.repeatIntervalText),
-            startsOn: root.repeatStartDateText, pattern, ends });
+            pattern = {
+                dates: root.repeatYearDates.map(item => ({
+                            month: item.month,
+                            day: item.day
+                        }))
+            };
+        const ends = root.repeatEnd === "Until date" ? {
+            mode: "date",
+            date: root.repeatUntilDateText
+        } : root.repeatEnd === "After N occurrences" ? {
+            mode: "count",
+            count: Number(root.repeatCountText)
+        } : {
+            mode: "never"
+        };
+        const result = Recurrence.canonicalRule({
+            frequency,
+            interval: Number(root.repeatIntervalText),
+            startsOn: root.repeatStartDateText,
+            pattern,
+            ends
+        });
         return result.ok ? result.rule : null;
     }
 
@@ -920,8 +972,7 @@ Rectangle {
                     background: Rectangle {
                         property bool hovered: calendarOptionHover.hovered
                         radius: Math.max(0, Theme.radius - 2)
-                        color: calendarOption.down ? Qt.darker(Theme.surfaceRaised, 1.2)
-                            : hovered || calendarOption.highlighted || calendarOption.index === calendarCombo.currentIndex ? Theme.surfaceRaised : "transparent"
+                        color: calendarOption.down ? Qt.darker(Theme.surfaceRaised, 1.2) : hovered || calendarOption.highlighted || calendarOption.index === calendarCombo.currentIndex ? Theme.surfaceRaised : "transparent"
                     }
                     HoverHandler {
                         id: calendarOptionHover
@@ -971,8 +1022,6 @@ Rectangle {
 
                 Layout.fillWidth: true
                 label: ""
-                chevronText: ""
-                chevronPixelSize: 17
                 model: ["Never", "Daily", "Weekly", "Monthly", "Yearly"]
                 currentIndex: model.indexOf(root.repeatFrequency)
                 displayText: root.repeatFrequency
@@ -1338,8 +1387,6 @@ Rectangle {
                 visible: root.repeatFrequency === "Monthly"
                 Layout.fillWidth: true
                 label: ""
-                chevronText: ""
-                chevronPixelSize: 17
                 model: ["Month dates", "Weekday positions"]
                 currentIndex: model.indexOf(root.repeatMonthPattern)
                 displayText: root.repeatMonthPattern
@@ -1559,8 +1606,6 @@ Rectangle {
                 visible: root.repeatUsesTimeOnly
                 Layout.fillWidth: true
                 label: ""
-                chevronText: ""
-                chevronPixelSize: 17
                 model: ["Never", "Until date", "After N occurrences"]
                 currentIndex: model.indexOf(root.repeatEnd)
                 displayText: root.repeatEnd
@@ -1745,8 +1790,7 @@ Rectangle {
                     background: Rectangle {
                         property bool hovered: reminderOptionHover.hovered
                         radius: Math.max(0, Theme.radius - 2)
-                        color: reminderOption.down ? Qt.darker(Theme.surfaceRaised, 1.2)
-                            : hovered || reminderOption.highlighted || reminderOption.index === reminderPreset.currentIndex ? Theme.surfaceRaised : "transparent"
+                        color: reminderOption.down ? Qt.darker(Theme.surfaceRaised, 1.2) : hovered || reminderOption.highlighted || reminderOption.index === reminderPreset.currentIndex ? Theme.surfaceRaised : "transparent"
                     }
                     HoverHandler {
                         id: reminderOptionHover

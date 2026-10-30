@@ -195,17 +195,17 @@ Item {
         const rangeStartMs = root.bufferStart.getTime();
         const rangeEndMs = root.bufferEnd.getTime();
         for (const event of root.rangeEvents) {
-            if (!event || !Number.isFinite(event.startMs) || !Number.isFinite(event.endMs) || event.endMs <= event.startMs)
+            if (!event || !Number.isFinite(event.startMs) || !Number.isFinite(event.endMs) || event.endMs < event.startMs)
                 continue;
 
             const startMs = Math.max(event.startMs, rangeStartMs);
             const endMs = Math.min(event.endMs, rangeEndMs);
-            if (endMs <= startMs)
+            if (!CalendarMath.rangesOverlap(event.startMs, event.endMs, rangeStartMs, rangeEndMs))
                 continue;
 
             let eventDate = CalendarMath.dayStart(new Date(startMs));
             const endDate = CalendarMath.dayStart(new Date(endMs));
-            const lastEventDate = endMs === endDate.getTime() ? CalendarMath.addDays(endDate, -1) : endDate;
+            const lastEventDate = endMs > startMs && endMs === endDate.getTime() ? CalendarMath.addDays(endDate, -1) : endDate;
             while (eventDate.getTime() <= lastEventDate.getTime()) {
                 const key = eventDate.getFullYear() + "-" + eventDate.getMonth() + "-" + eventDate.getDate();
                 const dayIndex = indexes[key];

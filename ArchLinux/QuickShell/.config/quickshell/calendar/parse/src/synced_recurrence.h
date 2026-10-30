@@ -1,6 +1,6 @@
 #pragma once
-#include <string>
 #include <QJsonObject>
+#include <string>
 
 struct Event;
 std::string serializeSyncedRecurrence(const Event &event, const std::string &plain);

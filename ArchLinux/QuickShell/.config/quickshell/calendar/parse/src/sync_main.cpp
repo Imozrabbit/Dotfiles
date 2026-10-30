@@ -1,24 +1,27 @@
 #include "calendar_json.h"
+#include "subscriptions.h"
+#include "caldav.h"
+#include "calendar_lock.h"
+#include "conflict_limits.h"
+#include "conflict_state.h"
 #include "helper.h"
 #include "recurrence.h"
-#include "series_group.h"
 #include "series_conflict.h"
-#include "calendar_lock.h"
-#include "conflict_state.h"
-#include "conflict_limits.h"
+#include "series_group.h"
 #include "series_resolution.h"
 #include "synced_recurrence.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDate>
 #include <QDateTime>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QTimeZone>
-#include <libical/ical.h>
 #include <algorithm>
 #include <chrono>
 #include <fcntl.h>
@@ -26,6 +29,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <libical/ical.h>
 #include <set>
 #include <string>
 #include <sys/file.h>
@@ -49,7 +53,7 @@ bool writeCache(const fs::path &path, const std::string &contents, std::string &
 }
 
 bool rebuildUnlocked(const fs::path &directory, const fs::path &output,
-                      const std::string &sourceId, std::string &error) {
+                     const std::string &sourceId, std::string &error) {
     return rebuildSyncedCache(directory.string(), output.string(), sourceId, error);
 }
 
@@ -96,7 +100,10 @@ bool mutate(const fs::path &directory, const fs::path &output,
         error = "event UID is required";
         return false;
     }
-    const fs::path eventPath = directory / uidFileName(uid);
+    if (!validateSyncedCache(output.string(), sourceId, error, operation == "create")) return false;
+    std::string existingPath;
+    if (!syncedSourcePath(directory.string(), uid, existingPath, error)) return false;
+    const fs::path eventPath = existingPath.empty() ? directory / uidFileName(uid) : fs::path(existingPath);
     std::error_code filesystemError;
     const bool hadExistingFile = fs::exists(eventPath, filesystemError);
     if (filesystemError) {
@@ -157,7 +164,15 @@ bool mutate(const fs::path &directory, const fs::path &output,
         error = "unknown mutation operation";
         return false;
     }
-    if (rebuildUnlocked(directory, output, sourceId, error))
+    std::vector<Event> changed;
+    if (operation != "delete") {
+        std::ifstream file(eventPath, std::ios::binary);
+        const std::string contents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        auto parsed = parseCalendar(contents);
+        if (!parsed.error.empty()) { error = "event saved but cache parse failed"; return false; }
+        changed = std::move(parsed.events);
+    }
+    if (updateSyncedCache(output.string(), sourceId, {uid}, std::move(changed), error, operation == "create"))
         return true;
     error = "event committed but cache rebuild failed: " + error;
     return false;
@@ -180,16 +195,14 @@ QJsonObject eventJson(const Event &event) {
         {"reminders", reminders}};
     if (!event.recurrence.empty()) {
         result["recurrence"] = QJsonDocument::fromJson(QByteArray::fromStdString(event.recurrence)).object();
-        if (!event.allDay)
-            result["timezone"] = QString::fromStdString(event.timezone);
     } else if (!event.ical.empty()) {
         QStringList details{"External recurrence"};
         auto *calendar = icalparser_parse_string(event.ical.c_str());
         if (calendar) {
-            for (auto *component = icalcomponent_get_first_component(calendar, ICAL_VEVENT_COMPONENT);
+            for (auto *component      = icalcomponent_get_first_component(calendar, ICAL_VEVENT_COMPONENT);
                  component; component = icalcomponent_get_next_component(calendar, ICAL_VEVENT_COMPONENT)) {
                 for (const auto kind : {ICAL_RRULE_PROPERTY, ICAL_RDATE_PROPERTY, ICAL_EXDATE_PROPERTY, ICAL_EXRULE_PROPERTY, ICAL_RECURRENCEID_PROPERTY}) {
-                    for (auto *property = icalcomponent_get_first_property(component, kind);
+                    for (auto *property     = icalcomponent_get_first_property(component, kind);
                          property; property = icalcomponent_get_next_property(component, kind))
                         details.append(QString::fromUtf8(icalproperty_as_ical_string(property)).trimmed());
                 }
@@ -198,6 +211,8 @@ QJsonObject eventJson(const Event &event) {
         }
         result["recurrenceSummary"] = details.join(" · ");
     }
+    if (!event.allDay && !event.timezone.empty())
+        result["timezone"] = QString::fromStdString(event.timezone);
     return result;
 }
 
@@ -214,10 +229,8 @@ bool readConflictState(const fs::path &path, QJsonObject &state, std::string &er
     const auto contents = file.read(maxConflictStateBytes + 1);
     QJsonParseError parseError{};
     const QJsonDocument document = QJsonDocument::fromJson(contents, &parseError);
-    const auto object = document.object();
-    if (contents.size() > maxConflictStateBytes || parseError.error != QJsonParseError::NoError || !document.isObject()
-            || object.size() != 2 || (object.value("version") != 1 && object.value("version") != 2)
-            || !object.value("conflicts").isArray()) {
+    const auto object            = document.object();
+    if (contents.size() > maxConflictStateBytes || parseError.error != QJsonParseError::NoError || !document.isObject() || object.size() != 2 || (object.value("version") != 1 && object.value("version") != 2) || !object.value("conflicts").isArray()) {
         error = "conflict state is invalid";
         return false;
     }
@@ -227,11 +240,8 @@ bool readConflictState(const fs::path &path, QJsonObject &state, std::string &er
         QString detail;
         const bool group = record.value("kind") == "group";
         const bool valid = group ? object.value("version") == 2 && validateSeriesConflict(record, detail)
-            : record.size() == 6 && record.value("local").isObject() && record.value("remote").isObject()
-                && record.value("localIcs").isString() && record.value("remoteIcs").isString()
-                && record.value("choice").isString() && QStringList{"", "local", "remote"}.contains(record.value("choice").toString());
-        if (!value.isObject() || !record.value("uid").isString() || record.value("uid").toString().isEmpty()
-                || !identities.insert(record.value("uid").toString()).second || !valid) {
+                                 : record.size() == 6 && record.value("local").isObject() && record.value("remote").isObject() && record.value("localIcs").isString() && record.value("remoteIcs").isString() && record.value("choice").isString() && QStringList{"", "local", "remote"}.contains(record.value("choice").toString());
+        if (!value.isObject() || !record.value("uid").isString() || record.value("uid").toString().isEmpty() || !identities.insert(record.value("uid").toString()).second || !valid) {
             error = detail.isEmpty() ? "conflict state record is invalid" : detail.toStdString();
             return false;
         }
@@ -260,7 +270,7 @@ bool readSingleEvent(const fs::path &path, Event &event, std::string &raw, std::
         error = "conflict ICS file exceeds limit";
         return false;
     }
-    raw = contents.toStdString();
+    raw                      = contents.toStdString();
     const ParseResult parsed = parseCalendar(raw);
     if (!parsed.error.empty() || parsed.events.size() != 1) {
         error = "conflict ICS file must contain one valid event";
@@ -275,21 +285,28 @@ bool writeConflictBuffer(const fs::path &path, const std::string &expected,
     const int fd = open(path.c_str(), O_RDWR | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
     struct stat info{};
     if (fd < 0 || fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) || info.st_size > 16 * 1024 * 1024) {
-        if (fd >= 0) close(fd);
+        if (fd >= 0)
+            close(fd);
         error = "conflict temporary buffer is unavailable or unsafe";
         return false;
     }
     QFile file;
-    if (!file.open(fd, QIODevice::ReadWrite, QFileDevice::AutoCloseHandle)) { close(fd); return false; }
+    if (!file.open(fd, QIODevice::ReadWrite, QFileDevice::AutoCloseHandle)) {
+        close(fd);
+        return false;
+    }
     if (file.read(16 * 1024 * 1024 + 1).toStdString() != expected || !file.seek(0)) {
         error = "conflict temporary buffer changed; reopen conflict";
         return false;
     }
     const auto bytes = QByteArray::fromStdString(selected);
-    qint64 written = 0;
+    qint64 written   = 0;
     while (written < bytes.size()) {
         const auto count = file.write(bytes.constData() + written, bytes.size() - written);
-        if (count <= 0) { error = "could not write conflict temporary buffer"; return false; }
+        if (count <= 0) {
+            error = "could not write conflict temporary buffer";
+            return false;
+        }
         written += count;
     }
     if (!file.flush() || ftruncate(fd, bytes.size()) != 0) {
@@ -315,7 +332,7 @@ static QString storedGroupOwner(const QJsonObject &state, const QString &uid) {
 }
 
 bool captureConflict(const fs::path &statePath, const fs::path &localPath,
-                      const fs::path &remotePath, std::string &error) {
+                     const fs::path &remotePath, std::string &error) {
     CalendarLock lock(statePath.parent_path(), error);
     if (!lock.acquired())
         return false;
@@ -376,20 +393,21 @@ bool captureConflict(const fs::path &statePath, const fs::path &localPath,
             if (!record.contains("kind")) {
                 QString a, b, ignored;
                 bool taggedA = false, taggedB = false;
-                if (seriesConflictIdentity(record.value("localIcs").toString().toStdString(), a, taggedA, ignored)
-                        && seriesConflictIdentity(record.value("remoteIcs").toString().toStdString(), b, taggedB, ignored)
-                        && (a == groupUid || b == groupUid || storedGroupOwner(state, record.value("uid").toString()) == groupUid)) {
+                if (seriesConflictIdentity(record.value("localIcs").toString().toStdString(), a, taggedA, ignored) && seriesConflictIdentity(record.value("remoteIcs").toString().toStdString(), b, taggedB, ignored) && (a == groupUid || b == groupUid || storedGroupOwner(state, record.value("uid").toString()) == groupUid)) {
                     pairs[record.value("uid").toString()] = QJsonObject{{"uid", record.value("uid")},
-                        {"localIcs", record.value("localIcs")}, {"remoteIcs", record.value("remoteIcs")}};
+                                                                        {"localIcs", record.value("localIcs")},
+                                                                        {"remoteIcs", record.value("remoteIcs")}};
                     continue;
                 }
             }
             remaining.append(value);
         }
         pairs[QString::fromStdString(local.uid)] = QJsonObject{{"uid", QString::fromStdString(local.uid)},
-            {"localIcs", QString::fromStdString(localRaw)}, {"remoteIcs", QString::fromStdString(remoteRaw)}};
+                                                               {"localIcs", QString::fromStdString(localRaw)},
+                                                               {"remoteIcs", QString::fromStdString(remoteRaw)}};
         QJsonArray members;
-        for (const auto &[uid, pair] : pairs) members.append(pair);
+        for (const auto &[uid, pair] : pairs)
+            members.append(pair);
         QJsonObject grouped;
         if (!buildSeriesConflict(groupUid, members, grouped, detail)) {
             error = detail.toStdString();
@@ -404,11 +422,11 @@ bool captureConflict(const fs::path &statePath, const fs::path &localPath,
             }
         }
         remaining.append(grouped);
-        state["version"] = 2;
+        state["version"]   = 2;
         state["conflicts"] = remaining;
         return writeConflictState(statePath, state, error);
     }
-    bool replaced        = false;
+    bool replaced = false;
     for (int index = 0; index < conflicts.size(); ++index) {
         if (conflicts[index].toObject().value("uid").toString() != QString::fromStdString(local.uid))
             continue;
@@ -417,8 +435,8 @@ bool captureConflict(const fs::path &statePath, const fs::path &localPath,
             error = "ordinary conflict identity collides with grouped record";
             return false;
         }
-        const bool unchanged       = existing.value("localIcs").toString().toStdString() == localRaw && existing.value("remoteIcs").toString().toStdString() == remoteRaw;
-        conflicts[index]           = QJsonObject{
+        const bool unchanged = existing.value("localIcs").toString().toStdString() == localRaw && existing.value("remoteIcs").toString().toStdString() == remoteRaw;
+        conflicts[index]     = QJsonObject{
             {"uid", QString::fromStdString(local.uid)},
             {"local", eventJson(local)},
             {"remote", eventJson(remote)},
@@ -442,7 +460,7 @@ bool captureConflict(const fs::path &statePath, const fs::path &localPath,
 }
 
 bool chooseConflict(const fs::path &statePath, const std::string &uid,
-                     const std::string &choice, std::string &error) {
+                    const std::string &choice, std::string &error) {
     CalendarLock lock(statePath.parent_path(), error);
     if (!lock.acquired())
         return false;
@@ -464,9 +482,7 @@ bool chooseConflict(const fs::path &statePath, const std::string &uid,
             continue;
         bool tagged = false;
         QString group, detail;
-        if (conflict.value("kind") == "group"
-                || !seriesConflictIdentity(conflict.value("localIcs").toString().toStdString(), group, tagged, detail) || tagged
-                || !seriesConflictIdentity(conflict.value("remoteIcs").toString().toStdString(), group, tagged, detail) || tagged) {
+        if (conflict.value("kind") == "group" || !seriesConflictIdentity(conflict.value("localIcs").toString().toStdString(), group, tagged, detail) || tagged || !seriesConflictIdentity(conflict.value("remoteIcs").toString().toStdString(), group, tagged, detail) || tagged) {
             error = "whole-group conflict resolution required";
             return false;
         }
@@ -480,7 +496,7 @@ bool chooseConflict(const fs::path &statePath, const std::string &uid,
 }
 
 bool applyConflict(const fs::path &statePath, const fs::path &localPath,
-                    const fs::path &remotePath, std::string &error) {
+                   const fs::path &remotePath, std::string &error) {
     CalendarLock lock(statePath.parent_path(), error);
     if (!lock.acquired())
         return false;
@@ -492,16 +508,14 @@ bool applyConflict(const fs::path &statePath, const fs::path &localPath,
         return false;
     bool tagged = false;
     QString group, detail;
-    if (!seriesConflictIdentity(localRaw, group, tagged, detail) || tagged
-            || !seriesConflictIdentity(remoteRaw, group, tagged, detail) || tagged) {
+    if (!seriesConflictIdentity(localRaw, group, tagged, detail) || tagged || !seriesConflictIdentity(remoteRaw, group, tagged, detail) || tagged) {
         error = "whole-group conflict resolution required";
         return false;
     }
     QJsonObject state;
     if (!readConflictState(statePath, state, error))
         return false;
-    if (!storedGroupOwner(state, QString::fromStdString(local.uid)).isEmpty()
-            || !storedGroupOwner(state, QString::fromStdString(remote.uid)).isEmpty()) {
+    if (!storedGroupOwner(state, QString::fromStdString(local.uid)).isEmpty() || !storedGroupOwner(state, QString::fromStdString(remote.uid)).isEmpty()) {
         error = "whole-group conflict resolution required";
         return false;
     }
@@ -546,9 +560,7 @@ bool clearConflict(const fs::path &statePath, const std::string &uid, std::strin
         if (record.value("uid").toString().toStdString() == uid) {
             bool tagged = false;
             QString group, detail;
-            if (record.value("kind") == "group"
-                    || !seriesConflictIdentity(record.value("localIcs").toString().toStdString(), group, tagged, detail) || tagged
-                    || !seriesConflictIdentity(record.value("remoteIcs").toString().toStdString(), group, tagged, detail) || tagged) {
+            if (record.value("kind") == "group" || !seriesConflictIdentity(record.value("localIcs").toString().toStdString(), group, tagged, detail) || tagged || !seriesConflictIdentity(record.value("remoteIcs").toString().toStdString(), group, tagged, detail) || tagged) {
                 error = "whole-group conflict completion required";
                 return false;
             }
@@ -696,10 +708,47 @@ bool verifyMigration(const fs::path &input, const fs::path &sourceDirectory,
 } // namespace
 
 int main(int argc, char **argv) {
+    const auto conversionGuard = [](const QString &id) {
+        QString error;
+        if (CalDavBackend::conversionAllowed(CalDavBackend::paths(), id, error)) return true;
+        std::cerr << error.toStdString() << '\n'; return false;
+    };
+    const auto conversionStateGuard = [&](const QString &path) {
+        const auto name = QFileInfo(path).fileName();
+        if (!name.startsWith("conflicts-") || !name.endsWith(".json")) return true;
+        const auto id = name.mid(10, name.size() - 15);
+        const auto expected = QFileInfo(CalDavBackend::paths().state).path() + "/conflicts-" + id + ".json";
+        return QDir::cleanPath(QFileInfo(path).absoluteFilePath()) != QDir::cleanPath(expected) || conversionGuard(id);
+    };
+    if (argc >= 2 && std::string(argv[1]) == "caldav") {
+        QCoreApplication app(argc, argv);
+        return CalDavBackend::run(app.arguments().mid(2));
+    }
+    if (argc == 6 && std::string(argv[1]) == "refresh-cache-entry") {
+        if (!conversionGuard(QString::fromUtf8(argv[4]))) return 1;
+        std::string error;
+        CalendarLock lock(argv[2], error);
+        if (lock.acquired() && refreshSyncedCacheEntry(argv[2], argv[3], argv[4], argv[5], error)) return 0;
+        std::cerr << error << '\n';
+        return 1;
+    }
     QCoreApplication application(argc, argv);
+    if (argc == 2 && (std::string(argv[1]) == "deployment-plan" || std::string(argv[1]) == "deployment-verify"))
+        return SubscriptionBackend::deploymentPlan(std::string(argv[1]) == "deployment-verify");
+    if (argc >= 2 && std::string(argv[1]) == "subscriptions") {
+        QStringList arguments;
+        for (int index = 2; index < argc; ++index)
+            arguments.append(QString::fromUtf8(argv[index]));
+        return SubscriptionBackend::run(arguments);
+    }
     if (argc >= 2 && QStringList{"conflict-group-select", "group-review-begin", "group-callback", "group-prepare", "group-finish", "group-cancel"}.contains(QString::fromUtf8(argv[1]))) {
         QStringList arguments;
-        for (int index = 2; index < argc; ++index) arguments.append(QString::fromUtf8(argv[index]));
+        for (int index = 2; index < argc; ++index)
+            arguments.append(QString::fromUtf8(argv[index]));
+        const auto operation = QString::fromUtf8(argv[1]);
+        const bool source = QStringList{"group-prepare", "group-finish", "group-cancel"}.contains(operation);
+        if ((source && arguments.size() >= 3 && !conversionGuard(arguments[2]))
+            || (!source && !arguments.isEmpty() && !conversionStateGuard(arguments[0]))) return 1;
         std::string error;
         bool sourceCommitted = false;
         if (!runSeriesResolution(QString::fromUtf8(argv[1]), arguments, error, sourceCommitted)) {
@@ -716,30 +765,26 @@ int main(int argc, char **argv) {
             return 1;
         const auto text = input.readLine(65537);
         QJsonParseError error;
-        const auto document = QJsonDocument::fromJson(text, &error);
-        bool valid = text.size() <= 65536 && error.error == QJsonParseError::NoError && document.isArray();
+        const auto document   = QJsonDocument::fromJson(text, &error);
+        bool valid            = text.size() <= 65536 && error.error == QJsonParseError::NoError && document.isArray();
         const auto properties = document.array();
-        valid = valid && properties.size() == 4;
+        valid                 = valid && properties.size() == 4;
         for (const auto &property : properties)
             valid = valid && property.isObject();
-        const auto conditions = properties.size() > 0 ? properties[0].toObject() : QJsonObject{};
+        const auto conditions  = properties.size() > 0 ? properties[0].toObject() : QJsonObject{};
         const auto environment = properties.size() > 1 ? properties[1].toObject() : QJsonObject{};
-        const auto files = properties.size() > 2 ? properties[2].toObject() : QJsonObject{};
-        const auto unset = properties.size() > 3 ? properties[3].toObject() : QJsonObject{};
-        valid = valid && conditions.value("type") == "a(sasbttttuii)" && conditions.value("data").isArray()
-            && environment.value("type") == "as" && environment.value("data").isArray()
-            && files.value("type") == "a(sb)" && files.value("data").isArray() && files.value("data").toArray().isEmpty()
-            && unset.value("type") == "as" && unset.value("data").isArray();
+        const auto files       = properties.size() > 2 ? properties[2].toObject() : QJsonObject{};
+        const auto unset       = properties.size() > 3 ? properties[3].toObject() : QJsonObject{};
+        valid                  = valid && conditions.value("type") == "a(sasbttttuii)" && conditions.value("data").isArray() && environment.value("type") == "as" && environment.value("data").isArray() && files.value("type") == "a(sb)" && files.value("data").isArray() && files.value("data").toArray().isEmpty() && unset.value("type") == "as" && unset.value("data").isArray();
         const QJsonArray expected{"/bin/sh", QString::fromUtf8(argv[2]), "check-recovery"};
         bool found = false;
         for (const auto &value : conditions.value("data").toArray()) {
             const auto command = value.toArray();
-            if (value.isArray() && command.size() == 10 && command[0] == "/bin/sh" && command[1] == expected
-                    && command[2].isBool() && !command[2].toBool())
+            if (value.isArray() && command.size() == 10 && command[0] == "/bin/sh" && command[1] == expected && command[2].isBool() && !command[2].toBool())
                 found = true;
         }
         int stateAssignments = 0;
-        bool stateMatches = false;
+        bool stateMatches    = false;
         for (const auto &value : environment.value("data").toArray()) {
             valid = valid && value.isString();
             if (value.toString().startsWith("XDG_STATE_HOME=")) {
@@ -759,9 +804,9 @@ int main(int argc, char **argv) {
     if (argc >= 2 && std::string(argv[1]) == "check-group") {
         if (argc != 6)
             return 2;
+        if (!conversionGuard(QString::fromUtf8(argv[4]))) return 1;
         QString error;
-        if (!QStringList{"create", "update", "delete"}.contains(QString::fromUtf8(argv[5]))
-                || !checkSeriesTarget(argv[2], argv[3], QString::fromUtf8(argv[4]), error)) {
+        if (!QStringList{"create", "update", "delete"}.contains(QString::fromUtf8(argv[5])) || !checkSeriesTarget(argv[2], argv[3], QString::fromUtf8(argv[4]), error)) {
             std::cerr << (error.isEmpty() ? "group operation is invalid" : error.toStdString()) << '\n';
             return 1;
         }
@@ -769,16 +814,17 @@ int main(int argc, char **argv) {
     }
     if (argc >= 2 && (std::string(argv[1]) == "mutate-group" || std::string(argv[1]) == "recover-group")) {
         const bool mutation = std::string(argv[1]) == "mutate-group";
-        if (argc != (mutation ? 6 : 5)) {
+        if (mutation ? (argc != 6 && argc != 7) : (argc != 5 && argc != 6)) {
             std::cerr << "Usage: calendar-sync-helper mutate-group directory cache source-id create|update|delete\n"
                       << "       calendar-sync-helper recover-group directory cache source-id\n";
             return 2;
         }
+        if (!conversionGuard(QString::fromUtf8(argv[4]))) return 1;
         QString error;
         bool committedOrSafe = false;
-        bool ok = false;
+        bool ok              = false;
         if (!mutation) {
-            ok = recoverSeriesCache(argv[2], argv[3], QString::fromUtf8(argv[4]), error, committedOrSafe);
+            ok = recoverSeriesCache(argv[2], argv[3], QString::fromUtf8(argv[4]), error, committedOrSafe, argc == 6 ? QString::fromUtf8(argv[5]) : QString{});
         } else {
             QFile input;
             if (!input.open(stdin, QIODevice::ReadOnly)) {
@@ -792,7 +838,11 @@ int main(int argc, char **argv) {
                 std::cerr << "Group request JSON is invalid\n";
                 return 1;
             }
-            const auto event = document.object();
+            const auto event     = document.object();
+            if (argc == 7 && event.value("uid").toString() != QString::fromUtf8(argv[6])) {
+                std::cerr << "Group request scope changed\n";
+                return 1;
+            }
             const auto operation = QString::fromUtf8(argv[5]);
             QJsonObject request{{"operation", operation}, {"sourceId", QString::fromUtf8(argv[4])}, {"revision", event.value("revision")}};
             if (operation == "delete")
@@ -827,10 +877,8 @@ int main(int argc, char **argv) {
         const auto document = QJsonDocument::fromJson(text, &parseError);
         QJsonObject result;
         QString error;
-        if (text.size() > 16 * 1024 * 1024 || parseError.error != QJsonParseError::NoError || !document.isObject()
-                || !(std::string(argv[1]) == "group-codec" ? buildSeriesGroup(document.object(), result, error)
-                    : std::string(argv[1]) == "normalize" ? normalizeRecurrenceMaster(document.object(), result, error)
-                                                          : expandCalendarRange(document.object(), result, error))) {
+        if (text.size() > 16 * 1024 * 1024 || parseError.error != QJsonParseError::NoError || !document.isObject() || !(std::string(argv[1]) == "group-codec" ? buildSeriesGroup(document.object(), result, error) : std::string(argv[1]) == "normalize" ? normalizeRecurrenceMaster(document.object(), result, error)
+                                                                                                                                                                                                                                                         : expandCalendarRange(document.object(), result, error))) {
             std::cerr << (error.isEmpty() ? "Recurrence request JSON is invalid" : error.toStdString()) << '\n';
             return 1;
         }
@@ -849,12 +897,15 @@ int main(int argc, char **argv) {
         return 2;
     }
     const std::string command(argv[1]);
-    const int expected = command == "conflict-clear" ? 4
-        : (command == "mutate" || command == "migrate" || command == "verify-migration") ? 6 : 5;
+    const int expected = command == "conflict-clear"                                                      ? 4
+                         : (command == "mutate" || command == "migrate" || command == "verify-migration") ? 6
+                                                                                                          : 5;
     if (argc != expected) {
         std::cerr << "Command arguments are invalid\n";
         return 2;
     }
+    if ((QStringList{"mutate", "rebuild"}.contains(QString::fromStdString(command)) && !conversionGuard(QString::fromUtf8(argv[4])))
+        || (QString::fromStdString(command).startsWith("conflict-") && command != "conflict-capture" && !conversionStateGuard(QString::fromUtf8(argv[2])))) return 1;
     std::string error;
     bool sourceCommitted = false;
     const bool ok        = std::string(argv[1]) == "rebuild"

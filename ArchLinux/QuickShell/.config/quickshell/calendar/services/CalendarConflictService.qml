@@ -4,14 +4,17 @@ import Quickshell.Io
 
 QtObject {
     id: root
+    property string calendarId: "personal"
+    property string pair: root.calendarId
+    property bool scoped: false
 
     readonly property string helperPath: Quickshell.env("HOME") + "/.config/quickshell/calendar/parse/calendar-sync-helper"
     readonly property string brokerPath: Quickshell.env("HOME") + "/.config/quickshell/calendar/parse/conflict-broker.sh"
-    readonly property string personalDirectory: (Quickshell.env("XDG_DATA_HOME") || Quickshell.env("HOME") + "/.local/share") + "/calendars/personal"
-    readonly property string personalCache: (Quickshell.env("XDG_DATA_HOME") || Quickshell.env("HOME") + "/.local/share") + "/calendars/personal.sync.json"
+    readonly property string sourceDirectory: (Quickshell.env("XDG_DATA_HOME") || Quickshell.env("HOME") + "/.local/share") + "/calendars/" + root.calendarId
+    readonly property string sourceCache: root.sourceDirectory + ".sync.json"
     readonly property string statePath: {
         const stateHome = Quickshell.env("XDG_STATE_HOME");
-        return (stateHome && stateHome.length > 0 ? stateHome : Quickshell.env("HOME") + "/.local/state") + "/quickshell-calendar/conflicts.json";
+        return (stateHome && stateHome.length > 0 ? stateHome : Quickshell.env("HOME") + "/.local/state") + "/quickshell-calendar/conflicts" + (root.scoped ? "-" + root.calendarId : "") + ".json";
     }
     property var conflicts: []
     property bool stateValid: false
@@ -78,17 +81,30 @@ QtObject {
         }
         root.pendingUid = root.currentConflict.uid;
         root.pendingRevision = grouped ? reviewedRevision : "";
-        root.pendingResolveCommand = grouped
-            ? [root.brokerPath, "resolve-group", root.personalDirectory, root.personalCache, "personal", root.statePath, root.pendingUid, root.pendingRevision]
-            : [root.brokerPath, "resolve", "personal", root.statePath, root.pendingUid];
+        root.pendingResolveCommand = grouped ? [root.brokerPath, "resolve-group", root.sourceDirectory, root.sourceCache, root.calendarId, root.statePath, root.pendingUid, root.pendingRevision] : [root.brokerPath, "resolve", root.pair, root.statePath, root.pendingUid, root.sourceDirectory, root.sourceCache, root.calendarId];
+        if (root.scoped)
+            root.pendingResolveCommand = ["/usr/bin/env", "CALENDAR_ID=" + root.calendarId, "CALENDAR_PAIR=" + root.pair].concat(root.pendingResolveCommand);
         root.busy = true;
-        selectProcess.command = grouped ? [root.helperPath, "conflict-group-select", root.statePath, root.pendingUid, side, root.pendingRevision]
-            : [root.helperPath, "conflict-select", root.statePath, root.pendingUid, side];
+        selectProcess.command = grouped ? [root.helperPath, "conflict-group-select", root.statePath, root.pendingUid, side, root.pendingRevision] : [root.helperPath, "conflict-select", root.statePath, root.pendingUid, side];
         selectProcess.running = true;
+    }
+
+    function checkFailedStart() {
+        const request = root.pendingResolveCommand;
+        Qt.callLater(() => {
+            if (!root.busy || root.pendingResolveCommand !== request || selectProcess.running || resolveProcess.running)
+                return;
+            root.busy = false;
+            root.pendingUid = "";
+            root.pendingRevision = "";
+            root.pendingResolveCommand = [];
+            root.errorMessage = "Could not start calendar conflict operation";
+        });
     }
 
     property FileView stateFile: FileView {
         path: root.statePath
+        printErrors: false
         preload: true
         watchChanges: true
         onLoaded: root.loadState(text())
@@ -101,12 +117,17 @@ QtObject {
             } else {
                 root.stateValid = false;
                 root.errorMessage = "Could not read calendar conflict state";
+                console.error(root.errorMessage + ": " + FileViewError.toString(error));
             }
         }
     }
 
     property Process selectProcess: Process {
         id: selectProcess
+        onRunningChanged: {
+            if (!running && root.busy)
+                root.checkFailedStart();
+        }
         // qmllint disable signal-handler-parameters
         onExited: (exitCode, exitStatus) => {
             if (exitCode !== 0) {
@@ -122,16 +143,20 @@ QtObject {
 
     property Process resolveProcess: Process {
         id: resolveProcess
+        onRunningChanged: {
+            if (!running && root.busy)
+                root.checkFailedStart();
+        }
         stderr: StdioCollector {
             id: resolveStderr
         }
         // qmllint disable signal-handler-parameters
         onExited: (exitCode, exitStatus) => {
-            if (exitCode === 2 && root.pendingRevision.length > 0) {
+            if (exitCode === 2) {
                 root.busy = false;
                 root.stateFile.reload();
                 root.pendingUid = "";
-                root.errorMessage = "Series resolved, but calendar cache could not refresh. Do not retry this resolution.";
+                root.errorMessage = "Conflict resolved, but refresh did not finish. Do not retry this resolution.";
                 return;
             }
             if (exitCode === 4) {
