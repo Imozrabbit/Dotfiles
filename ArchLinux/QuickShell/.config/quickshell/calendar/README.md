@@ -16,12 +16,11 @@ packages with your approval. No client compilation or third-party Python package
 
 ## Install
 
-Version **`0.1`** is prepared locally but not yet published. Use a reviewed local archive
-and matching checksum from `dist/releases/` until publication. Published packages come from
-a [Calendar-specific GitHub Release](https://github.com/Imozrabbit/Dotfiles/releases),
-not Dotfiles' unrelated latest release or a standalone script from `master`.
+Download the `.tar.gz` archive and matching `.sha256` file from a
+[Calendar-specific GitHub Release](https://github.com/Imozrabbit/Dotfiles/releases).
+Do not use Dotfiles' unrelated latest release or a standalone install script from `master`.
 
-Put the `.tar.gz` and matching `.sha256` file in one folder and open a terminal there.
+Put both files in one folder and open a terminal there.
 **Only extract packages from a trusted publisher:** checksums detect changed downloads,
 not publisher compromise. Use a new temporary directory outside the install target.
 Run commands one at a time; continue only if each succeeds and the checksum reports **OK**:

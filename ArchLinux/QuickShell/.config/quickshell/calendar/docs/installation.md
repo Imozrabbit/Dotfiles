@@ -4,9 +4,6 @@ Use complete Calendar release packages, not `git pull`, a standalone script from
 `master` or a source build on the client. For launch commands and your first event,
 see the [README](../README.md).
 
-Source version **`0.1`** is prepared locally but not yet published. Until publication,
-use a reviewed local archive and its matching checksum from `dist/releases/`.
-
 ## Requirements
 
 | Purpose | Required |
