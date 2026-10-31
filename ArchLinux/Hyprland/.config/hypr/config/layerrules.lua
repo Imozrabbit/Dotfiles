@@ -8,6 +8,16 @@ hl.layer_rule({
 	animation = "slide bottom",
 })
 
+-- Add blur for bar's tooltip window
+hl.layer_rule({
+	match = {
+		namespace = "quickshell-bar-tooltip",
+	},
+	blur = true,
+	ignore_alpha = 0.5,
+	no_anim = true,
+})
+
 -- Add blur and transparency to calendar module
 hl.layer_rule({
 	match = {
@@ -36,7 +46,7 @@ hl.layer_rule({
 
 -- Make volume-osd by quickshell blur and change its awful animation
 hl.layer_rule({
-	match = { namespace = "volume-osd" },
+	match = { namespace = "level-osd" },
 	blur = true,
 	ignore_alpha = 0.3,
 	animation = "slide bottom",
@@ -56,13 +66,6 @@ hl.layer_rule({
 	blur = true,
 	ignore_alpha = 0.1,
 	animation = "popin",
-})
-
--- Make GPU & CPU OSD blur
-hl.layer_rule({
-	match = { namespace = "system-osd" },
-	blur = true,
-	ignore_alpha = 0,
 })
 
 -- Set animation for screenshot
