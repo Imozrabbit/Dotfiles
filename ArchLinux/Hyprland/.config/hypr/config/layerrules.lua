@@ -73,3 +73,11 @@ hl.layer_rule({
 	match = { namespace = "selection" },
 	animation = "fade",
 })
+
+-- Make hex-hud appear from the edge
+hl.layer_rule({
+	match = {
+		namespace = "hex-hud",
+	},
+	animation = "popin",
+})
