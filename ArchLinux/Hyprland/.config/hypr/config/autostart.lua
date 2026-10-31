@@ -3,7 +3,7 @@ hl.on("hyprland.start", function()
 	hl.exec_cmd("systemctl --user start hyprpolkitagent")
 
 	-- Notification Daemon
-	hl.exec_cmd("swaync")
+	hl.exec_cmd("env GSK_RENDERER=cairo GDK_WAYLAND_DISABLE=ext_background_effect_manager_v1 swaync")
 
 	-- Wallpaper
 	hl.exec_cmd("/home/Zrabbit/.config/quickshell/wallpaper_switcher/scripts/apply.sh")
@@ -25,9 +25,9 @@ hl.on("hyprland.start", function()
 	hl.exec_cmd("qs -n -p ~/.config/quickshell/lockscreen")
 	hl.exec_cmd("qs -c calendar -d")
 
-	-- Handy
-	hl.exec_cmd("handy --start-hidden")
-
 	-- Autostart the input methode framework fcitx5
 	hl.exec_cmd("fcitx5 --replace -d")
+
+	-- Auto load hyprglass
+	hl.exec_cmd("hyprpm reload")
 end)
