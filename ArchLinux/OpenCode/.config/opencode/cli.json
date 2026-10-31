@@ -30,7 +30,7 @@
         "tree": true
     },
     "session": {
-        "sidebar": "auto",
+        "sidebar": "hide",
         "scrollbar": false,
         "thinking": "show",
         "grouping": "auto",
