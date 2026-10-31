@@ -4,36 +4,26 @@
 
 ## Per-network DNS
 
-Click a connected or saved Wi-Fi card to expand DNS settings. **Auto** (previously
-Default) and providers share centered rows, with at most three entries per row.
-Choice buttons hug their text with small horizontal padding; rows wrap sooner
-when labels do not fit together. A single overlong label elides to available width.
-The outer DNS box includes the DNS label and fills available width, with roomier
-padding and rows; individual highlights stay text-sized and centered.
-Only one card expands at a time; Connect/Disconnect remain separate actions.
-Opening a card reads its saved NetworkManager settings. Selecting a segment only
-stages a pending choice; it does not write settings. The three actions below are:
+Expand a connected or saved Wi-Fi card to choose **Auto** (previously Default)
+or a configured provider. Selection is pending until confirmed; Connect/Disconnect
+remain separate actions.
 
 - **Confirm:** save the pending choice, verify readback, and attempt live apply.
 - **Test:** test the pending provider's servers without saving; disabled for Auto.
 - **Cancel:** discard pending edits and restore the saved selection, without writes.
 
-Closing the card or switching profiles also discards pending edits. Actions are
-disabled while DNS operations run. Testing/feedback updates preserve pending edits.
-The policies applied by Confirm are:
+Closing the card or switching profiles also discards pending edits. Confirm applies:
 
 - **Auto:** accepts network-advertised DNS for supported IPv4/IPv6 methods and disables per-connection DoT.
 - **Quad9:** sets Quad9 IPv4/IPv6 addresses, ignores automatically supplied DNS, and disables per-connection DoT.
 - **TLS providers:** preserve each `IP#TLS-hostname` and enable strict per-connection
   DoT. Switching back to Default/Quad9 clears this strict setting.
-- Other configured providers use their specified addresses; choices wrap onto
-  additional rows. Default is built-in and cannot be replaced by a provider entry.
+- Other configured providers use their specified addresses. Auto is built-in.
 
 Disconnected profiles use the confirmed choice next time. No deliberate reconnect occurs.
 
-Feedback distinguishes saved/applied, saved for next connection, authorization
-failures, and saved-but-not-applied. If live application fails, reconnect when
-convenient. NetworkManager may require a running Polkit agent.
+Feedback reports whether settings were saved and applied. If live application
+fails, reconnect when convenient. NetworkManager may require a running Polkit agent.
 
 Existing custom DNS leaves provider segments unselected and remains unchanged until
 you explicitly confirm a replacement. Unrecognized server formats are treated as
@@ -129,37 +119,29 @@ does not migrate existing Wi-Fi settings or change Ethernet/VPN profiles.
 
 ### Manual provider tests
 
-**Test** queries every server of the pending provider individually for `example.com`:
-plain providers use UDP port 53; TLS providers use certificate- and hostname-verified
-DNS-over-TLS on TCP port 853. Each server has a two-second timeout, including TLS
-connect/handshake/response; failed TLS never retries over plaintext.
-Results distinguish response (with DNS RCODE), timeout, and socket/response
-error. Testing never modifies profiles or system DNS; it is manual, not a
-background probe or visibility gate. TLS success includes **TLS verified**;
-certificate failure is reported separately. A plain UDP response does not establish
-resolver identity; even verified TLS does not prove filtering policy, privacy,
-future availability, or which resolver applications currently use. Networks may
-block DNS or lack IPv6 connectivity. Tests follow current IP routing, including VPNs.
+**Test** queries each pending provider server for `example.com`: UDP port 53 for
+plain providers, or certificate- and hostname-verified TLS on TCP port 853.
+Each server has a two-second timeout; failed TLS never retries over plaintext.
+Results report responses, timeouts or errors, with **TLS verified** on TLS success.
+
+Tests are manual and never change profiles or system DNS. They follow current
+routing, including VPNs; blocked DNS or missing IPv6 can cause failures. UDP does
+not establish resolver identity. Even verified TLS does not prove filtering,
+privacy, future availability or which resolver applications currently use.
 
 ### Policy versus observed DNS
 
-The selector starts with saved policy and highlights a pending choice until
-confirmed or cancelled; the network tooltip independently reports
-resolver routing. Selecting Quad9 does not enable encrypted DNS or guarantee
-every query uses Quad9. VPN/Tailscale profiles and routes are not modified.
-On connected cards, Auto also shows observed DNS source, e.g. **Auto · VPN DNS:
-NextDNS**, **Auto · Network DNS**, **Auto · Mixed DNS**, or **Auto · DNS unavailable**.
-Source comes from the selected resolver interfaces and active NetworkManager VPN
-profiles, not from provider names. Unattributed sources use a generic DNS label.
-Inactive saved cards show **Auto · Network DNS**, describing the action rather
-than claiming to observe that inactive network. Live status never changes the
-highlighted choice; Auto does not configure or select a VPN's DNS.
-The panel reuses the shared DNS observer even when the VPN icon module is disabled.
-Strict DoT applies to the selected Wi-Fi link, not all applications or other links;
-VPN DNS can still take precedence. Saved/read-back settings and successful
-NetworkManager reapply do not independently prove live end-to-end TLS resolution.
-Domain-specific split DNS, such as Tailscale name resolution, is excluded from
-ordinary Internet DNS classification. Inspect `resolvectl status` for details.
+The selector shows saved/pending policy; live labels and the network tooltip
+independently report resolver routing, even if the VPN icon is disabled. On an
+active card, Auto may show **VPN DNS: NextDNS**, **Network DNS**, **Mixed DNS** or
+**DNS unavailable**. On inactive cards, **Auto · Network DNS** describes the
+action, not an observed connection. Live status never changes the selection.
+
+Quad9 does not enable encryption. Strict DoT applies only to the selected Wi-Fi
+link; VPN DNS can take precedence. A saved setting or successful reapply does
+not prove live end-to-end TLS. VPN/Tailscale profiles and routes stay untouched;
+domain-specific split DNS is excluded from ordinary Internet DNS classification.
+Use `resolvectl status` to inspect routing.
 
 ## VPN/DNS indicators
 
@@ -189,16 +171,14 @@ Set these global `vpn` options in `bar-local.json`:
 | `schoolInterface` | `ppp0` | Dedicated school PPP interface; must not identify an unrelated tunnel. |
 | `schoolName` | `School VPN` | Tooltip label, e.g. `Unistra`. |
 
-Every two seconds, the shared service checks systemd readiness and the configured
-PPP interface's up/address state. Tooltip states: connected, connecting, stopping,
-failed, disconnected, or unavailable. Process presence alone is insufficient;
-tunnel evidence is not an end-to-end connectivity test.
+Detection checks systemd readiness and the configured PPP interface's up/address
+state, not just process presence. Tooltip shows connected, connecting, stopping,
+failed, disconnected or unavailable; this is not an end-to-end connectivity test.
 
 - Established school tunnel: `󰑴`, using the existing connected-VPN color.
 - School tunnel plus configured router-VPN Wi-Fi: amber `󰀦`, warning of possible
   nested tunneling and extra overhead. Actual nesting is not verified.
-- Away from configured router-VPN networks: school/local VPNs are still detected.
-  Multiple local tunnels are listed without a router-nesting warning.
+- School/local VPNs are still detected away from home; multiple tunnels are listed.
 
 School detection is read-only: no credential reads, service starts/stops, routing,
 DNS, or VPN configuration changes. It does not presume school DNS is in use.

@@ -118,15 +118,9 @@ Rectangle {
         Rectangle {
             anchors.fill: parent
             radius: root.theme.radiusMedium
+            bottomLeftRadius: 0
+            bottomRightRadius: 0
             color: root.theme.volumeBg
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: root.theme.radiusMedium
-                color: root.theme.volumeBg
-            }
 
             Slider {
                 id: brightnessSlider

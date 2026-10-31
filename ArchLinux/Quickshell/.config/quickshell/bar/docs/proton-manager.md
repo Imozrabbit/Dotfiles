@@ -40,8 +40,9 @@ Click the Proton button near the tray, or open it on the focused enabled output:
 qs -c bar ipc call bar protonManager
 ```
 
-`previewProton` remains a compatibility alias. Outputs in `off` mode cannot
-open the manager. One service and popup are shared across monitors.
+Outputs in `off` mode cannot open the manager. Closing/disabling it does not stop
+an active operation. If paths change during work, that operation uses its original
+paths; refresh or reopen afterwards.
 
 - **Updates:** check upstream versions, select a family, then use **Update & clean**.
   Confirm the release and exact older versions before continuing.
@@ -49,37 +50,24 @@ open the manager. One service and popup are shared across monitors.
 - **Launcher:** choose installed GE for umu or use **Sync latest GE** to select
   the newest valid installed GE. Sync does not download anything. Wheel navigation
   alone does not write: click an entry or press Enter to commit.
-- **Refresh:** force release and package checks. Opening always checks local
-  state; automatic upstream checks run at most once per 24 hours per Quickshell
-  session. Restarting allows a new initial check. There is no background polling.
-
-Path edits clear cached inventory and confirmations. Refresh or reopen to
-inspect new paths. An active operation keeps its original paths; its old-path
-snapshot is discarded on completion. Closing/disabling the popup does not stop work.
+- **Refresh:** force release/package checks. Opening checks local state; automatic
+  upstream checks run at most once per 24 hours per Quickshell session, with a
+  new initial check allowed after restart. There is no background polling.
 
 ## Supported versions
 
 Updates target official GE-Proton **x86_64** and CachyOS Proton **SLR x86_64_v3**,
-with matching published SHA-512 checksums. GE names support major/minor/optional
-patch and an optional `-x86_64` suffix. New installs use the full archive stem,
-such as `GE-Proton11-7-x86_64` or `proton-cachyos-11.0-20261005-slr-x86_64_v3`.
-Matching canonical GE archive roots are normalized to the full install name.
-
-Up-to-date status compares versions within a family, not folder names: GE uses
-major/minor/patch; CachyOS uses build date, then major/minor. Equal or newer
-installed versions count as up to date.
+with published SHA-512 checksums. Install names use the full release archive stem.
+Versions are compared within each family; equal or newer installs count as up to date.
 
 ## Safety and recovery
 
-- Downloads stage on the installation filesystem. Checksums, archive paths/links,
-  and installation metadata are validated before atomic, no-replace activation.
+- Downloads, archive paths/links and metadata are validated before installation;
+  existing installations are not overwritten.
 - GE updates umu before cleanup. Unknown folders, newer versions, and the selected
   umu version are protected. Failed umu writes retain older GE installations.
-- Steam/umu/Proton/Wine process evidence blocks changes. Uninspectable executable
-  state for the desktop user or installation/config owner also blocks changes.
-  A narrowly matched permission-denied `systemd --user` and its direct `(sd-pam)`
-  helper are exempt; unknown processes still block. Safety checks repeat before
-  activation, config writes, and every removal.
+- Running Steam/umu/Proton/Wine or unreadable/unknown process state can block
+  changes. Close gaming processes and read the reason; do not bypass safety checks.
 - umu writes preserve TOML comments, unrelated values, and permissions. Unsafe,
   ambiguous, or unsupported TOML spellings fail without rewriting the file.
 - If installation succeeds but config/cleanup fails, partial success is reported
@@ -87,5 +75,4 @@ installed versions count as up to date.
   not deleted automatically. Inspect reported paths before manual recovery.
 - Oversized cleanup requests are rejected; remove older versions in smaller groups.
 
-For fixture-based testing without touching gaming paths, see
-[development notes](development.md#proton-demo).
+For client errors, see [troubleshooting](setup.md#troubleshooting).

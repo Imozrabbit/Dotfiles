@@ -52,17 +52,9 @@ RowLayout {
         implicitWidth: cpuUsage_text.implicitWidth + 24
         implicitHeight: cpuUsage_text.implicitHeight + 4
         radius: root.theme.radiusMedium
+        topRightRadius: 0
+        bottomRightRadius: 0
         color: root.theme.cpuUsageBg
-
-        Rectangle {
-            anchors {
-                top: parent.top
-                right: parent.right
-                bottom: parent.bottom
-            }
-            width: parent.radius
-            color: parent.color
-        }
 
         Rectangle {
             anchors.right: parent.right
@@ -198,16 +190,8 @@ RowLayout {
         implicitHeight: memUsage_text.implicitHeight + 4
         color: root.theme.memUsageBg
         radius: root.theme.radiusMedium
-
-        Rectangle {
-            anchors {
-                top: parent.top
-                left: parent.left
-                bottom: parent.bottom
-            }
-            width: parent.radius
-            color: parent.color
-        }
+        topLeftRadius: 0
+        bottomLeftRadius: 0
 
         Text {
             id: memUsage_text

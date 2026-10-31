@@ -50,6 +50,7 @@ PanelWindow { // qmllint disable uncreatable-type
     anchors.right: true
     implicitHeight: root.windowExpanded ? 35 : 2
     color: "transparent"
+    WlrLayershell.namespace: "quickshell-bottom-bar"
     WlrLayershell.exclusiveZone: root.mode === "always" || root.pinned ? 35 : -1
 
     Component.onCompleted: {

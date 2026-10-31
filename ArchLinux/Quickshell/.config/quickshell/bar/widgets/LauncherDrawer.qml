@@ -168,25 +168,13 @@ RowLayout {
         }
     }
 
-    PopupWindow {
+    TooltipWindow {
         id: launcherTooltip
 
         visible: false
-        color: "transparent"
-        grabFocus: false
-
         implicitWidth: tooltipLabel.implicitWidth + 20
         implicitHeight: tooltipLabel.implicitHeight + 16
-
-        anchor.item: root.tooltipAnchor ? root.tooltipAnchor : toggleText
-        anchor.rect.x: 0
-        anchor.rect.y: -8
-        anchor.rect.width: root.tooltipAnchor ? root.tooltipAnchor.width : toggleText.width
-        anchor.rect.height: root.tooltipAnchor ? root.tooltipAnchor.height : toggleText.height
-        // qmllint disable missing-type
-        anchor.edges: Edges.Top
-        anchor.gravity: Edges.Top
-        // qmllint enable missing-type
+        anchorItem: root.tooltipAnchor ? root.tooltipAnchor : toggleText
 
         Rectangle {
             anchors.fill: parent

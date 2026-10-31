@@ -1,14 +1,13 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
 
 import qs.core as Core
+import qs.widgets as Widgets
 
-PopupWindow {
+Widgets.TooltipWindow {
     id: root
 
-    required property Item anchorItem
     required property bool online
     required property bool vpnEnabled
     required property string connectionType
@@ -95,21 +94,8 @@ PopupWindow {
         return rows;
     }
 
-    color: "transparent"
-    grabFocus: false
-
     implicitWidth: tooltipContent.implicitWidth + 20
     implicitHeight: tooltipContent.implicitHeight + 16
-
-    anchor.item: root.anchorItem
-    anchor.rect.x: 0
-    anchor.rect.y: -8
-    anchor.rect.width: root.anchorItem.width
-    anchor.rect.height: root.anchorItem.height
-    // qmllint disable missing-type
-    anchor.edges: Edges.Top
-    anchor.gravity: Edges.Top
-    // qmllint enable missing-type
 
     Rectangle {
         anchors.fill: parent

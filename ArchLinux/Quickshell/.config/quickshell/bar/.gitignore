@@ -1,0 +1,17 @@
+# Publish this policy despite the parent repository's .gitignore rule.
+!/.gitignore
+
+# Main-machine development files stay local, not on GitHub.
+/tests/
+/.qmlls.ini
+AGENTS.md
+
+# Generated caches and disposable editor/test output.
+__pycache__/
+*.py[cod]
+*.qmlc
+*.jsc
+.cache/
+*.log
+*.bak
+*.backup*

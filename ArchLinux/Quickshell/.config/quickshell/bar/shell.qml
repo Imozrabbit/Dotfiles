@@ -18,7 +18,6 @@ Scope {
     id: root
 
     property Config barConfig: Config {}
-    property Core.Theme theme: Core.Theme {}
     readonly property var protonManagerWindow: protonManagerLoader.item
     readonly property var protonManagerScreen: root.protonManagerWindow?.visible ? root.protonManagerWindow.screen : null
     readonly property var protonService: protonLoader.item
@@ -85,7 +84,10 @@ Scope {
         id: protonManagerLoader
         active: root.protonService !== null && root.protonService !== undefined
         Proton.Manager {
-            theme: root.theme
+            id: protonPanel
+            theme: Core.Theme {
+                backgrounds: root.barConfig.forScreen(protonPanel.screen?.name ?? "").backgrounds
+            }
             service: root.protonService
             barRevealed: outputBars.instances.find(bar => bar.modelData === root.protonManagerWindow?.screen)?.barShown ?? false
         }
@@ -182,13 +184,16 @@ Scope {
         id: wifiLoader
         active: root.uses("wifiMenu") || (root.wifiMenu?.actionBusy ?? false)
         Wifi.WifiMenu {
+            id: wifiPanel
             standalone: false
             homeSsids: root.barConfig.settings.vpn.routerManagedSsids
             dnsConfig: root.barConfig.settings.dns
             observedDns: root.vpnStatus?.dns ?? ({
                     kind: "unavailable"
                 })
-            theme: root.theme
+            theme: Core.Theme {
+                backgrounds: root.barConfig.forScreen(wifiPanel.screen?.name ?? "").backgrounds
+            }
             barRevealed: outputBars.instances.find(bar => bar.modelData === root.wifiMenu?.screen)?.barShown ?? false
             onCloseRequested: visible = false
         }
@@ -277,8 +282,11 @@ Scope {
         model: root.barConfig.ready ? Quickshell.screens.filter(screen => root.barConfig.forScreen(screen.name).mode !== "off") : []
 
         BarWindow {
+            id: outputBar
             shared: root
-            theme: root.theme
+            theme: Core.Theme {
+                backgrounds: outputBar.configuration.backgrounds
+            }
         }
     }
     Variants {
@@ -287,8 +295,11 @@ Scope {
             return config.mediaPosition === "top" && config.topMediaMode !== "off" && config.modules.media;
         }) : []
         TopMediaWindow {
+            id: outputMedia
             shared: root
-            theme: root.theme
+            theme: Core.Theme {
+                backgrounds: root.barConfig.forScreen(outputMedia.modelData.name).backgrounds
+            }
         }
     }
 }

@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 
 import qs.core as Core
 
@@ -38,7 +37,7 @@ Rectangle {
     implicitHeight: mediaText.implicitHeight + 4
 
     visible: root.active && width >= root.theme.volumeFontSize + 16
-    color: "#E6252525"
+    color: root.theme.mediaBg
     radius: root.theme.radiusMedium
 
     onVisibleChanged: {
@@ -141,11 +140,7 @@ Rectangle {
     SystemStatTooltip {
         visible: root.active && root.mprisTooltipVisible
         anchorItem: root
-        anchor.rect.y: root.topPanel ? 8 : -8
-        // qmllint disable missing-type
-        anchor.edges: root.topPanel ? Edges.Bottom : Edges.Top
-        anchor.gravity: root.topPanel ? Edges.Bottom : Edges.Top
-        // qmllint enable missing-type
+        below: root.topPanel
         heading: root.app !== "" ? root.app : "Media"
         rows: [
             {

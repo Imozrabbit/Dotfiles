@@ -22,6 +22,7 @@ PanelWindow { // qmllint disable uncreatable-type
     anchors.right: true
     implicitHeight: root.windowExpanded ? 35 : 2
     color: "transparent"
+    WlrLayershell.namespace: "quickshell-top-media"
     WlrLayershell.exclusiveZone: root.mode === "always" ? 35 : -1
 
     onModeChanged: {

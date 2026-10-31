@@ -4,7 +4,7 @@ QtObject {
     required property var theme
 
     // Surfaces and borders.
-    readonly property color manager: "#E61C1C22"
+    readonly property color manager: theme.protonManagerBackgroundColor
     readonly property color tab: "#151519"
     readonly property color card: "#1B1B20"
     readonly property color warningSurface: "#252F3C"

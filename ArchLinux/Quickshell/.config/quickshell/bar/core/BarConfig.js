@@ -2,6 +2,20 @@ function isObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function backgroundSettings(override) {
+    const result = {};
+    if (!isObject(override))
+        return result;
+    for (const name of ["workspaces", "media", "network", "cpu", "gpu", "memory", "controls", "openAiUsage", "timeDate",
+        "calendar", "wifi", "bluetooth", "battery", "protonManager", "tooltips"]) {
+        const value = override[name];
+        if (typeof value === "string" && (value === "transparent"
+            || /^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value) && value.trim() === value))
+            result[name] = value;
+    }
+    return result;
+}
+
 function applyFields(target, override, moduleNames) {
     if (!isObject(override))
         return;
@@ -15,6 +29,8 @@ function applyFields(target, override, moduleNames) {
         target.hoverToggleEnabled = override.hoverToggleEnabled;
     if (typeof override.edgeSpacing === "number" && isFinite(override.edgeSpacing) && override.edgeSpacing >= 0 && override.edgeSpacing <= 100)
         target.edgeSpacing = override.edgeSpacing;
+    if (isObject(override.backgrounds))
+        target.backgrounds = Object.assign({}, target.backgrounds, backgroundSettings(override.backgrounds));
     if (Array.isArray(override.launchers))
         target.launchers = launcherEntries(override.launchers);
     if (isObject(override.mouseBattery) && typeof override.mouseBattery.name === "string"
@@ -80,6 +96,7 @@ function resolveConfig(defaults, text, previous) {
         mediaPosition: defaults.mediaPosition || "top",
         edgeSpacing: defaults.edgeSpacing,
         hoverToggleEnabled: defaults.hoverToggleEnabled,
+        backgrounds: backgroundSettings(defaults.backgrounds),
         dns: Object.assign({providers: [{id:"quad9",label:"Quad9",ipv4:["9.9.9.9","149.112.112.112"],ipv6:["2620:fe::fe","2620:fe::9"]}], preferredProvider:"quad9"}, defaults.dns || {}),
         launchers: launcherEntries(defaults.launchers || []),
         mouseBattery: Object.assign({}, defaults.mouseBattery),
@@ -199,6 +216,7 @@ function screenConfig(config, name) {
         mediaPosition: override.mediaPosition || config.mediaPosition,
         edgeSpacing: override.edgeSpacing === undefined ? config.edgeSpacing : override.edgeSpacing,
         hoverToggleEnabled: override.hoverToggleEnabled === undefined ? config.hoverToggleEnabled : override.hoverToggleEnabled,
+        backgrounds: Object.assign({}, config.backgrounds, override.backgrounds),
         launchers: override.launchers === undefined ? config.launchers : override.launchers,
         mouseBattery: override.mouseBattery || config.mouseBattery,
         openAiUsage: override.openAiUsage || config.openAiUsage,
