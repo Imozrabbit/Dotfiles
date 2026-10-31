@@ -17,6 +17,7 @@ PanelWindow {
     visible: root.appState.if_preview
     color: "black"
 
+    WlrLayershell.namespace: "quickshell-wallpaper-preview"
     WlrLayershell.layer: WlrLayer.Overlay
     screen: previewScreen
 
