@@ -116,8 +116,8 @@ hl.bind(mainMod .. "+ period", hl.dsp.exec_cmd('rmpc remote keybind "."'), { loc
 -- Screenshot
 hl.bind("Print", hl.dsp.exec_cmd("/home/Zrabbit/.config/shell/script/Screenshot/screenshot_region"))
 
--- Voice control with handy
-hl.bind("Control_R", hl.dsp.exec_cmd("handy --toggle-transcription"))
+-- Voice control
+hl.bind("Control_R", hl.dsp.exec_cmd("hex dictation toggle"), { release = true })
 
 --Close & Kill steam
 local function close_bind()
