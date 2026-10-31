@@ -67,5 +67,8 @@ export MACHINE_STORAGE_PATH="$XDG_DATA_HOME"/docker-machine
 #---------------- OpenCode ----------------#
 export SUPERPOWERS_DISABLE_TELEMETRY=1
 
-#------------------- QT -------------------#
+#------------------- QT --------------------#
 export QT_QPA_PLATFORMTHEME=qt5ct:qt6ct
+
+#------------------- RTK -------------------#
+export RTK_TELEMETRY_DISABLED=1
