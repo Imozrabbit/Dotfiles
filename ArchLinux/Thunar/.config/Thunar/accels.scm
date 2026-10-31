@@ -3,6 +3,7 @@
 ;
 ; (gtk_accel_path "<Actions>/ThunarDetailsView/expandable-folders" "")
 ; (gtk_accel_path "<Actions>/ThunarStandardView/sort-by-type" "")
+; (gtk_accel_path "<Actions>/ThunarBookmarks/817f85b23616332ef9f449a3cd20372a" "")
 ; (gtk_accel_path "<Actions>/ThunarStatusBar/toggle-last-modified" "")
 ; (gtk_accel_path "<Actions>/ThunarBookmarks/0adc91ffe6e568f703836ba20530b85c" "")
 ; (gtk_accel_path "<Actions>/Thunarwindow/menu" "")
