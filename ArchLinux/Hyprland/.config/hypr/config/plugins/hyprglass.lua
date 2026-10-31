@@ -9,23 +9,63 @@ if hl.plugin.hyprglass then
 		default_theme = "dark",
 		default_preset = "minor",
 		manage_window_blur = true,
-		layers = { enabled = false },
+		layers = {
+			enabled = true,
+			live_resample_fps = 60,
+			force_live_resample = true,
+		},
 	})
 
 	-----------------------------------------------------------------------------
 	-- Layer surfaces: each call whitelists the namespace and configures it
 	-----------------------------------------------------------------------------
-	hg.layer("swaync-control-center", {
-		preset = "master-pick-glass",
-		mask_threshold = 0.05,
-		mask_feather = 0.45,
-	})
+	local layer_minor = {
+		"rofi",
+		"quickshell-calendar",
+		"swaync-notification-window",
+		"level-osd",
+	}
 
-	hg.layer("rofi", {
-		preset = "minor",
-		mask_threshold = 0.05,
-		mask_feather = 0.45,
-	})
+	local layer_master = {
+		"calendar-menu",
+		"swaync-control-center",
+		"battery-menu",
+		"bluetooth-menu",
+		"wifi-menu",
+		"proton-manager",
+	}
+
+	local layer_disable = {
+		"quickshell-bottom-bar",
+		"quickshell-top-media",
+		"quickshell-wallpaper-preview",
+		"quickshell:expose",
+		"wallpaper-switcher-contour",
+		"quickshell-lock-preview",
+		"selection",
+	}
+
+	for _, namespace in ipairs(layer_minor) do
+		hg.layer(namespace, {
+			preset = "minor",
+			mask_threshold = 0.05,
+			mask_feather = 0.45,
+		})
+	end
+
+	for _, namespace in ipairs(layer_master) do
+		hg.layer(namespace, {
+			preset = "master-pick-glass",
+			mask_threshold = 0.05,
+			mask_feather = 0.45,
+		})
+	end
+
+	for _, namespace in ipairs(layer_disable) do
+		hg.layer(namespace, {
+			exclude = true,
+		})
+	end
 
 	-----------------------------------------------------------------------------
 	-- Presets
@@ -51,8 +91,8 @@ if hl.plugin.hyprglass then
 
 	hg.preset("master-pick-glass", {
 		inherits = "minor",
-		blur_strength = 1.1,
-		edge_thickness = 0.15,
+		blur_strength = 1.3,
+		edge_thickness = 0.01,
 		refraction_strength = 8.0,
 		chromatic_aberration = 0.85,
 		lens_distortion = 0.5,
