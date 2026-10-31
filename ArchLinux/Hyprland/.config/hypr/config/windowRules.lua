@@ -123,10 +123,10 @@ register_rules({
 		match = { title = "nwg-look" },
 	},
 	{
-		name = "handy: floating",
+		name = "hex: floating",
 		match = {
-			class = "handy",
-			title = "Handy",
+			class = "hex",
+			title = "Hex",
 		},
 	},
 }, STYLE.persistent_floating)
