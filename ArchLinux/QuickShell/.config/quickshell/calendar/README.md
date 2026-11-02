@@ -95,5 +95,6 @@ while this Quickshell configuration runs, even if its window/calendar is hidden.
 
 ### Planned features
 
+- [ ] Improved color selection for calendars.
 - [ ] Portable export/import for profiles, events, recurrence, source settings,
   credentials and machine-specific recovery/state—not just ICS files.
