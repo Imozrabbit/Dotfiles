@@ -1,21 +1,29 @@
 -- Add blur for multiple bar module panel windows
 hl.layer_rule({
 	match = {
-		namespace = "^(calendar-menu|battery-menu|bluetooth-menu|wifi-menu|proton-manager)$",
+		namespace = "^(calendar-menu|battery-menu|bluetooth-menu|wifi-menu|proton-manager|quickshell-bottom-bar)$",
 	},
 	blur = true,
 	ignore_alpha = 0.5,
 	animation = "slide bottom",
 })
 
--- Add blur for bar's tooltip window
+hl.layer_rule({
+	match = {
+		namespace = "quickshell-top-media",
+	},
+	blur = true,
+	ignore_alpha = 0.5,
+	animation = "slide top",
+})
+
 hl.layer_rule({
 	match = {
 		namespace = "quickshell-bar-tooltip",
 	},
 	blur = true,
 	ignore_alpha = 0.5,
-	no_anim = true,
+	animation = "fade",
 })
 
 -- Add blur and transparency to calendar module
@@ -33,6 +41,12 @@ hl.layer_rule({
 	match = { namespace = "swaync-control-center" },
 	blur = true,
 	ignore_alpha = 0.3,
+	animation = "slide",
+})
+hl.layer_rule({
+	match = { namespace = "quickshell-command-center" },
+	blur = true,
+	ignore_alpha = 0.5,
 	animation = "slide",
 })
 
