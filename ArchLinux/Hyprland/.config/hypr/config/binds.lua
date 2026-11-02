@@ -10,7 +10,8 @@ hl.bind(mainMod .. "+ E", hl.dsp.exec_cmd(FILEMANAGER)) -- Open file manager
 hl.bind(mainMod .. "+ SPACE", hl.dsp.exec_cmd(MENU)) -- Open app launcher
 hl.bind(mainMod .. "+ B", hl.dsp.exec_cmd("zen-browser")) -- Open zen browser
 hl.bind(mainMod .. "+ N", hl.dsp.exec_cmd(NOTES)) -- Open obsidian
-hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("swaync-client -t")) -- Open side hub
+--hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("swaync-client -t")) -- Open side hub
+hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("quickshell -c command-center ipc call command-center toggle")) -- Open the command center
 hl.bind(mainMod .. "+ C", hl.dsp.exec_cmd("qs -c calendar ipc call calendar toggle")) -- Toggle Calendar
 
 -- Move focus with mainMod + arrow keys
@@ -86,7 +87,9 @@ hl.bind(mainMod .. "+ period", hl.dsp.exec_cmd('rmpc remote keybind "."'), { loc
 hl.bind(mainMod .. "+ DELETE", hl.dsp.exec_cmd("/home/Zrabbit/.config/shell/script/Screenshot/screenshot_region"))
 
 -- Voice Transcription with AI Post-Processing
-hl.bind("Control_R", hl.dsp.exec_cmd("handy --toggle-post-process"))
+hl.bind("Control_R", hl.dsp.global("anomaly.hex:dictation-ALT-space"))
+-- Hex Annotation
+hl.bind("F9", hl.dsp.global("anomaly.hex:capture-F9"))
 
 -- Close & Kill steam
 local function close_bind()
