@@ -135,6 +135,12 @@ register_rules({
 			class = "hyprland-share-picker",
 		},
 	},
+	{
+		name = "CubeMX: floating",
+		match = {
+			class = "com-st-microxplorer-maingui-STM32CubeMX",
+		},
+	},
 }, STYLE.persistent_floating)
 
 ----------------------------------------------------------
