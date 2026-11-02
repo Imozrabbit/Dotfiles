@@ -7,7 +7,7 @@ if hl.plugin.hyprglass then
 	hg.config({
 		enabled = false,
 		default_theme = "dark",
-		default_preset = "minor",
+		default_preset = "liquid-glass-minus",
 		manage_window_blur = true,
 		layers = {
 			enabled = true,
@@ -19,43 +19,56 @@ if hl.plugin.hyprglass then
 	-----------------------------------------------------------------------------
 	-- Layer surfaces: each call whitelists the namespace and configures it
 	-----------------------------------------------------------------------------
-	local layer_minor = {
+	local layer_minus = {
 		"rofi",
-		"quickshell-calendar",
-		"swaync-notification-window",
 		"level-osd",
+		"swaync-notification-window",
+		"quickshell-top-media",
+		"quickshell-calendar",
 	}
 
-	local layer_master = {
-		"calendar-menu",
-		"swaync-control-center",
-		"battery-menu",
-		"bluetooth-menu",
+	local layer_default = {
+		"quickshell-command-center",
+	}
+
+	local layer_plus = {
 		"wifi-menu",
+		"battery-menu",
+		"calendar-menu",
+		"bluetooth-menu",
 		"proton-manager",
+		"quickshell-bottom-bar",
+		"swaync-control-center",
+		"quickshell-bar-tooltip",
 	}
 
 	local layer_disable = {
-		"quickshell-bottom-bar",
-		"quickshell-top-media",
-		"quickshell-wallpaper-preview",
-		"quickshell:expose",
-		"wallpaper-switcher-contour",
-		"quickshell-lock-preview",
 		"selection",
+		"quickshell:expose",
+		"quickshell-lock-preview",
+		"wallpaper-switcher-contour",
+		"quickshell-wallpaper-preview",
 	}
 
-	for _, namespace in ipairs(layer_minor) do
+	for _, namespace in ipairs(layer_minus) do
 		hg.layer(namespace, {
-			preset = "minor",
+			preset = "liquid-glass-minus",
 			mask_threshold = 0.05,
 			mask_feather = 0.45,
 		})
 	end
 
-	for _, namespace in ipairs(layer_master) do
+	for _, namespace in ipairs(layer_default) do
 		hg.layer(namespace, {
-			preset = "master-pick-glass",
+			preset = "liquid-glass",
+			mask_threshold = 0.05,
+			mask_feather = 0.45,
+		})
+	end
+
+	for _, namespace in ipairs(layer_plus) do
+		hg.layer(namespace, {
+			preset = "liquid-glass-plus",
 			mask_threshold = 0.05,
 			mask_feather = 0.45,
 		})
@@ -70,7 +83,7 @@ if hl.plugin.hyprglass then
 	-----------------------------------------------------------------------------
 	-- Presets
 	-----------------------------------------------------------------------------
-	hg.preset("minor", {
+	hg.preset("liquid-glass-minus", {
 		blur_strength = 1.5,
 		blur_iterations = 2,
 		edge_thickness = 0.06,
@@ -89,8 +102,21 @@ if hl.plugin.hyprglass then
 		},
 	})
 
-	hg.preset("master-pick-glass", {
-		inherits = "minor",
+	hg.preset("liquid-glass", {
+		inherits = "liquid-glass-minus",
+		blur_strength = 1.4,
+		edge_thickness = 0.01,
+		refraction_strength = 6,
+		chromatic_aberration = 0.45,
+		lens_distortion = 0.45,
+		fresnel_strength = 0.85,
+		dark = {
+			tint_color = 0x8C6AA808,
+		},
+	})
+
+	hg.preset("liquid-glass-plus", {
+		inherits = "liquid-glass-minus",
 		blur_strength = 1.3,
 		edge_thickness = 0.01,
 		refraction_strength = 8.0,
