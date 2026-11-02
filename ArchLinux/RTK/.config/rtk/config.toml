@@ -22,20 +22,24 @@ ignore_files = [
     "*.min.css",
 ]
 
-[tee]
-enabled = true
-mode = "failures"
-max_files = 10
-max_file_size = 524288
+[retriever]
+mode = "sqlite"
+max_entry_bytes = 10485760
+max_entries = 200
+retention_days = 30
+compression = true
+tee_max_files = 20
+tee_max_file_size = 1048576
+tee_on_success = false
 
 [telemetry]
 enabled = false
-consent_given = false
-consent_date = "2026-08-08T01:45:57.543471641+00:00"
 
 [hooks]
 exclude_commands = []
 transparent_prefixes = []
+suppress_hook_warning = false
+wrap_fish_scripts = false
 
 [limits]
 grep_max_results = 200
@@ -43,3 +47,6 @@ grep_max_per_file = 25
 status_max_files = 15
 status_max_untracked = 10
 passthrough_max_chars = 2000
+
+[awareness]
+level = "high"
