@@ -28,6 +28,7 @@ hl.on("hyprland.start", function()
 	hl.exec_cmd("qs -c calendar -d")
 	hl.exec_cmd("qs -c bar -d")
 	hl.exec_cmd("qs -c desktop-status -d")
+	hl.exec_cmd("qs -c command-center -d")
 
 	-- Autostart the input methode framework fcitx5
 	hl.exec_cmd("fcitx5 --replace -d")
@@ -35,6 +36,6 @@ hl.on("hyprland.start", function()
 	-- Set up DP-1 as my primary monitor in x11 sessions like some steam games
 	hl.exec_cmd("xrandr --output DP-1 --primary")
 
-	-- Autostart handy
-	hl.exec_cmd("handy --start-hidden")
+	-- Auto load hyprglass
+	hl.exec_cmd("hyprpm reload")
 end)
