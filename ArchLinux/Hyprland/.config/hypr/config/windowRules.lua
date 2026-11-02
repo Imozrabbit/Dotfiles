@@ -130,10 +130,22 @@ register_rules({
 		},
 	},
 	{
-		name = "handy: floating",
+		name = "hex: floating",
 		match = {
-			class = "handy",
-			title = "Handy",
+			class = "hex",
+			title = "Hex",
+		},
+	},
+	{
+		name = "Screenshare menu: floating",
+		match = {
+			class = "hyprland-share-picker",
+		},
+	},
+	{
+		name = "CubeMX: floating",
+		match = {
+			class = "com-st-microxplorer-maingui-STM32CubeMX",
 		},
 	},
 }, STYLE.persistent_floating)
@@ -166,8 +178,8 @@ window_rule(
 window_rule(
 	"Stremio: fullscreen on workspace 4",
 	{
-		class = "com.stremio.stremio",
-		title = "Stremio - Freedom to Stream",
+		class = "com.stremio.Stremio",
+		title = "Stremio",
 	},
 	STYLE.opaque,
 	{
