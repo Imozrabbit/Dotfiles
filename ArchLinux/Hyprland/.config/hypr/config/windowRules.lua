@@ -129,6 +129,12 @@ register_rules({
 			title = "Hex",
 		},
 	},
+	{
+		name = "Screenshare menu: floating",
+		match = {
+			class = "hyprland-share-picker",
+		},
+	},
 }, STYLE.persistent_floating)
 
 ----------------------------------------------------------
