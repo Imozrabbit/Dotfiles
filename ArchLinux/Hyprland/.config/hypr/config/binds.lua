@@ -116,8 +116,10 @@ hl.bind(mainMod .. "+ period", hl.dsp.exec_cmd('rmpc remote keybind "."'), { loc
 -- Screenshot
 hl.bind("Print", hl.dsp.exec_cmd("/home/Zrabbit/.config/shell/script/Screenshot/screenshot_region"))
 
--- Voice control
-hl.bind("Control_R", hl.dsp.exec_cmd("hex dictation toggle"), { release = true })
+-- Voice Transcription with AI Post-Processing
+hl.bind("Control_R", hl.dsp.global("anomaly.hex:dictation-ALT-space"))
+-- Hex Annotation
+hl.bind("F9", hl.dsp.global("anomaly.hex:capture-F9"))
 
 --Close & Kill steam
 local function close_bind()
