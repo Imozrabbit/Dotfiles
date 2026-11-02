@@ -2,9 +2,10 @@ return {
 	"nvim-lualine/lualine.nvim",
 	dependencies = { "nvim-tree/nvim-web-devicons" },
 	config = function()
+		local is_ssh = vim.env.SSH_CONNECTION ~= nil or vim.env.SSH_TTY ~= nil
 		local lazy_status = require("lazy.status") -- to configure lazy pending updates count
 		-- Theme setup
-		local custom_dark = require("lualine.themes.ayu_dark")
+		local custom_dark = require(is_ssh and "lualine.themes.gruvbox_dark" or "lualine.themes.ayu_dark")
 		-- Change the background of lualine_c section for normal mode
 		custom_dark.normal.c.fg = "#FF61EF"
 		require("lualine").setup({
@@ -48,11 +49,14 @@ return {
 						},
 					},
 					{ "filetype" },
-				},
-
-				lualine_z = {
-					-- Show the currently connected server and its status
-					require("opencode").statusline,
+					{
+						function()
+							return "SSH"
+						end,
+						cond = function()
+							return vim.env.SSH_CONNECTION ~= nil or vim.env.SSH_TTY ~= nil
+						end,
+					},
 				},
 			},
 		})
