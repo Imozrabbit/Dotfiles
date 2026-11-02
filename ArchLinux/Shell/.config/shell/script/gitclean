@@ -4,7 +4,7 @@ set -euo pipefail
 # Print prompt
 printf "\033[1;36m󰿞 Choose the target repo:\033[0m\n"
 printf "\033[38;5;208m  ⤷ 󰎦  Dotfiles\033[0m\n"
-printf "\033[38;5;208m  ⤷ 󰎩  Wallpaper switcher project\033[0m\n"
+printf "\033[38;5;208m  ⤷ 󰎩  Embedded\033[0m\n"
 printf "\033[38;5;208m  ⤷ 󰎬  (Future repos, wait to be added)\033[0m\n"
 printf "\033[38;5;208m  ⤷ 󰎮  Quit\033[0m\n"
 printf "\033[1;36mYour choice ›\033[0m "
@@ -19,7 +19,7 @@ case "$repo" in
       ;;
   2)
       printf "\033[1;36m%*s\033[0m\n" "$(tput cols)" "" | tr ' ' '='
-      cd "/home/Zrabbit/Projects/Wallpaper Switcher"
+      cd "/home/Zrabbit/Projects/STM32"
       /home/Zrabbit/Documents/Dotfiles/ArchLinux/Shell/.config/shell/script/GitClean/action
       ;;
   3)
