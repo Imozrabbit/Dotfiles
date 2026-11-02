@@ -15,6 +15,7 @@ alias state='z /home/Zrabbit/.local/state'
 alias config='z /home/Zrabbit/.config'
 alias cache='z /home/Zrabbit/.cache'
 alias dotfile='z /home/Zrabbit/Documents/Dotfiles'
+alias stm='z /home/Zrabbit/Projects/STM32'
 alias root='z /'
 alias z..="z .."
 alias ..='z ..'
