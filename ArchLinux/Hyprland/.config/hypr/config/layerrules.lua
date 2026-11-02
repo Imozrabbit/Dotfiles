@@ -1,11 +1,29 @@
 -- Add blur for multiple bar module panel windows
 hl.layer_rule({
 	match = {
-		namespace = "^(calendar-menu|battery-menu|bluetooth-menu|wifi-menu|proton-manager)$",
+		namespace = "^(calendar-menu|battery-menu|bluetooth-menu|wifi-menu|proton-manager|quickshell-bottom-bar)$",
 	},
 	blur = true,
 	ignore_alpha = 0.5,
 	animation = "slide bottom",
+})
+
+hl.layer_rule({
+	match = {
+		namespace = "quickshell-top-media",
+	},
+	blur = true,
+	ignore_alpha = 0.1,
+	animation = "slide top",
+})
+
+hl.layer_rule({
+	match = {
+		namespace = "quickshell-bar-tooltip",
+	},
+	blur = true,
+	ignore_alpha = 0.5,
+	animation = "fade",
 })
 
 -- Add blur and transparency to calendar moduel
@@ -19,6 +37,12 @@ hl.layer_rule({
 -- Add blur for swaync the notification center
 hl.layer_rule({
 	match = { namespace = "swaync-control-center" },
+	blur = true,
+	ignore_alpha = 0.5,
+	animation = "slide",
+})
+hl.layer_rule({
+	match = { namespace = "quickshell-command-center" },
 	blur = true,
 	ignore_alpha = 0.5,
 	animation = "slide",
@@ -76,4 +100,12 @@ hl.layer_rule({
 		namespace = "^(weather|clock|ram-osd|desktop-status)$",
 	},
 	above_lock = 1,
+})
+
+-- Make hex-hud appear from the edge
+hl.layer_rule({
+	match = {
+		namespace = "hex-hud",
+	},
+	animation = "popin",
 })
