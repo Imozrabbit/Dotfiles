@@ -9,6 +9,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 
@@ -36,6 +37,8 @@ def normalize_usage(payload, fetched_at):
         if duration not in (18000, 604800):
             continue
         used = window.get("used_percent")
+        if isinstance(used, Decimal):
+            used = float(used)
         reset = window.get("reset_at")
         if type(used) not in (int, float) or not math.isfinite(used) or used < 0:
             raise QuotaError("Invalid OpenAI usage percentage")
@@ -48,6 +51,13 @@ def normalize_usage(payload, fetched_at):
     count = resets.get("available_count") if isinstance(resets, dict) else None
     if type(count) is not int or not 0 <= count <= 9007199254740991:
         count = None
+    credits = payload.get("credits")
+    balance = credits.get("balance") if isinstance(credits, dict) else None
+    try:
+        balance = Decimal(str(balance))
+        balance = int(balance) if balance.is_finite() and 0 <= balance <= 9007199254740991 else None
+    except InvalidOperation:
+        balance = None
     return {
         "plan": payload.get("plan_type") if isinstance(payload.get("plan_type"), str) else "unknown",
         "allowed": limit["allowed"],
@@ -55,6 +65,7 @@ def normalize_usage(payload, fetched_at):
         "fiveHour": windows.get(18000),
         "weekly": windows.get(604800),
         "bankedResets": count,
+        "creditBalance": balance,
         "fetchedAt": fetched_at,
     }
 
@@ -125,8 +136,8 @@ def fetch_usage(auth):
     if len(raw) > 131072:
         raise QuotaError("Unexpectedly large OpenAI quota response")
     try:
-        payload = json.loads(raw)
-    except (ValueError, UnicodeError):
+        payload = json.loads(raw, parse_float=Decimal)
+    except (ValueError, UnicodeError, InvalidOperation):
         raise QuotaError("Invalid OpenAI quota response") from None
     return normalize_usage(payload, int(time.time() * 1000))
 

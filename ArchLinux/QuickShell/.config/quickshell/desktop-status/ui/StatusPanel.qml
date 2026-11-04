@@ -44,10 +44,26 @@ Item {
             spacing: 8
 
             Text {
+                id: quotaHeading
+                objectName: "quotaHeading"
+                width: parent.width
                 text: "OPENAI"
                 color: root.config.mutedColor
                 font.family: root.config.fontFamily
                 font.pixelSize: root.config.fontSize - 4
+
+                Text {
+                    objectName: "quotaCredits"
+                    readonly property var balance: root.snapshot?.creditBalance ?? null
+                    anchors.right: parent.right
+                    anchors.baseline: parent.baseline
+                    width: Math.min(implicitWidth, Math.max(0, quotaHeading.width - quotaHeading.contentWidth - 8))
+                    visible: balance > 0
+                    text: visible ? balance.toLocaleString(Qt.locale("en_US"), "f", 0) + " CR" : ""
+                    font: quotaHeading.font
+                    color: quotaHeading.color
+                    elide: Text.ElideRight
+                }
             }
             MeterRow {
                 objectName: "quotaWeekly"

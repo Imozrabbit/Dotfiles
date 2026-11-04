@@ -5,13 +5,15 @@ They sit behind application windows and run independently of the bar.
 
 ## Features
 
-- **OpenAI/Codex:** remaining weekly and 5-hour quota, with reset countdowns.
+- **OpenAI/Codex:** remaining weekly and 5-hour quota, with reset countdowns and credit balance.
 - **WLMouse Beast X:** battery percentage and charging status (wired or 1K receiver).
 - **DJI Mic Mini:** battery tiers and charging status for each transmitter.
 
 Click a reading to refresh. Batteries refresh every minute; quota every five
 minutes and at reset. `+` means charging; `N/A` means no reading is available.
 Mic levels run from `FULL` to `L7` (lowest), not exact percentages.
+Credits appear beside the OPENAI heading, truncated to whole credits; zero or
+unavailable balances are hidden.
 
 ## Requirements
 

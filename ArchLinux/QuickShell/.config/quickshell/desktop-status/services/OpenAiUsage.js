@@ -16,6 +16,8 @@ function parseStatus(text) {
         return null;
     if (!Number.isSafeInteger(data.bankedResets) || data.bankedResets < 0)
         data.bankedResets = null;
+    if (!Number.isSafeInteger(data.creditBalance) || data.creditBalance < 0)
+        data.creditBalance = null;
     return data;
 }
 

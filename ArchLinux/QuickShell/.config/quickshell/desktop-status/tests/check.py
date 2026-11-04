@@ -103,7 +103,7 @@ Window {{
             "quotaService": {"available": True, "error": "", "snapshot": {
                 "weekly": {"usedPercent": 66, "resetAt": now + 194400000},
                 "fiveHour": {"usedPercent": 18, "resetAt": now + 5040000},
-                "bankedResets": 2, "fetchedAt": now, "plan": "plus", "allowed": True, "limitReached": False,
+                "bankedResets": 2, "creditBalance": 1286, "fetchedAt": now, "plan": "plus", "allowed": True, "limitReached": False,
             }},
             "mouseService": {"available": True, "percentage": 79, "charging": True,
                              "connection": "wired", "error": ""},
@@ -161,6 +161,35 @@ Window {{
         panel.setProperty("currentDate", QDateTime.fromMSecsSinceEpoch(now))
 
         original_quota = panel.property("quotaService")
+        heading = meter("quotaHeading")
+        credits = meter("quotaCredits")
+        assert credits.isVisible() and credits.property("text") == "1,286 CR"
+        assert credits.property("font") == heading.property("font")
+        assert credits.property("color") == heading.property("color")
+        original_height = panel.implicitHeight()
+        for balance, text in ((None, ""), (0, ""), (1, "1 CR"), (1286, "1,286 CR"),
+                              (9007199254740991, "9,007,199,254,740,991 CR")):
+            snapshot = original_quota.toVariant()
+            snapshot["snapshot"]["creditBalance"] = balance
+            panel.setProperty("quotaService", engine.evaluate("(" + json.dumps(snapshot) + ")"))
+            QTest.qWait(20)
+            assert credits.isVisible() == bool(text), balance
+            assert credits.property("text") == text, balance
+            assert abs(panel.implicitHeight() - original_height) < 0.1, "Balance must not add height"
+            if text:
+                assert abs(credits.x() + credits.width() - heading.width()) < 0.1
+                assert credits.x() >= heading.property("contentWidth") + 8 - 0.1, "Keep title unobstructed"
+        for unavailable in ("missing", "failed"):
+            snapshot = original_quota.toVariant()
+            if unavailable == "missing":
+                del snapshot["snapshot"]["creditBalance"]
+            else:
+                snapshot["available"] = False
+            panel.setProperty("quotaService", engine.evaluate("(" + json.dumps(snapshot) + ")"))
+            QTest.qWait(20)
+            assert not credits.isVisible() and credits.property("text") == "", unavailable
+        panel.setProperty("quotaService", original_quota)
+
         unknown_reset = original_quota.toVariant()
         unknown_reset["snapshot"]["weekly"]["resetAt"] = None
         unknown_reset["snapshot"]["fiveHour"] = None
@@ -218,6 +247,7 @@ Window {{
         for name in ("quotaWeekly", "quotaFiveHour", "mouseBattery", "mic-unavailable"):
             assert meter(name).property("valueText") == "N/A", name
             assert meter(name).property("fraction") == -1, name
+        assert not credits.isVisible(), "Missing quota must hide credit balance"
 
         # Run the actual sibling weather row with fixture data, without its
         # Wayland surface or network service. Standalone installs may omit it.
@@ -350,7 +380,7 @@ Item {{
             item.deleteLater()
         app.sendPostedEvents(None, QEvent.DeferredDelete)
         del window, engine, app
-        print("PASS: startup, module switches, reset countdowns, quota/battery states, click-only refresh, bounded layout")
+        print("PASS: startup, module switches, reset countdowns, credits, quota/battery states, click-only refresh, bounded layout")
 
 
 if __name__ == "__main__":
