@@ -148,6 +148,13 @@ register_rules({
 			class = "com-st-microxplorer-maingui-STM32CubeMX",
 		},
 	},
+	{
+		name = "EnteAuth: floating",
+		match = {
+			class = "io.ente.auth",
+			title = "Ente Auth",
+		},
+	},
 }, STYLE.persistent_floating)
 
 ----------------------------------------------------------
