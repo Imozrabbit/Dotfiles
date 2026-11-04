@@ -88,7 +88,7 @@
             "6":          SwitchToTab("Artists"),
             "7":          SwitchToTab("Albums"),
             "<C-u>":      Update,
-            "<C-U>":      Rescan,
+            "<F5>":      Rescan,
             "R":          AddRandom,
         },
         navigation: {
