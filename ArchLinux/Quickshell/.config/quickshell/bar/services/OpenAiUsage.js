@@ -14,6 +14,8 @@ function parseStatus(text) {
         || !Number.isSafeInteger(data.fetchedAt) || data.fetchedAt <= 0 || !validWindow(data.fiveHour) || !validWindow(data.weekly)
         || !data.fiveHour && !data.weekly)
         return null;
+    if (!Number.isSafeInteger(data.creditBalance) || data.creditBalance < 0)
+        data.creditBalance = null;
     if (!Number.isSafeInteger(data.bankedResets) || data.bankedResets < 0)
         data.bankedResets = null;
     return data;

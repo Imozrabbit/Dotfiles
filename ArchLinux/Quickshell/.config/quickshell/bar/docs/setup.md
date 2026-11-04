@@ -64,6 +64,10 @@ to `"fiveHour"` or `"both"` as needed. Chips show **percentage remaining**, not 
 `󰨳 64%`, `󰔛 25%`, or `󰨳 64% · 󰔛 25%`. Tooltip always includes both
 periods and reset times. Missing readings show `N/A` for that period.
 
+The tooltip shows **Credits** directly above **Banked resets**, without fractional
+digits (`1364.14` becomes `1364`). This is a credit count, not euros. Missing or
+failed readings show `Unavailable`.
+
 Five circles summarize banked resets: `● ● ● ● ● +2` means seven. Unknown data
 shows `Unavailable`; the bar never redeems resets or fetches individual expirations.
 

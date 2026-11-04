@@ -9,6 +9,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 
@@ -48,12 +49,24 @@ def normalize_usage(payload, fetched_at):
     count = resets.get("available_count") if isinstance(resets, dict) else None
     if type(count) is not int or not 0 <= count <= 9007199254740991:
         count = None
+    credits = payload.get("credits")
+    balance = credits.get("balance") if isinstance(credits, dict) else None
+    credit_balance = None
+    if type(balance) in (str, int, float):
+        try:
+            # Avoid float rounding before discarding fractional credit units.
+            amount = Decimal(str(balance))
+            if amount.is_finite() and 0 <= amount < 9007199254740992:
+                credit_balance = int(amount)
+        except InvalidOperation:
+            pass
     return {
         "plan": payload.get("plan_type") if isinstance(payload.get("plan_type"), str) else "unknown",
         "allowed": limit["allowed"],
         "limitReached": limit["limit_reached"],
         "fiveHour": windows.get(18000),
         "weekly": windows.get(604800),
+        "creditBalance": credit_balance,
         "bankedResets": count,
         "fetchedAt": fetched_at,
     }

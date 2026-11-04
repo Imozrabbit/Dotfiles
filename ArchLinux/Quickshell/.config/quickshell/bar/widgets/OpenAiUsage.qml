@@ -54,6 +54,10 @@ Rectangle {
             });
         }
         rows.push({
+            label: "Credits",
+            value: String((root.available ? root.snapshot?.creditBalance : null) ?? "Unavailable")
+        });
+        rows.push({
             label: "Banked resets",
             dotCount: root.available && root.snapshot ? root.snapshot.bankedResets : null,
             value: Usage.bankedResetsText(root.available && root.snapshot ? root.snapshot.bankedResets : null)
