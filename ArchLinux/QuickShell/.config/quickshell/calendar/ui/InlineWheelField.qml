@@ -20,8 +20,9 @@ Item {
     property int chevronPixelSize: 17
     readonly property int labelHeight: root.label.length > 0 ? 14 : 0
     readonly property int collapsedHeight: 34
-    readonly property int availableRowsAbove: Math.max(0, currentIndex)
-    readonly property int availableRowsBelow: Math.max(0, model.length - currentIndex - 1)
+    readonly property int popupIndex: Math.max(0, Math.min(currentIndex, model.length - 1))
+    readonly property int availableRowsAbove: popupIndex
+    readonly property int availableRowsBelow: Math.max(0, model.length - popupIndex - 1)
     readonly property int visibleRowsAbove: trimModelEnds ? Math.min(availableRowsAbove, Math.max(1, 2 - availableRowsBelow)) : 2
     readonly property int visibleRowsBelow: trimModelEnds ? Math.min(availableRowsBelow, 2 - visibleRowsAbove) : 2
     readonly property int visibleRowCount: visibleRowsAbove + 1 + visibleRowsBelow
@@ -197,7 +198,7 @@ Item {
             property bool ready: false
 
             model: root.model
-            currentIndex: root.currentIndex
+            currentIndex: root.popupIndex
             visibleItemCount: 5
             wrap: false
 
@@ -244,7 +245,10 @@ Item {
                 TapHandler {
                     id: wheelEntryTap
                     onTapped: {
-                        valueWheel.currentIndex = wheelEntry.index;
+                        if (valueWheel.currentIndex === wheelEntry.index)
+                            root.selectionRequested(wheelEntry.index, root.model[wheelEntry.index]);
+                        else
+                            valueWheel.currentIndex = wheelEntry.index;
                         root.collapseRequested();
                     }
                 }

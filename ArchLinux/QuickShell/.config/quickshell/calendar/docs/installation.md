@@ -40,10 +40,10 @@ download, not a compromised publisher. Run the following commands one at a time;
 continue only if each succeeds and the checksum command reports **OK**:
 
 ```sh
-sha256sum -c calendar-v0.1-linux-x86_64.tar.gz.sha256
+sha256sum -c calendar-v0.1.1-linux-x86_64.tar.gz.sha256
 mkdir -m 700 calendar-install
-tar -xzf calendar-v0.1-linux-x86_64.tar.gz -C calendar-install
-sh calendar-install/calendar/install.sh --archive "$PWD/calendar-v0.1-linux-x86_64.tar.gz"
+tar -xzf calendar-v0.1.1-linux-x86_64.tar.gz -C calendar-install
+sh calendar-install/calendar/install.sh --archive "$PWD/calendar-v0.1.1-linux-x86_64.tar.gz"
 ```
 
 The target is `~/.config/quickshell/calendar`, even when its Quickshell parent is a
@@ -93,11 +93,16 @@ Run from your **active desktop-session terminal**, not a plain SSH session:
 sh "$HOME/.config/quickshell/calendar/update.sh"
 ```
 
+Clients on `0.1` use this same command for stable `0.1.1`; no separate patch script or
+reinstallation is needed. This patch fixes selecting **Create new remote calendar…**
+on empty accounts in both new-calendar and local-attachment forms, and removes the
+extra blank row from single-option pickers. The updater itself is unchanged.
+
 For a newer reviewed local candidate, keep its adjacent checksum and pass its exact archive
-path (example: `0.2`; explicit beta candidates use the same option):
+path (example: `0.1.1`; explicit beta candidates use the same option):
 
 ```sh
-sh "$HOME/.config/quickshell/calendar/update.sh" --archive /absolute/path/calendar-v0.2-linux-x86_64.tar.gz
+sh "$HOME/.config/quickshell/calendar/update.sh" --archive /absolute/path/calendar-v0.1.1-linux-x86_64.tar.gz
 ```
 
 Only installations with a verified installation record (**receipt**) can update. Source
@@ -107,6 +112,9 @@ need separate reviewed migration; there is no automatic migration switch.
 Changed/unexpected program files, custom service definitions or effective overrides,
 pending native recovery, an instance on another display or a busy lifecycle lock stop the
 update safely. Read the message rather than removing files or bypassing checks.
+
+Do not overwrite installed QML files or replace `update.sh` by hand: the receipt verifies
+program hashes. Deliver fixes through the complete newer archive/checksum pair.
 
 Updates replace program files, not events, UIDs, recurrence, reminders, sync settings,
 databases, credentials, ownership or permissions. Unknown/custom program files are refused,

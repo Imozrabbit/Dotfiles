@@ -290,6 +290,15 @@ create/update/delete/persist/moves between profile publication and checkpoint. P
 server capabilities/permissions and desktop lifecycle remain unverified until separately
 authorized disposable tests.
 
+The shared `InlineWheelField.qml` keeps an unselected field at `currentIndex: -1`
+while clamping only its popup position. A click on the already-highlighted option
+still reports exactly one selection; opening the popup alone selects nothing. Trimmed
+single-option popups occupy one row. `ui/test-interaction-qt.py` covers real delegate
+clicks, selection counts and popup height for unselected/single/multiple options.
+Both remote-creation and local-attachment panel tests scroll the field into view and
+click the real popup instead of directly emitting `selectionRequested`; selecting
+creation alone must remain read-only.
+
 ### Local-to-synced attachment
 
 `attach-begin/finish/cancel/retry` use the async coordinator and conversions list with
@@ -479,7 +488,7 @@ From the Calendar source root:
 python3 -I -B tools/package-release.py
 ```
 
-The development-only packager reads `VERSION` (currently `0.1`) and the explicit
+The development-only packager reads `VERSION` (currently `0.1.1`) and the explicit
 `release-files.txt` allowlist. It freezes owned, unlinked inputs in private staging,
 builds `convert` and `calendar-sync-helper` with the Makefile, checks ELF architecture,
 and packages runtime files under one `calendar/` root. It never replaces working
@@ -495,9 +504,9 @@ owned build process group before deleting staging.
 Each successful invocation creates a new private, Git-ignored directory:
 
 ```text
-dist/releases/calendar-v0.1-linux-x86_64-<unique-id>/
-  calendar-v0.1-linux-x86_64.tar.gz
-  calendar-v0.1-linux-x86_64.tar.gz.sha256
+dist/releases/calendar-v0.1.1-linux-x86_64-<unique-id>/
+  calendar-v0.1.1-linux-x86_64.tar.gz
+  calendar-v0.1.1-linux-x86_64.tar.gz.sha256
 ```
 
 `dist/` is Git-ignored. Whole-app archives go in `dist/releases/`, separate from native
@@ -509,7 +518,7 @@ build inputs; never restore or publish old source-building installers from backu
 Earlier candidates are never overwritten. Handled failures/cancellation clean staging
 without leaving a completed archive/checksum pair. Packager SIGKILL or power loss may
 leave staging for inspected cleanup. From the candidate directory, run
-`sha256sum -c calendar-v0.1-linux-x86_64.tar.gz.sha256`; checksums detect corruption,
+`sha256sum -c calendar-v0.1.1-linux-x86_64.tar.gz.sha256`; checksums detect corruption,
 not publisher authenticity.
 
 The archive contains version/runtime manifest, QML/JavaScript, Python/shell deployment
@@ -526,18 +535,17 @@ guaranteed bit-for-bit reproducible across toolchains. Dependencies remain syste
 libraries; `linux-x86_64` does not imply general Linux/distro portability. Current builds
 require `libical.so.4.0`, Qt `6.12` symbols, `GLIBC_2.38`, `GLIBCXX_3.4.32` and usual
 supporting libraries. Build-host library changes may alter requirements. Package/symbol
-metadata does not replace manual client testing. Beta.1 passed user-operated ThinkPad
-install/update/rollback with one local calendar. Stable `0.1` promotion can reuse that
-evidence only if every runtime file, including fresh helpers, matches except `VERSION`.
-Runtime or library/ABI changes require compatibility reassessment. Cleanup moved deployment
-internals into `deployment/` and removed legacy setup/migration scripts and the update
-alias—not a version-only change. The 39-file archive needs new extracted-entrypoint,
-real artifact lifecycle and appropriate manual desktop/client checks. Cleanup preserves
-native helper paths and QML/native feature behavior.
+metadata does not replace manual client testing. Runtime or library/ABI changes require
+compatibility reassessment, extracted-entrypoint and real-artifact lifecycle checks,
+and appropriate manual desktop/client checks. Version-only promotion can reuse prior
+runtime evidence only when every file, including fresh helpers, matches except `VERSION`.
+Patch `0.1.1` changes the shared picker, not the data schema, runtime-unit membership or
+updater interface; it still requires a complete newer package, not individual file copies.
 
 **Tagging/publication and client installation need separate manual approvals.**
-A local stable `0.1` archive is not a GitHub release. When approved, use tag
-`calendar-v0.1`, title **v0.1**, and **Pre-release unchecked**. Beta parsing and explicit
+A local stable `0.1.1` archive is not a GitHub release. When approved, use tag
+`calendar-v0.1.1`, title **v0.1.1**, and **Pre-release unchecked**. Never replace the
+published `0.1` assets. Beta parsing and explicit
 `--archive` remain supported. Older packaging-only candidates contain source-building
 scripts; never install/publish them. Rebuild with the current runtime installer/backend
 and verify. Client evidence must match that runtime, except version-only promotions
@@ -613,7 +621,7 @@ python3 -I -B dev/tests/installer/test-release-deploy.py
 python3 -I -B dev/tests/installer/test-release-entrypoints.py
 python3 -I -B dev/tests/installer/test-deployment-native.py /path/to/privately/built/calendar-sync-helper
 python3 -I -B dev/tests/installer/test-release-runtime-qs.py
-python3 -I -B dev/tests/installer/test-release-artifact.py /absolute/path/calendar-v0.1-linux-x86_64.tar.gz
+python3 -I -B dev/tests/installer/test-release-artifact.py /absolute/path/calendar-v0.1.1-linux-x86_64.tar.gz
 ```
 
 Archive tests use real filesystem/tar inputs, stubbing only network. Deployment tests
@@ -629,10 +637,16 @@ Isolated checks do not replace client/systemd/library verification; identical-ru
 promotions may reuse evidence as above.
 
 The artifact test uses real release/backend/native helpers for isolated install →
-higher-version same-code update → rollback → update/confirmation. Its process gate allows
-only private native probes/plans and selected-path Quickshell listing—no services, GUI,
-packages, notifications or server commands. Only package-presence checks are bypassed,
-covered separately by dependency-consent fixtures. Checks include data hashes,
-ownership/modes/inodes/timestamps and persistent lock inode. Synthetic higher-beta archives are labeled,
-disposable and never published. Beta baselines increment only beta index; stable baselines
-use next patch's beta.1, never a synthetic stable-looking version.
+update → rollback → repeat update/confirmation → same-version no-op. With
+`BASELINE_ARCHIVE NEW_ARCHIVE`, it exercises two actual stable packages through normal
+discovery using isolated GitHub responses; updater/backend bytes must match both archives.
+One-archive mode creates a disposable same-code higher beta: beta baselines increment
+only beta index; stable baselines use next patch's beta.1, never a synthetic stable-looking
+version. Fixtures are labeled, cleaned and never published.
+
+Its process gate allows only private native probes/plans and selected-path Quickshell
+listing—no services, GUI, packages, notifications or server commands. Package-presence
+checks are bypassed, covered separately by dependency-consent fixtures. Checks preserve
+event/configuration/credential/database hashes, ownership/modes/inodes/timestamps and
+persistent lock inode, and verify complete installed inventories. These checks do not
+contact GitHub or replace a manual desktop/sync check on the client.
