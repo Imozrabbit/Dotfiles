@@ -15,7 +15,7 @@ Singleton {
 
         for (var i = 0; i < windowList.length; i++) {
             var item = windowList[i];
-            if (item.workspaceId < 0)
+            if (item.isSpecialWorkspace)
                 specialList.push(item);
             else
                 normalList.push(item);
@@ -118,7 +118,7 @@ Singleton {
                         height: rItem.height,
                         rowIndex: r,
                         colIndex: rItem.col,
-                        isSpecialWorkspace: rItem.originalItem.workspaceId < 0,
+                        isSpecialWorkspace: rItem.originalItem.isSpecialWorkspace,
                         sectionName: sectionName
                     });
 

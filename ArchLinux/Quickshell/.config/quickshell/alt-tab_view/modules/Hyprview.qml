@@ -126,6 +126,17 @@ PanelWindow {
         }
     }
 
+    function isSpecialWorkspace(workspace) {
+        if (!workspace)
+            return false;
+        if (workspace.type)
+            return workspace.type === "special";
+        if (workspace.id !== undefined && workspace.id !== null)
+            return workspace.id < 0;
+        var name = workspace.address || workspace.name || "";
+        return name === "special" || name.startsWith("special:");
+    }
+
     // --- USER INTERFACE ---
     FocusScope {
         id: mainScope
@@ -284,14 +295,13 @@ PanelWindow {
                                 var w = it;
                                 var clientInfo = w && w.lastIpcObject ? w.lastIpcObject : {};
                                 var workspace = clientInfo && clientInfo.workspace ? clientInfo.workspace : null;
-                                var workspaceId = workspace && workspace.id !== undefined ? workspace.id : undefined;
+                                var workspaceId = workspace ? (workspace.id ?? (workspace.address || workspace.name)) : undefined;
 
-                                // Filter invalid workspace or offscreen windows
-                                if (workspaceId === undefined || workspaceId === null)
+                                // Hyprland 0.57 identifies special workspaces by address/name, without a numeric ID.
+                                if (workspaceId === undefined || workspaceId === null || workspaceId === "")
                                     continue;
                                 var size = clientInfo && clientInfo.size ? clientInfo.size : [0, 0];
-                                var at = clientInfo && clientInfo.at ? clientInfo.at : [-1000, -1000];
-                                if (at[1] + size[1] <= 0)
+                                if (!(size[0] > 0 && size[1] > 0))
                                     continue;
 
                                 // Text filtering
@@ -310,6 +320,7 @@ PanelWindow {
                                     win: w,
                                     clientInfo: clientInfo,
                                     workspaceId: workspaceId,
+                                    isSpecialWorkspace: root.isSpecialWorkspace(workspace),
                                     width: size[0],
                                     height: size[1],
                                     originalIndex: idx++,
@@ -317,8 +328,12 @@ PanelWindow {
                                 });
                             }
 
-                            // Sort by workspaceId, then originalIndex
+                            // Keep special workspaces first, then sort by identity and originalIndex.
                             windowList.sort(function (a, b) {
+                                if (a.isSpecialWorkspace !== b.isSpecialWorkspace)
+                                    return a.isSpecialWorkspace ? -1 : 1;
+                                if (typeof a.workspaceId !== typeof b.workspaceId)
+                                    return typeof a.workspaceId === "number" ? -1 : 1;
                                 if (a.workspaceId < b.workspaceId)
                                     return -1;
                                 if (a.workspaceId > b.workspaceId)
@@ -350,10 +365,8 @@ PanelWindow {
                             // Layout-generated coordinates
                             targetX: modelData.x
                             targetY: modelData.y
-                            targetZ: (visible && (exposeArea.currentIndex === index))
-                            ? 1000
-                            : (modelData ? (modelData.zIndex || 0) : 0)
-                            targetRotation: modelData ? (modelData.rotation || 0) : 0
+                            targetZ: (visible && (exposeArea.currentIndex === index)) ? 1000 : modelData.zIndex || 0
+                            targetRotation: modelData.rotation || 0
 
                             hovered: visible && (exposeArea.currentIndex === index)
                             moveCursorToActiveWindow: root.moveCursorToActiveWindow

@@ -19,6 +19,7 @@ Item {
     property real thumbH: -1
 
     property var clientInfo: {}
+    readonly property bool isSpecialWorkspace: root.isSpecialWorkspace(clientInfo ? clientInfo.workspace : null)
     property bool hovered: false
 
     property real targetX: -1000
@@ -139,9 +140,7 @@ Item {
     function activateWindow() {
         if (!hWin)
             return;
-        var targetIsSpecial = (hWin?.workspace ?? 0) < 0 || (hWin?.workspace?.name ?? "").startsWith("special");
-
-        if (root.specialActive && !targetIsSpecial) {
+        if (root.specialActive && !thumbContainer.isSpecialWorkspace) {
             Hyprland.dispatch("togglespecialworkspace");
         }
 
@@ -245,8 +244,7 @@ Item {
                     color: thumbContainer.hovered ? "transparent" : "#33000000"
                     border.width: thumbContainer.hovered ? 3 : 1
                     border.color: {
-                        var isSpecial = hWin.lastIpcObject && hWin.lastIpcObject.workspace && hWin.lastIpcObject.workspace.id < 0;
-                        if (isSpecial)
+                        if (thumbContainer.isSpecialWorkspace)
                             return thumbContainer.hovered ? "#c9f300d7" : "#4ff300d7";
 
                         return thumbContainer.hovered ? "#ff0088cc" : "#cc444444";
@@ -269,9 +267,7 @@ Item {
             color: thumbContainer.hovered ? "#E6141020" : "#B30B0A12"
             border.width: 1
             border.color: {
-                var isSpecial = hWin.lastIpcObject && hWin.lastIpcObject.workspace && hWin.lastIpcObject.workspace.id < 0;
-
-                if (isSpecial)
+                if (thumbContainer.isSpecialWorkspace)
                     return thumbContainer.hovered ? "#c9f300d7" : "#4ff300d7";
 
                 return thumbContainer.hovered ? "#ff0088cc" : "#cc444444";
