@@ -50,11 +50,11 @@ rm -f -- \
     "$HOME/Matlab"/matlab_crash_dump.* \
     "$HOME/Matlab"/java.log.* \
     "$HOME/Matlab"/hs_error_pid*.log
-find "$HOME/Matlab/.MathWorks" \
-    -path '*/crash_reports/completed/*.dmp' \
-    -type f \
-    -mtime +7 \
-    -delete 2>/dev/null
+if [[ -d "$HOME/Matlab/.MathWorks" ]]; then
+    find "$HOME/Matlab/.MathWorks" \
+        -path '*/crash_reports/completed/*.dmp' \
+        -type f -mtime +7 -delete
+fi
 printf "\033[1;36m%s\033[0m\n" "MATLAB crash log/dumps cleared"
 
 
@@ -71,6 +71,10 @@ rm -rf "${XDG_STATE_HOME:-$HOME/.local/state}/npm/logs/"*
 printf "\033[1;36m%s\033[0m\n" "NPM caches and logs cleared"
 go clean -cache -modcache -testcache -fuzzcache
 printf "\033[1;36m%s\033[0m\n" "Go caches cleared"
+
+# Clear Bun runtime transpiler cache
+rm -rf -- "${XDG_CACHE_HOME:-$HOME/.cache}/bun"
+printf "\033[1;36m%s\033[0m\n" "Bun runtime cache cleared"
 
 # Clear python package's cache
 [ -d "$HOME/.cache/pip" ] && rm -rf -- "${HOME:?}/.cache/pip/"*
