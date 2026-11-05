@@ -23,12 +23,6 @@ local function window_rule(name, match, ...)
 	hl.window_rule(properties)
 end
 
-local function register_rules(definitions, ...)
-	for _, definition in ipairs(definitions) do
-		window_rule(definition.name, definition.match, ...)
-	end
-end
-
 local STYLE = {
 	floating = {
 		float = true,
@@ -64,114 +58,49 @@ window_rule("Fix XWayland dragging", {
 })
 
 ----------------------------------------------------------
--------------------- SHARED BEHAVIOR ---------------------
+------------------------- BROWSERS -----------------------
 ----------------------------------------------------------
-register_rules({
-	{
-		name = "KiCad: opaque",
-		match = { class = "kicad" },
-	},
-	{
-		name = "LTspice: opaque",
-		match = { class = "ltspice.exe" },
-	},
-	{
-		name = "Brave: opaque",
-		match = { class = "brave-origin-nightly" },
-	},
-	{
-		name = "Swappy: opaque",
-		match = {
-			class = "swappy",
-			title = "swappy",
-		},
-	},
-	{
-		name = "Windows VM: opaque",
-		match = {
-			class = "virt-manager",
-			title = "Windows 11 on QEMU/KVM",
-		},
-	},
+window_rule("Brave: opaque", {
+	class = "brave-origin-nightly",
 }, STYLE.opaque)
 
-register_rules({
-	{
-		name = "Zotero dialogs: floating",
-		match = {
-			class = "Zotero",
-			title = "^(Zotero Settings|Select a File|Zotero - Document Preferences|Citation Dialog)$",
-		},
-	},
-	{
-		name = "LACT: floating",
-		match = {
-			class = "io.github.ilya_zlobintsev.LACT",
-			title = "LACT",
-		},
-	},
-	{
-		name = "Qt6 Configuration Tool: floating",
-		match = { class = "qt6ct" },
-	},
-	{
-		name = "Qt5 Configuration Tool: floating",
-		match = { class = "qt5ct" },
-	},
-	{
-		name = "nwg-look: floating",
-		match = { title = "nwg-look" },
-	},
-	{
-		name = "hex: floating",
-		match = {
-			class = "hex",
-			title = "Hex",
-		},
-	},
-	{
-		name = "Screenshare menu: floating",
-		match = {
-			class = "hyprland-share-picker",
-		},
-	},
-	{
-		name = "CubeMX: floating",
-		match = {
-			class = "com-st-microxplorer-maingui-STM32CubeMX",
-		},
-	},
-	{
-		name = "EnteAuth: floating",
-		match = {
-			class = "io.ente.auth",
-			title = "Ente Auth",
-		},
-	},
+window_rule("Zen: opaque", {
+	class = BROWSER,
+}, {
+	opaque = true,
+})
+
+window_rule("Zen: floating secondary windows", {
+	class = BROWSER,
+	title = "^(Picture-in-Picture|Library)$",
+}, STYLE.floating)
+
+----------------------------------------------------------
+-------------------- RESEARCH AND NOTES ------------------
+----------------------------------------------------------
+window_rule("Zotero dialogs: floating", {
+	class = "Zotero",
+	title = "^(Zotero Settings|Select a File|Zotero - Document Preferences|Citation Dialog)$",
 }, STYLE.persistent_floating)
 
 ----------------------------------------------------------
--------------------- WORKSPACE RULES ---------------------
+--------------------- MEDIA AND IMAGES -------------------
 ----------------------------------------------------------
-window_rule(
-	"MATLAB: workspace 6",
-	{
-		class = "MATLAB R2026a Update 4",
-	},
-	STYLE.opaque,
-	{
-		workspace = 6,
-	}
-)
+window_rule("feh: floating opaque window", {
+	class = "feh",
+}, STYLE.floating, STYLE.opaque)
 
 window_rule(
-	"OrcaSlicer and FreeCAD: workspace 5",
+	"mpv: centered floating window",
 	{
-		class = "^(orca-slicer|org[.]freecad[.]FreeCAD)$",
+		class = "mpv",
 	},
+	STYLE.floating,
 	STYLE.opaque,
 	{
-		workspace = 5,
+		size = "1582 890",
+		center = true,
+		border_color = "rgba(00000000)",
 	}
 )
 
@@ -188,44 +117,44 @@ window_rule(
 	}
 )
 
-----------------------------------------------------------
-------------------------- BROWSERS -----------------------
-----------------------------------------------------------
-window_rule("Zen: opaque", {
-	class = BROWSER,
-}, {
-	opaque = true,
-})
-
-window_rule("Zen: floating secondary windows", {
-	class = BROWSER,
-	title = "^(Picture-in-Picture|Library)$",
-}, STYLE.floating)
+window_rule("Swappy: opaque", {
+	class = "swappy",
+	title = "swappy",
+}, STYLE.opaque)
 
 ----------------------------------------------------------
---------------------- MEDIA AND IMAGES -------------------
+---------------------- COMMUNICATION ---------------------
 ----------------------------------------------------------
 window_rule(
-	"mpv: centered floating window",
+	"LocalSend: floating window",
 	{
-		class = "mpv",
+		class = "org.localsend.localsend_app",
+		title = "LocalSend",
 	},
 	STYLE.floating,
-	STYLE.opaque,
 	{
-		size = "1582 890",
-		center = true,
-		border_color = "rgba(00000000)",
+		size = "970 635",
 	}
 )
 
-window_rule("feh: floating opaque window", {
-	class = "feh",
-}, STYLE.floating, STYLE.opaque)
+----------------------------------------------------------
+-------------------- ENGINEERING AND CAD -----------------
+----------------------------------------------------------
+window_rule("CubeMX: floating", {
+	class = "com-st-microxplorer-maingui-STM32CubeMX",
+}, STYLE.persistent_floating)
 
-----------------------------------------------------------
--------------------- ENGINEERING TOOLS -------------------
-----------------------------------------------------------
+window_rule(
+	"OrcaSlicer and FreeCAD: workspace 5",
+	{
+		class = "^(orca-slicer|org[.]freecad[.]FreeCAD)$",
+	},
+	STYLE.opaque,
+	{
+		workspace = 5,
+	}
+)
+
 window_rule("FreeCAD Addon Manager: floating", {
 	class = "org.freecad.FreeCAD",
 	title = "^Addon Manager version .*$",
@@ -235,9 +164,38 @@ window_rule("GTKWave: floating opaque window", {
 	class = "gtkwave",
 }, STYLE.persistent_floating, STYLE.opaque)
 
+window_rule("hex: floating", {
+	class = "hex",
+	title = "Hex",
+}, STYLE.persistent_floating)
+
+window_rule("KiCad: opaque", {
+	class = "kicad",
+}, STYLE.opaque)
+
+window_rule("LTspice: opaque", {
+	class = "ltspice.exe",
+}, STYLE.opaque)
+
+window_rule(
+	"MATLAB: workspace 6",
+	{
+		class = "MATLAB R2026a Update 4",
+	},
+	STYLE.opaque,
+	{
+		workspace = 6,
+	}
+)
+
 ----------------------------------------------------------
 --------------------- VIRTUALIZATION ---------------------
 ----------------------------------------------------------
+window_rule("Windows VM: opaque", {
+	class = "virt-manager",
+	title = "Windows 11 on QEMU/KVM",
+}, STYLE.opaque)
+
 window_rule(
 	"virt-manager: floating management dialogs",
 	{
@@ -251,22 +209,15 @@ window_rule(
 )
 
 ----------------------------------------------------------
-------------------- FLOATING UTILITIES -------------------
+---------------------- DESKTOP SHELL ---------------------
 ----------------------------------------------------------
 window_rule("Authentication Agent: non xray window", {
 	class = "hyprpolkitagent",
 }, { xray = false })
 
-window_rule(
-	"nm-connection-editor: floating window",
-	{
-		class = "nm-connection-editor",
-	},
-	STYLE.floating,
-	{
-		center = true,
-	}
-)
+window_rule("Screenshare menu: floating", {
+	class = "hyprland-share-picker",
+}, STYLE.persistent_floating)
 
 window_rule(
 	"Wallpaper Switcher: floating opaque window",
@@ -281,53 +232,13 @@ window_rule(
 	}
 )
 
-window_rule(
-	"OpenRGB: centered floating window",
-	{
-		class = "org.openrgb.OpenRGB",
-	},
-	STYLE.floating,
-	{
-		size = "1000 750",
-		center = true,
-	}
-)
-
-window_rule(
-	"LocalSend: floating window",
-	{
-		class = "org.localsend.localsend_app",
-		title = "LocalSend",
-	},
-	STYLE.floating,
-	{
-		size = "970 635",
-	}
-)
-
-window_rule(
-	"Pavucontrol: positioned floating dialog",
-	{
-		class = "pavucontrol-qt",
-		title = "Volume Control",
-	},
-	STYLE.floating,
-	{
-		move = "1303 644",
-	}
-)
-
-window_rule(
-	"Bluetui: centered floating window",
-	{
-		class = "bluetui",
-	},
-	STYLE.floating,
-	{
-		size = "900 650",
-		center = true,
-	}
-)
+----------------------------------------------------------
+-------------------- DESKTOP UTILITIES -------------------
+----------------------------------------------------------
+window_rule("EnteAuth: floating", {
+	class = "io.ente.auth",
+	title = "Ente Auth",
+}, STYLE.persistent_floating)
 
 window_rule("Fcitx Configuration Tool: floating opaque dialog", {
 	class = "org.fcitx.fcitx5-config-qt",
@@ -343,6 +254,70 @@ window_rule(
 		size = "970 635",
 		center = true,
 		xray = false,
+	}
+)
+
+window_rule("LACT: floating", {
+	class = "io.github.ilya_zlobintsev.LACT",
+	title = "LACT",
+}, STYLE.persistent_floating)
+
+window_rule(
+	"nm-connection-editor: floating window",
+	{
+		class = "nm-connection-editor",
+	},
+	STYLE.floating,
+	{
+		center = true,
+	}
+)
+
+window_rule("nwg-look: floating", {
+	title = "nwg-look",
+}, STYLE.persistent_floating)
+
+window_rule(
+	"OpenRGB: centered floating window",
+	{
+		class = "org.openrgb.OpenRGB",
+	},
+	STYLE.floating,
+	{
+		size = "1000 750",
+		center = true,
+	}
+)
+
+window_rule(
+	"Pavucontrol: positioned floating dialog",
+	{
+		class = "pavucontrol-qt",
+		title = "Volume Control",
+	},
+	STYLE.floating,
+	{
+		move = "1303 644",
+	}
+)
+
+window_rule("Qt5 Configuration Tool: floating", {
+	class = "qt5ct",
+}, STYLE.persistent_floating)
+
+window_rule("Qt6 Configuration Tool: floating", {
+	class = "qt6ct",
+}, STYLE.persistent_floating)
+
+window_rule(
+	"Bluetui: centered floating window",
+	{
+		class = "bluetui",
+	},
+	STYLE.floating,
+	{
+		size = "900 650",
+		center = true,
 	}
 )
 
