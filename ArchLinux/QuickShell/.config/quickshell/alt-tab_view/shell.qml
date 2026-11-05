@@ -3,8 +3,8 @@ import Quickshell
 import "./modules"
 
 ShellRoot {
-  Hyprview {
-    liveCapture: false
-    moveCursorToActiveWindow: false
-  }
+    Hyprview {
+        liveCapture: false
+        moveCursorToActiveWindow: false
+    }
 }

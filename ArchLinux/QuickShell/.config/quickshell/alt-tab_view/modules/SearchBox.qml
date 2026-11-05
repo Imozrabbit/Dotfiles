@@ -14,7 +14,7 @@ Rectangle {
     property var onTextChanged: null
 
     function reset() {
-      searchInput.text = ""
+        searchInput.text = "";
     }
 
     TextInput {
@@ -30,7 +30,7 @@ Rectangle {
         focus: true
 
         onTextChanged: {
-            searchBar.onTextChanged(text)
+            searchBar.onTextChanged(text);
         }
 
         Text {
