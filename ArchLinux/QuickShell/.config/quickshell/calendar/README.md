@@ -26,10 +26,10 @@ not publisher compromise. Use a new temporary directory outside the install targ
 Run commands one at a time; continue only if each succeeds and the checksum reports **OK**:
 
 ```sh
-sha256sum -c calendar-v0.1.1-linux-x86_64.tar.gz.sha256
+sha256sum -c calendar-v0.1.2-linux-x86_64.tar.gz.sha256
 mkdir -m 700 calendar-install
-tar -xzf calendar-v0.1.1-linux-x86_64.tar.gz -C calendar-install
-sh calendar-install/calendar/install.sh --archive "$PWD/calendar-v0.1.1-linux-x86_64.tar.gz"
+tar -xzf calendar-v0.1.2-linux-x86_64.tar.gz -C calendar-install
+sh calendar-install/calendar/install.sh --archive "$PWD/calendar-v0.1.2-linux-x86_64.tar.gz"
 ```
 
 This installs to `~/.config/quickshell/calendar` with no calendars. It does not launch

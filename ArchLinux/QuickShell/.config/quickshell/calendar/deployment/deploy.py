@@ -462,17 +462,20 @@ def native_plan(paths, module, verify=False):
     return value
 
 
-def checked_unit_state(result):
+def checked_unit_state(result, *, allow_transition=False):
+    active_states = ("active", "inactive", "failed")
+    if allow_transition:
+        active_states += ("activating", "deactivating", "reloading")
     require(isinstance(result, dict) and set(result) == {"LoadState", "ActiveState", "UnitFileState", "FragmentPath", "DropInPaths"}
             and all(isinstance(value, str) and len(value) <= 16384 for value in result.values())
-            and result["LoadState"] in ("loaded", "not-found") and result["ActiveState"] in ("active", "inactive", "failed")
+            and result["LoadState"] in ("loaded", "not-found") and result["ActiveState"] in active_states
             and result["UnitFileState"] in ("enabled", "enabled-runtime", "disabled", "static", "indirect", ""), "Managed calendar service is busy, masked or has an unknown state.")
     return result
 
 
-def unit_state(paths, name):
+def unit_state(paths, name, *, allow_transition=False):
     output = run(["systemctl", "--user", "show", "--property=LoadState,ActiveState,UnitFileState,FragmentPath,DropInPaths", name], env=paths.env)
-    return checked_unit_state(dict(line.split("=", 1) for line in output.splitlines() if "=" in line))
+    return checked_unit_state(dict(line.split("=", 1) for line in output.splitlines() if "=" in line), allow_transition=allow_transition)
 
 
 def check_runtime_snapshot(runtime, files):
@@ -569,8 +572,9 @@ def resume_runtime(paths, runtime):
 
 
 def verify_runtime(paths, runtime):
+    # Queued workers can still be starting; preflight and saved snapshots stay strict.
     for name, before in runtime["units"].items():
-        state = unit_state(paths, name)
+        state = unit_state(paths, name, allow_transition=True)
         require(state["UnitFileState"] == before["UnitFileState"], "Calendar service enablement changed; inspect before recovery.")
         if before["ActiveState"] == "active" and name != "quickshell-calendar-import.service" and "@" not in name:
             for attempt in range(50):
@@ -578,7 +582,7 @@ def verify_runtime(paths, runtime):
                     break
                 require(state["ActiveState"] != "failed", "Resumed Calendar service failed.")
                 time.sleep(0.1)
-                state = unit_state(paths, name)
+                state = unit_state(paths, name, allow_transition=True)
             else:
                 raise ValueError("Calendar service did not resume.")
     if runtime["calendarPid"] is not None:

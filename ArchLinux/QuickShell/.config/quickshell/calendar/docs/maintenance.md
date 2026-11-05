@@ -883,6 +883,11 @@ code, not calendar data. Keep the previous working version until you have opened
 one and checked it; only then confirm removal of old code. Rollback restores the previous
 program and its owned services, **not events or server changes**.
 
+For the `0.1`/`0.1.1` startup-check failure, a new `VERSION` does not prove update
+completion. Keep its pending record and old module; follow
+[older updater recovery](installation.md#older-updater-recovery) using the corrected
+extracted installer. Restarting Quickshell alone does not complete that transaction.
+
 For cleanup:
 
 - Never reinstall or reset live calendar data to remove old files.

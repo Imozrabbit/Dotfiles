@@ -488,7 +488,7 @@ From the Calendar source root:
 python3 -I -B tools/package-release.py
 ```
 
-The development-only packager reads `VERSION` (currently `0.1.1`) and the explicit
+The development-only packager reads `VERSION` (currently `0.1.2`) and the explicit
 `release-files.txt` allowlist. It freezes owned, unlinked inputs in private staging,
 builds `convert` and `calendar-sync-helper` with the Makefile, checks ELF architecture,
 and packages runtime files under one `calendar/` root. It never replaces working
@@ -504,9 +504,9 @@ owned build process group before deleting staging.
 Each successful invocation creates a new private, Git-ignored directory:
 
 ```text
-dist/releases/calendar-v0.1.1-linux-x86_64-<unique-id>/
-  calendar-v0.1.1-linux-x86_64.tar.gz
-  calendar-v0.1.1-linux-x86_64.tar.gz.sha256
+dist/releases/calendar-v0.1.2-linux-x86_64-<unique-id>/
+  calendar-v0.1.2-linux-x86_64.tar.gz
+  calendar-v0.1.2-linux-x86_64.tar.gz.sha256
 ```
 
 `dist/` is Git-ignored. Whole-app archives go in `dist/releases/`, separate from native
@@ -518,7 +518,7 @@ build inputs; never restore or publish old source-building installers from backu
 Earlier candidates are never overwritten. Handled failures/cancellation clean staging
 without leaving a completed archive/checksum pair. Packager SIGKILL or power loss may
 leave staging for inspected cleanup. From the candidate directory, run
-`sha256sum -c calendar-v0.1.1-linux-x86_64.tar.gz.sha256`; checksums detect corruption,
+`sha256sum -c calendar-v0.1.2-linux-x86_64.tar.gz.sha256`; checksums detect corruption,
 not publisher authenticity.
 
 The archive contains version/runtime manifest, QML/JavaScript, Python/shell deployment
@@ -539,13 +539,14 @@ metadata does not replace manual client testing. Runtime or library/ABI changes 
 compatibility reassessment, extracted-entrypoint and real-artifact lifecycle checks,
 and appropriate manual desktop/client checks. Version-only promotion can reuse prior
 runtime evidence only when every file, including fresh helpers, matches except `VERSION`.
-Patch `0.1.1` changes the shared picker, not the data schema, runtime-unit membership or
-updater interface; it still requires a complete newer package, not individual file copies.
+Patch `0.1.2` fixes post-restart service-state checks and retains the `0.1.1` picker fix.
+Data schema, runtime-unit membership and public updater arguments remain unchanged;
+it still requires a complete newer package, not individual file copies.
 
 **Tagging/publication and client installation need separate manual approvals.**
-A local stable `0.1.1` archive is not a GitHub release. When approved, use tag
-`calendar-v0.1.1`, title **v0.1.1**, and **Pre-release unchecked**. Never replace the
-published `0.1` assets. Beta parsing and explicit
+A local stable `0.1.2` archive is not a GitHub release. When approved, use tag
+`calendar-v0.1.2`, title **v0.1.2**, and **Pre-release unchecked**. Never replace
+published `0.1` or `0.1.1` assets. Beta parsing and explicit
 `--archive` remain supported. Older packaging-only candidates contain source-building
 scripts; never install/publish them. Rebuild with the current runtime installer/backend
 and verify. Client evidence must match that runtime, except version-only promotions
@@ -613,15 +614,29 @@ never restores data. Confirmation deletes only verified old code, including unch
 remainders of interrupted approved cleanup. See the [installation guide](installation.md#update)
 for client update/confirmation/rollback commands.
 
+Only post-restart `verify_runtime()` reads allow `activating`, `deactivating` and
+`reloading`. Previously active long-running services still must become active within
+the existing bounded wait, with failure/timeout checks. Queued import/CalDAV one-shot
+workers need not finish an entire job before verification. Pre-update snapshots and
+saved recovery records remain strict; masking, unknown states, routing and enablement
+checks are unchanged. Never loosen saved-journal validation to repair a startup race.
+
+Old running `0.1`/`0.1.1` controllers do not reload newly installed Python code. Their
+one-time upgrade/recovery uses a trusted corrected extracted installer, as described
+in [older updater recovery](installation.md#older-updater-recovery). There is no new
+resume command or manual receipt-editing workaround.
+
 Local checks (all remain Git-ignored):
 
 ```sh
 python3 -I -B dev/tests/installer/test-release-archive.py
 python3 -I -B dev/tests/installer/test-release-deploy.py
+python3 -I -B dev/tests/installer/test-release-deploy.py startup
 python3 -I -B dev/tests/installer/test-release-entrypoints.py
 python3 -I -B dev/tests/installer/test-deployment-native.py /path/to/privately/built/calendar-sync-helper
 python3 -I -B dev/tests/installer/test-release-runtime-qs.py
-python3 -I -B dev/tests/installer/test-release-artifact.py /absolute/path/calendar-v0.1.1-linux-x86_64.tar.gz
+python3 -I -B dev/tests/installer/test-release-artifact.py /absolute/path/calendar-v0.1.2-linux-x86_64.tar.gz
+python3 -I -B dev/tests/installer/test-release-startup-recovery.py OLD_ARCHIVE FAILED_ARCHIVE FIXED_ARCHIVE
 ```
 
 Archive tests use real filesystem/tar inputs, stubbing only network. Deployment tests
@@ -638,8 +653,10 @@ promotions may reuse evidence as above.
 
 The artifact test uses real release/backend/native helpers for isolated install →
 update → rollback → repeat update/confirmation → same-version no-op. With
-`BASELINE_ARCHIVE NEW_ARCHIVE`, it exercises two actual stable packages through normal
-discovery using isolated GitHub responses; updater/backend bytes must match both archives.
+`BASELINE_ARCHIVE NEW_ARCHIVE`, the selected new controller exercises two actual stable
+packages through discovery using isolated GitHub responses. Controller bytes must match
+the new archive; archive policy and public wrappers must match both. This does not claim
+the old running controller reloads itself.
 One-archive mode creates a disposable same-code higher beta: beta baselines increment
 only beta index; stable baselines use next patch's beta.1, never a synthetic stable-looking
 version. Fixtures are labeled, cleaned and never published.
@@ -650,3 +667,16 @@ checks are bypassed, covered separately by dependency-consent fixtures. Checks p
 event/configuration/credential/database hashes, ownership/modes/inodes/timestamps and
 persistent lock inode, and verify complete installed inventories. These checks do not
 contact GitHub or replace a manual desktop/sync check on the client.
+
+The `startup` group models queued starts instead of immediate-success service mocks:
+long-running activation/reload, import/CalDAV activation/deactivation, running/closed
+Calendar, busy preflight refusal, malformed/transitional saved states, masking, genuine
+long-running failure and bounded timeout. `test-release-startup-recovery.py` uses real
+old/failed/fixed packages and actually executes the old archived controller to leave
+new code plus a `resuming` receipt and old rollback module. The corrected extracted
+controller must refuse premature confirmation/update, perform ordinary rollback,
+refuse a still-busy next update, then upgrade/confirm after settling. No test edits
+recovery phases to create this failure. Native plans/systemd/GUI are mocked in this
+managed-service recovery case; native probes and headless IPC are covered separately.
+Both initially running/closed app cases preserve data bytes/metadata, service enablement,
+program/unit permissions and the shared lock inode. Live client recovery stays manual.

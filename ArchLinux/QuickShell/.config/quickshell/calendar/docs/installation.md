@@ -40,10 +40,10 @@ download, not a compromised publisher. Run the following commands one at a time;
 continue only if each succeeds and the checksum command reports **OK**:
 
 ```sh
-sha256sum -c calendar-v0.1.1-linux-x86_64.tar.gz.sha256
+sha256sum -c calendar-v0.1.2-linux-x86_64.tar.gz.sha256
 mkdir -m 700 calendar-install
-tar -xzf calendar-v0.1.1-linux-x86_64.tar.gz -C calendar-install
-sh calendar-install/calendar/install.sh --archive "$PWD/calendar-v0.1.1-linux-x86_64.tar.gz"
+tar -xzf calendar-v0.1.2-linux-x86_64.tar.gz -C calendar-install
+sh calendar-install/calendar/install.sh --archive "$PWD/calendar-v0.1.2-linux-x86_64.tar.gz"
 ```
 
 The target is `~/.config/quickshell/calendar`, even when its Quickshell parent is a
@@ -87,22 +87,24 @@ rechecks them before replacement and cleanup; other Quickshell projects stay unt
 
 ## Update
 
-Run from your **active desktop-session terminal**, not a plain SSH session:
+**On `0.1` or `0.1.1`, use [older updater recovery](#older-updater-recovery) for the
+one-time upgrade to `0.1.2`.** The old running updater does not reload its own code
+when it installs new files.
+
+On `0.1.2` or later, run from your **active desktop-session terminal**, not a plain SSH session:
 
 ```sh
 sh "$HOME/.config/quickshell/calendar/update.sh"
 ```
 
-Clients on `0.1` use this same command for stable `0.1.1`; no separate patch script or
-reinstallation is needed. This patch fixes selecting **Create new remote calendar…**
-on empty accounts in both new-calendar and local-attachment forms, and removes the
-extra blank row from single-option pickers. The updater itself is unchanged.
+Patch `0.1.2` fixes background-service startup checks; it retains the `0.1.1` picker
+fix. It does not change calendar data, service membership or account settings.
 
 For a newer reviewed local candidate, keep its adjacent checksum and pass its exact archive
-path (example: `0.1.1`; explicit beta candidates use the same option):
+path (example: `0.1.2`; explicit beta candidates use the same option):
 
 ```sh
-sh "$HOME/.config/quickshell/calendar/update.sh" --archive /absolute/path/calendar-v0.1.1-linux-x86_64.tar.gz
+sh "$HOME/.config/quickshell/calendar/update.sh" --archive /absolute/path/calendar-v0.1.2-linux-x86_64.tar.gz
 ```
 
 Only installations with a verified installation record (**receipt**) can update. Source
@@ -120,6 +122,48 @@ Updates replace program files, not events, UIDs, recurrence, reminders, sync set
 databases, credentials, ownership or permissions. Unknown/custom program files are refused,
 not silently replaced. Ordinary failures restore prior code, owned services and activity
 when safe; uncertain failures keep recovery copies instead of overwriting newer changes.
+
+### Older updater recovery
+
+The `0.1`/`0.1.1` updater can mistake a still-starting sync/import service for failure.
+New code and `VERSION` may already be installed while `installer/pending.json` remains
+at `resuming`. The old rollback command can hit the same check. Do not confirm, edit
+the journal, delete recovery copies, overwrite installed scripts or reinstall.
+
+Use a **complete, trusted `0.1.2` archive/checksum pair**, downloaded to the same folder.
+In your active desktop terminal, open that folder and run one command at a time;
+continue only after success and checksum **OK**. Extraction directory must be new and
+outside the installed Calendar directory:
+
+```sh
+sha256sum -c calendar-v0.1.2-linux-x86_64.tar.gz.sha256
+mkdir -m 700 calendar-update-0.1.2
+tar -xzf calendar-v0.1.2-linux-x86_64.tar.gz -C calendar-update-0.1.2
+```
+
+**Only for an inspected unfinished startup-check failure with its previous module
+retained**, use the corrected extracted installer to restore previous code/services:
+
+```sh
+sh calendar-update-0.1.2/calendar/install.sh --rollback
+```
+
+This preserves current calendar data, not a previous data snapshot. If it refuses or
+fails, stop and preserve its message and recovery files. If no update is pending, skip
+rollback. Do not change connection settings to force recovery.
+
+After successful rollback, allow restarted sync/import work to settle. Then use the
+**same extracted corrected installer**, not the old installed updater, for the upgrade:
+
+```sh
+sh calendar-update-0.1.2/calendar/install.sh --update --archive "$PWD/calendar-v0.1.2-linux-x86_64.tar.gz"
+cat "$HOME/.config/quickshell/calendar/VERSION"
+```
+
+Expect `0.1.2` after a successful update. Busy background work may safely refuse a new
+update; wait for it to finish rather than deleting locks or forcing service changes.
+Check Calendar/events/sync/reminders before confirming with the installed command below.
+Future updates use the normal installed `update.sh` again.
 
 ### Confirm or roll back
 
