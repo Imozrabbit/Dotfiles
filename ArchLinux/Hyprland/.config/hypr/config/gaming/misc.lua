@@ -15,7 +15,6 @@ hl.window_rule({
 	name = "make WOW mod manager window float and opaque",
 	match = {
 		class = "wowupcf",
-		title = "WowUp.io",
 	},
 	float = true,
 	persistent_size = true,
