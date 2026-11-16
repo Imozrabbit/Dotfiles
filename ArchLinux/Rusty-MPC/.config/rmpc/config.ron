@@ -23,7 +23,7 @@
     eq: []
     ),
 
-    address: "127.0.0.1:6600",
+    address: "/run/user/1000/mpd/socket",
     password: None,
     theme: Some("custom"),
     lyrics_dir: "/home/Zrabbit/Music/lyrics/",
