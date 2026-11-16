@@ -31,7 +31,9 @@ function snapshot(notification) {
     const transient = Object.prototype.hasOwnProperty.call(hints, "transient")
         ? hints.transient !== false : notification.transient === true;
     const summary = safeText(notification.summary);
-    const message = body.replace(/<img\b[^>]*>/gi, "");
+    // A leading image on its own line must not leave an empty caption line.
+    const message = body.replace(/^[ \t]*<img\b[^>]*>[ \t]*\r?\n/i, "")
+        .replace(/<img\b[^>]*>/gi, "");
     return {
         appName: safeText(notification.appName) || "Notification", summary, body: message,
         appIcon: localImage(notification.appIcon), source: localImage(candidate), imageExpected: !!candidate,

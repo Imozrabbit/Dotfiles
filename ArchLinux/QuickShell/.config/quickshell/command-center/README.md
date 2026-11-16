@@ -394,10 +394,37 @@ qs -c command-center ipc call notifications setDnd true
 qs -c command-center ipc call notifications setDnd false
 ```
 
-For integrations, the `notifications` target exposes read-only `dnd` and the
-`dndStateChanged(bool)` signal. There is no public notification-count/content
-interface or SwayNC-compatible command. A bar using `swaync-client` needs its own
-integration updated; installing this module does not change the bar.
+### Bar integration
+
+The `notifications` target exposes read-only `dnd` and `hasHistory`, with typed
+`dndStateChanged(bool)` and `historyStateChanged(bool)` change signals.
+
+To check whether the panel has notification history:
+
+```sh
+qs -c command-center ipc prop get notifications hasHistory
+```
+
+To listen for changes:
+
+```sh
+qs -c command-center ipc listen notifications historyStateChanged
+```
+
+`hasHistory` is `true` while the panel's history contains at least one entry.
+Currently visible popups and transient notifications do not count. This is
+**presence, not unread status**: opening the panel or reading the property does
+not reset it. Saved history is restored after a restart, and the flag updates
+as that history loads. A failed clear does not report the history as empty.
+
+Listeners emit changes, not an initial snapshot. A bar should subscribe first,
+read the current property, and read it again after reconnecting. Only `true`
+and `false` are valid state values; other output or connection errors mean
+unavailable, not empty history.
+
+There is no public notification-count/content interface or SwayNC-compatible
+command. A bar using `swaync-client` needs its own integration updated;
+installing this module does not change the bar.
 
 ### Saved data
 
