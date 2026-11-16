@@ -5,6 +5,7 @@ return {
 	-- Add lsp servers here
 	opts = {
 		servers = {
+			vhdl_ls = {},
 			neocmake = {},
 			qmlls = {
 				cmd = { "/usr/lib/qt6/bin/qmlls", "-E" },
