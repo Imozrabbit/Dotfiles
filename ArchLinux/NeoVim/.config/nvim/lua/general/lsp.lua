@@ -1,5 +1,6 @@
 -- Enable your lsp here by adding the lsp server name, the lspconfig plugin will pull the config file for you
 vim.lsp.enable({
+	"vhdl_ls",
 	"neocmake",
 	"qmlls",
 	"cssls",
