@@ -467,7 +467,47 @@ If the command cannot connect, check whether Hyprsunset is running:
 pgrep -a -x hyprsunset
 ```
 
-If no process is listed, start it in a terminal and leave that terminal open:
+#### Start now and enable automatic startup with systemd
+
+The Arch Linux package includes a **user service** named `hyprsunset.service`.
+If you choose this startup method, do not also run Hyprsunset manually or through
+a Hyprland startup entry. Stop any manually started copy before switching.
+
+From a terminal inside Hyprland
+`systemctl --user edit hyprsunset.service` in order to set a base line:
+```sh
+[Service]
+ExecStart=
+ExecStart=/usr/bin/hyprsunset --temperature 4500 --identity
+```
+
+Then:
+```sh
+systemctl --user enable --now hyprsunset.service
+systemctl --user status hyprsunset.service --no-pager
+hyprctl hyprsunset identity get
+```
+
+The bundled unit requires `graphical-session.target` and a `WAYLAND_DISPLAY`
+value in the systemd user manager. Hyprsunset's IPC also uses
+`HYPRLAND_INSTANCE_SIGNATURE`. If logs indicate missing session environment,
+import only those variables from a terminal inside the active Hyprland session,
+then restart the service:
+
+```sh
+systemctl --user import-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE
+systemctl --user restart hyprsunset.service
+hyprctl hyprsunset identity get
+```
+
+If your Hyprland session does not manage `graphical-session.target`, use the
+Hyprland startup method below instead. If the unit is not found, your installed
+package may not provide it.
+
+#### Alternative: start directly from Hyprland
+
+Use this instead of the systemd service. If no Hyprsunset process is running,
+start it in a terminal and leave that terminal open:
 
 ```sh
 hyprsunset --identity
@@ -477,8 +517,8 @@ This starts without applying a warming filter. In another terminal, retry the
 status command. If startup fails, read its terminal error; installing the package
 alone does not guarantee a compatible Hyprland/Hyprsunset setup.
 
-To start automatically at login, add the command to your existing Hyprland
-startup configuration. With a Lua configuration, add it to your
+For this startup method, add the command to your existing Hyprland startup
+configuration to run at login. With a Lua configuration, add it to your
 `hyprland.start` handler, for example:
 
 ```lua
@@ -497,6 +537,8 @@ Use only one startup method. If a user service or another startup entry already
 runs Hyprsunset, keep that setup rather than starting a second copy. Startup
 changes apply at the next Hyprland login; the manual command above handles the
 current session.
+
+#### Enable the tile with either startup method
 
 In `command-center-local.json`, set your existing `hyprsunset` quick action's
 `enabled` to `true`. Its `temperature` is a whole number from 1000 to 20000 K
