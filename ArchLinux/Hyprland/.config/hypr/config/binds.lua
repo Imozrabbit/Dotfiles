@@ -10,7 +10,7 @@ hl.bind(mainMod .. "+ E", hl.dsp.exec_cmd(FILEMANAGER)) -- Open file manager
 hl.bind(mainMod .. "+ SPACE", hl.dsp.exec_cmd(MENU)) -- Open app launcher
 hl.bind(mainMod .. "+ B", hl.dsp.exec_cmd("zen-browser")) -- Open zen browser
 hl.bind(mainMod .. "+ N", hl.dsp.exec_cmd(NOTES)) -- Open obsidian
-hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("swaync-client -t")) -- Open side hub
+hl.bind(mainMod .. "+ R", hl.dsp.exec_cmd("quickshell -c command-center ipc call command-center toggle")) -- Open command center
 hl.bind(mainMod .. "+ C", hl.dsp.exec_cmd("qs -c calendar ipc call calendar toggle")) -- Toggle Calendar
 
 -- Toggle bottom bar
