@@ -20,5 +20,8 @@ hl.config({
 	render = {
 		-- Glitches for 0.57, need further improvement
 		-- use_shader_blur_blend = true,
+
+		-- Disable fade animation on hyprsunset
+		ctm_animation = 0,
 	},
 })
