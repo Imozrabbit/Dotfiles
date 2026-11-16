@@ -2,9 +2,6 @@ hl.on("hyprland.start", function()
 	-- Password box Authentification Agent
 	hl.exec_cmd("systemctl --user start hyprpolkitagent")
 
-	-- Notification Daemon
-	hl.exec_cmd("env GSK_RENDERER=cairo GDK_WAYLAND_DISABLE=ext_background_effect_manager_v1 swaync")
-
 	-- Wallpaper
 	hl.exec_cmd("/home/Zrabbit/.config/quickshell/wallpaper_switcher/scripts/apply.sh")
 
