@@ -75,6 +75,11 @@ window_rule("Zen: floating secondary windows", {
 	title = "^(Picture-in-Picture|Library)$",
 }, STYLE.floating)
 
+window_rule("Brave Origin: floating secondary windows", {
+	class = "brave-origin-nightly",
+	title = "Picture in picture",
+}, STYLE.floating)
+
 ----------------------------------------------------------
 -------------------- RESEARCH AND NOTES ------------------
 ----------------------------------------------------------
