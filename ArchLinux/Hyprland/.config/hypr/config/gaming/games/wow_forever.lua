@@ -7,6 +7,7 @@ hl.window_rule({
 	content = "game",
 	--confine_pointer = true,
 	workspace = GAME_WORKSPACE,
+	fullscreen = true,
 	opaque = true,
 	no_blur = true,
 	xray = false,
