@@ -36,13 +36,7 @@ hl.layer_rule({
 	ignore_alpha = 0.5,
 })
 
--- Add blur for swaync the notification center
-hl.layer_rule({
-	match = { namespace = "swaync-control-center" },
-	blur = true,
-	ignore_alpha = 0.3,
-	animation = "slide",
-})
+-- Add blur for the notification center
 hl.layer_rule({
 	match = { namespace = "quickshell-command-center" },
 	blur = true,
@@ -50,12 +44,20 @@ hl.layer_rule({
 	animation = "slide",
 })
 
--- Add blur for the swaync popup notifications
+-- Add blur for the media card
 hl.layer_rule({
-	match = { namespace = "swaync-notification-window" },
+	match = { namespace = "quickshell-command-center-media-copy" },
 	blur = true,
-	ignore_alpha = 0.1,
-	animation = "slide",
+	ignore_alpha = 0.2,
+	animation = "slide top",
+})
+
+-- Add blur for the popup notifications
+hl.layer_rule({
+	match = { namespace = "quickshell-command-center-toast" },
+	blur = true,
+	ignore_alpha = 0.2,
+	animation = "slide top",
 })
 
 -- Make volume-osd by quickshell blur and change its awful animation
