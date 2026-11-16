@@ -16,7 +16,7 @@ Scope {
     readonly property bool dnd: memory.dnd
     readonly property bool ready: archive.ready
     readonly property bool busy: archive.busy
-    readonly property string lastError: archive.lastError || images.lastError
+    readonly property string lastError: archive.lastError || images.lastError || root.records.find(record => !record.closing && record.previewError)?.previewError || ""
     readonly property var document: archive.document
     readonly property var pending: archive.pending
     readonly property var captureJob: {
@@ -242,6 +242,7 @@ Scope {
         if (record.captureToken)
             images.cancel(record.captureToken);
         record.captureToken = "";
+        record.previewError = "";
         record.thumbnail = "";
         record.dndSuppressed = root.dnd && record.data.urgency !== 2;
         if (!record.shown && !record.dndSuppressed)
@@ -480,10 +481,11 @@ Scope {
     Images.Store {
         id: images
         authoritative: archive.ready
-        onCompleted: (token, name, success) => {
+        onCompleted: (token, name, success, error) => {
             const record = root.records.find(value => value.captureToken === token && !value.closing);
             if (record) {
                 record.captureToken = "";
+                record.previewError = error;
                 if (success && !record.data.transient && !archive.isClearing(record.archiveId, record.revision)) {
                     record.thumbnail = name;
                     archive.upsert(root.archived(record));

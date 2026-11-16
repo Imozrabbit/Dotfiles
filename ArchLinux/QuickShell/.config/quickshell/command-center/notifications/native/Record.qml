@@ -15,6 +15,7 @@ Scope {
     property var updatedAt: 0
     property string thumbnail: ""
     property string captureToken: ""
+    property string previewError: ""
     property bool shown: false
     property bool dndSuppressed: false
     property bool hovered: false

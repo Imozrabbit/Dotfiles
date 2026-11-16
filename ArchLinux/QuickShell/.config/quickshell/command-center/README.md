@@ -437,6 +437,11 @@ These paths use `$HOME/.local/state`, even if `XDG_STATE_HOME` points elsewhere.
 History can contain private messages. Do not publish it or copy another
 computer's history into this installation. Module updates should leave it alone.
 
+Previews are independent copies: deleting the original image after capture does
+not remove its thumbnail. Failed-capture warnings clear when their notification
+is removed or replaced. Storage and cleanup errors remain until the failed
+operation recovers.
+
 ## Optional setup
 
 ### Stay awake

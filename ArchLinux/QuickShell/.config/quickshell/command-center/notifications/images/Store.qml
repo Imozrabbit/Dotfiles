@@ -9,7 +9,8 @@ Scope {
     property bool authoritative: false
     readonly property string directory: Quickshell.env("HOME") + "/.local/state/quickshell/notification-thumbnails"
     readonly property bool busy: root.current !== null || root.operation !== "" || root.queue.length > 0 || root.cleanupRequested
-    property string lastError: ""
+    property var errors: ({})
+    readonly property string lastError: Object.values(root.errors).join("; ")
     property var job: null
     property var queue: []
     property var current: null
@@ -20,7 +21,7 @@ Scope {
     property string output: ""
     property bool invalidOutput: false
     property int resultCode: -1
-    signal completed(string token, string name, bool success)
+    signal completed(string token, string name, bool success, string error)
 
     function owned(name: string): bool {
         return /^notification-[A-Za-z0-9]{10}\.png$/.test(name);
@@ -101,16 +102,34 @@ Scope {
 
     function done(success: bool, name: string): void {
         const current = root.current;
+        if (success && current?.kind === "gc") {
+            for (const operation of ["inspect", "list", "remove", "discard"])
+                root.setError(operation, "");
+        }
         root.current = null;
         root.job = null;
         captureTimeout.stop();
         if (current?.kind === "capture")
-            root.completed(current.token, name, success);
+            root.completed(current.token, name, success, current.error || "");
         Qt.callLater(root.pump);
     }
 
-    function fail(message: string): void {
-        root.lastError = message;
+    function setError(operation: string, message: string): void {
+        if ((root.errors[operation] || "") === message)
+            return;
+        const errors = Object.assign({}, root.errors);
+        if (message)
+            errors[operation] = message;
+        else
+            delete errors[operation];
+        root.errors = errors;
+    }
+
+    function fail(message: string, operation: string): void {
+        if (operation === "capture")
+            root.current.error = message;
+        else
+            root.setError(operation, message);
         if (root.current?.kind === "capture" && root.current.path) {
             root.job = null;
             root.run("discard", ["rm", "-f", "--", root.current.path]);
@@ -124,10 +143,9 @@ Scope {
             return;
         captureTimeout.stop();
         if (!success || !root.authoritative) {
-            root.fail("Notification image preview unavailable");
+            root.fail("Notification image preview unavailable", "capture");
         } else {
             const name = root.job.path.slice(root.directory.length + 1);
-            root.lastError = "";
             root.done(true, name);
         }
     }
@@ -150,7 +168,8 @@ Scope {
         root.operation = "";
         if (operation === "inspect" && root.resultCode === 1 && !root.current.created) {
             if (root.current.kind === "gc") {
-                root.done(true, "");
+                // Failed inspection cannot prove that cleanup recovered.
+                root.done(false, "");
             } else {
                 root.current.created = true;
                 root.run("mkdir", ["mkdir", "-p", "--mode=700", "--", root.directory]);
@@ -159,12 +178,12 @@ Scope {
         }
         if (operation === "discard") {
             if (root.resultCode !== 0)
-                root.lastError += "; temporary preview cleanup failed";
+                root.setError("discard", "Notification temporary preview cleanup failed");
             root.done(false, "");
             return;
         }
         if (root.resultCode !== 0 || root.invalidOutput) {
-            root.fail("Notification thumbnail " + operation + " failed");
+            root.fail("Notification thumbnail " + operation + " failed", operation);
             return;
         }
         if (root.current.cancelled && operation !== "temporary") {
@@ -177,8 +196,11 @@ Scope {
             const value = root.output.trim();
             const mode = /^[0-9a-f]+$/i.test(value) ? parseInt(value, 16) : 0;
             if ((mode & 61440) !== 16384 || (mode & 63) !== 0) {
-                root.fail("Notification thumbnail directory must be a private regular directory");
-            } else if (root.current.kind === "capture") {
+                root.fail("Notification thumbnail directory must be a private regular directory", operation);
+                return;
+            }
+            root.setError("mkdir", "");
+            if (root.current.kind === "capture") {
                 root.run("temporary", ["mktemp", "--tmpdir=" + root.directory, "--suffix=.png", "notification-XXXXXXXXXX"]);
             } else {
                 root.run("list", ["find", root.directory, "-mindepth", "1", "-maxdepth", "1", "-type", "f", "-name", "notification-*.png", "-printf", "%f\n"]);
@@ -186,10 +208,11 @@ Scope {
         } else if (operation === "temporary") {
             const path = root.output.trim();
             if (!path.startsWith(root.directory + "/") || !root.owned(path.slice(root.directory.length + 1))) {
-                root.fail("Notification thumbnail temporary path invalid");
+                root.fail("Notification thumbnail temporary path invalid", operation);
                 return;
             }
             root.current.path = path;
+            root.setError(operation, "");
             if (root.current.cancelled) {
                 root.run("discard", ["rm", "-f", "--", path]);
                 return;
@@ -206,6 +229,8 @@ Scope {
         } else if (operation === "remove") {
             root.removeBatch();
         }
+        if (operation !== "remove")
+            root.setError(operation, "");
     }
 
     onAuthoritativeChanged: {
@@ -223,7 +248,7 @@ Scope {
     Timer {
         id: captureTimeout
         interval: 3000
-        onTriggered: root.fail("Notification thumbnail capture timed out")
+        onTriggered: root.fail("Notification thumbnail capture timed out", "capture")
     }
     Process {
         id: worker
