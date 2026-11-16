@@ -20,10 +20,12 @@ BODY="$(printf '<img src="file://%s"/>\n%s' "$TMPFILE" "$NAME")"
 mon="$(slurp -b '#00000080' -o -r -f '%o')" || exit 0
 grim -o "$mon" "$TMPFILE"
 
+# Expire the action prompt so notify-send returns when its toast times out.
 CHOICE="$(
     notify-send \
+    -e \
     -a Screenshot \
-    -t 9000 \
+    -t 10000 \
     -A save=Save \
     -A discard=Discard \
     -A edit=Edit \
@@ -39,7 +41,14 @@ exec 9>&-
 
 case "${CHOICE:-}" in
   save|"")
-    mv -f "$TMPFILE" "$FINALFILE"
+    if mv -f "$TMPFILE" "$FINALFILE"; then
+      notify-send -a Screenshot -t 3000 "Screenshot saved" \
+        "$(printf '<img src="file://%s"/>\n%s' "$FINALFILE" "$NAME")"
+    else
+      notify-send -a Screenshot -u critical "Screenshot save failed" \
+        "Capture kept at $TMPFILE"
+      exit 1
+    fi
     ;;
   discard)
     rm -f -- "$TMPFILE"
