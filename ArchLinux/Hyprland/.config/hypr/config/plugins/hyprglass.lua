@@ -22,13 +22,14 @@ if hl.plugin.hyprglass then
 	local layer_minus = {
 		"rofi",
 		"level-osd",
-		"swaync-notification-window",
 		"quickshell-top-media",
 		"quickshell-calendar",
 	}
 
 	local layer_default = {
 		"quickshell-command-center",
+		"quickshell-command-center-media-copy",
+		"quickshell-command-center-toast",
 	}
 
 	local layer_plus = {
@@ -38,7 +39,6 @@ if hl.plugin.hyprglass then
 		"bluetooth-menu",
 		"proton-manager",
 		"quickshell-bottom-bar",
-		"swaync-control-center",
 		"quickshell-bar-tooltip",
 	}
 
