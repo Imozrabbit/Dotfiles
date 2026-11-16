@@ -1,4 +1,29 @@
 #!/usr/bin/env sh
-swaync-client -cp
-choice=$(printf '%s\n' No Yes | rofi -x11 -dmenu -normal-window -window-title "confirmbox" -mesg "Confirm to Shutdown" -theme ~/.config/rofi/themes/confirmation-box.rasi)
-[ "$choice" = "Yes" ] && hyprctl dispatch "hl.dsp.exec_cmd('hyprshutdown -t Shutting-down... --post-cmd poweroff')"
+
+close_status=0
+if [ -n "${COMMAND_CENTER_PID:-}" ]; then
+    closed=$(quickshell ipc --pid "$COMMAND_CENTER_PID" call command-center close) || close_status=$?
+else
+    closed=$(quickshell -c command-center ipc call command-center close) || close_status=$?
+fi
+
+if [ "$close_status" -ne 0 ]; then
+    printf 'Could not close command-center (exit %s)\n' "$close_status" >&2
+    exit "$close_status"
+fi
+
+case "$closed" in
+    true|false) ;;
+    *) printf 'Invalid command-center close reply\n' >&2; exit 1 ;;
+esac
+
+dialog_status=0
+choice=$(printf '%s\n' No Yes | rofi -x11 -dmenu -normal-window -window-title "confirmbox" -mesg "Confirm to Shutdown" -theme ~/.config/rofi/themes/confirmation-box.rasi) || dialog_status=$?
+case "$dialog_status" in
+    0) ;;
+    1) exit 0 ;;
+    *) printf 'Confirmation failed (exit %s)\n' "$dialog_status" >&2; exit "$dialog_status" ;;
+esac
+[ "$choice" = Yes ] || exit 0
+
+[ "$choice" = "Yes" ] && hyprctl dispatch "hl.dsp.exec_cmd('hyprshutdown -t Shutting_Down... --post-cmd poweroff')"
