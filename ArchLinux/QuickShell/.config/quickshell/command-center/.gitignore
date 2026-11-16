@@ -1,0 +1,21 @@
+# Keep this module's policy publishable despite the parent repository's rule.
+!/.gitignore
+
+# Maintained local tests, development tooling and working documentation.
+/tests/
+/dev/
+/tmp/
+AGENTS.md
+
+# Generated artifacts, logs, backups and caches.
+/dist/
+/output/
+*.tar.gz
+*.log
+*.bak
+*.backup*
+.cache/
+__pycache__/
+*.pyc
+*.qmlc
+*.jsc
