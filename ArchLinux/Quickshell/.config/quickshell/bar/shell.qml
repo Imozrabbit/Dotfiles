@@ -28,7 +28,7 @@ Scope {
     readonly property var audioService: audioLoader.item
     readonly property var brightnessService: brightnessLoader.item
     readonly property var fcitx: fcitxLoader.item
-    readonly property var swayncService: swayncLoader.item
+    readonly property var notificationsService: notificationsLoader.item
     readonly property var batteryService: batteryLoader.item
     readonly property var mouseBatteryService: mouseBatteryLoader.item
     readonly property var djiMicBatteryService: djiMicBatteryLoader.item
@@ -113,9 +113,9 @@ Scope {
         Services.Fcitx {}
     }
     LazyLoader {
-        id: swayncLoader
+        id: notificationsLoader
         active: root.uses("notifications")
-        Services.Swaync {}
+        Services.Notifications {}
     }
     LazyLoader {
         id: batteryLoader

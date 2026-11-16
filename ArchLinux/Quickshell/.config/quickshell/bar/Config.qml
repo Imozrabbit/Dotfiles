@@ -14,7 +14,8 @@ Scope {
             mediaPosition: "top",
             edgeSpacing: 14,
             hoverToggleEnabled: true,
-            backgrounds: {}, // Unset colors keep core/Theme.qml defaults.
+            backgrounds: {} // Unset colors keep core/Theme.qml defaults.
+            ,
             dns: {
                 providers: [
                     {

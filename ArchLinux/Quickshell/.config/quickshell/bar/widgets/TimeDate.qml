@@ -12,8 +12,8 @@ Rectangle {
 
     required property Core.Theme theme
     required property var outputScreen
-    required property bool dnd
-    required property bool hasNotifications
+    required property var dnd
+    required property var hasHistory
     required property date currentDate
     required property var weatherService
     required property bool batteryAvailable
@@ -227,7 +227,7 @@ Rectangle {
                 id: notificationText
 
                 anchors.centerIn: parent
-                text: root.dnd ? (root.hasNotifications ? "󰂛" : "󰪑") : (root.hasNotifications ? "" : "")
+                text: root.dnd === null || root.hasHistory === null ? "?" : root.dnd ? (root.hasHistory ? "󰂛" : "󰪑") : (root.hasHistory ? "" : "")
                 color: notificationMouse.containsMouse ? root.theme.timeDateHoverColor : root.theme.timeDateColor
                 font {
                     family: root.theme.fontFamily

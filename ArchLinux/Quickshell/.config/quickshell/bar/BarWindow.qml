@@ -24,7 +24,7 @@ PanelWindow { // qmllint disable uncreatable-type
     readonly property var audioService: root.shared.audioService
     readonly property var brightnessService: root.shared.brightnessService
     readonly property var fcitx: root.shared.fcitx
-    readonly property var swayncService: root.shared.swayncService
+    readonly property var notificationsService: root.shared.notificationsService
     readonly property var batteryService: root.shared.batteryService
     readonly property var mouseBatteryService: root.shared.mouseBatteryService
     readonly property var djiMicBatteryService: root.shared.djiMicBatteryService
@@ -456,8 +456,8 @@ PanelWindow { // qmllint disable uncreatable-type
                 showCalendar: root.modules.calendar
                 showWeather: root.modules.weather
                 showNotifications: root.modules.notifications
-                dnd: root.swayncService?.dnd ?? false
-                hasNotifications: root.swayncService?.hasNotifications ?? false
+                dnd: root.notificationsService?.dnd ?? null
+                hasHistory: root.notificationsService?.hasHistory ?? null
                 weatherService: root.weatherService
                 batteryAvailable: root.batteryService?.available ?? false
                 batteryCapacity: root.batteryService?.capacity ?? -1
@@ -487,8 +487,8 @@ PanelWindow { // qmllint disable uncreatable-type
                         root.batteryService.setChargeThresholds(startValue, endValue);
                 }
                 onNotificationsRequested: {
-                    if (root.swayncService)
-                        root.swayncService.openPanel();
+                    if (root.notificationsService)
+                        root.notificationsService.openPanel();
                 }
                 transform: Translate {
                     y: root.bottomMargin

@@ -67,7 +67,7 @@ Install tools for features you use; missing tools leave those controls unavailab
 | Bluetooth | `bluetoothctl`; optional `ghostty` + `bluetui` for advanced controls |
 | Brightness | `brightnessctl` |
 | Input method | `fcitx5-remote` |
-| Notifications | SwayNC (`swaync-client`) |
+| Notifications | Running `command-center` Quickshell config (`qs`) |
 | Battery profiles | `powerprofilesctl` |
 | AMD GPU name | `lspci` |
 | Advanced Wi-Fi editor | `nm-connection-editor` |
@@ -313,10 +313,17 @@ except **`protonManager`**, **`mouseBattery`**, and **`openAiUsage`**.
 | `clock` | Time and date. |
 | `calendar` | Monthly calendar popup. |
 | `weather` | Open-Meteo location search and forecasts. Requires `calendar`. |
-| `notifications` | SwayNC notification/DND status and panel launcher. |
+| `notifications` | Command-center DND/history status and panel toggle; `?` when unavailable. |
 
 Hiding a parent also hides dependent modules. Missing devices/tools show
 unavailable data rather than breaking the bar. Module order is fixed.
+
+Notifications use the existing `command-center` instance; start it separately.
+Left-click toggles its panel. The bell shows DND and whether history contains
+**uncleared notifications**, not unread status or visible popups. Opening the panel
+does not reset the indicator. Initial state is read on each connection and follows
+external changes; `?` means either state is unknown or unavailable.
+Disabling `modules.notifications` hides the integration without changing DND.
 
 Tray menus hold hover bars open without pinning/reserving space; hiding the
 tray closes its menu. Empty tray/Proton sections have no leading separator.
