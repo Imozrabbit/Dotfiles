@@ -122,7 +122,7 @@ corresponding controls unavailable.
 | Lock, suspend, hibernate | systemd; locking needs an existing screen-locker integration, and hibernation needs a working system hibernation setup. |
 | Stay-awake tile | An existing `idle-inhibit.service` user unit. See Optional setup below. |
 | LocalSend tile | A separately configured firewall helper and narrowly scoped non-interactive `sudo` permission. Installing LocalSend alone is not enough. |
-| Night-light tile | `hyprsunset` already running, with working `hyprctl hyprsunset` commands. |
+| Night-light tile | `hyprsunset` already running, with working `hyprctl hyprsunset` commands. See [Hyprsunset setup](#hyprsunset-screen-warmth). |
 
 The Rofi theme, idle-inhibit unit, and LocalSend helper are **not bundled**.
 Your separate `Confirm_rofi` launcher scripts are not required by command-center;
@@ -437,7 +437,7 @@ Do not enable it at login unless you want inhibition permanently active. The
 tile starts and stops it on demand. Your idle manager must respect systemd idle
 inhibitors; this does not prevent manual locking or manual suspend.
 
-### LocalSend and night light
+### LocalSend
 
 Leave LocalSend's tile disabled unless you already have a suitable firewall
 helper. It must accept `status`, `on`, and `off`; successful `status` prints
@@ -446,8 +446,69 @@ for a password. Use a root-controlled helper with narrowly scoped sudo
 permission, never unrestricted passwordless sudo. Firewall rules and peer
 policies remain your own setup.
 
-Start Hyprsunset separately using your usual session configuration before
-enabling its tile. The tile changes its filter, not its startup configuration.
+### Hyprsunset (screen warmth)
+
+**Installing Hyprsunset does not start it.** The tile controls an already-running
+Hyprsunset process; it does not launch one. Run the following commands inside
+your active Hyprland graphical session, not an unrelated SSH session.
+
+First, check the exact status command used by the tile. It only reads the state:
+
+```sh
+hyprctl hyprsunset identity get
+```
+
+Expected output is `true` (warming off) or `false` (warming on). Either means the
+service is reachable. An error or any other output leaves the tile unavailable.
+
+If the command cannot connect, check whether Hyprsunset is running:
+
+```sh
+pgrep -a -x hyprsunset
+```
+
+If no process is listed, start it in a terminal and leave that terminal open:
+
+```sh
+hyprsunset --identity
+```
+
+This starts without applying a warming filter. In another terminal, retry the
+status command. If startup fails, read its terminal error; installing the package
+alone does not guarantee a compatible Hyprland/Hyprsunset setup.
+
+To start automatically at login, add the command to your existing Hyprland
+startup configuration. With a Lua configuration, add it to your
+`hyprland.start` handler, for example:
+
+```lua
+hl.on("hyprland.start", function()
+    hl.exec_cmd("hyprsunset --identity")
+end)
+```
+
+For an older INI-style configuration, use this instead:
+
+```ini
+exec-once = hyprsunset --identity
+```
+
+Use only one startup method. If a user service or another startup entry already
+runs Hyprsunset, keep that setup rather than starting a second copy. Startup
+changes apply at the next Hyprland login; the manual command above handles the
+current session.
+
+In `command-center-local.json`, set your existing `hyprsunset` quick action's
+`enabled` to `true`. Its `temperature` is a whole number from 1000 to 20000 K
+(default: 4500). Reopen the panel to refresh its status.
+
+If Hyprsunset is already running but `identity get` still fails or is unsupported,
+check its logs and use compatible, up-to-date Hyprland and Hyprsunset versions.
+Do not start extra copies to work around an IPC failure. Existing schedules in
+`~/.config/hypr/hyprsunset.conf` can change the filter later; the tile does not
+replace those profiles or other tools controlling the filter.
+
+[Official Hyprsunset configuration and usage](https://wiki.hypr.land/hypr-ecosystem/user/hyprsunset/).
 
 ### Compositor effects
 
@@ -470,6 +531,7 @@ Background colors and opacity can be configured without them.
 | No quick-action tiles | The default list is empty. Add the tiles you want to `quickActions`. |
 | Power/network prompt does not open | Check Rofi, XWayland, the confirmation theme, and any files imported by that theme. |
 | A device control is unavailable | Check the corresponding tool, service, device permissions, and setup in Optional tools. |
+| Screen warmth is unavailable | Run `hyprctl hyprsunset identity get` inside Hyprland; it must return `true` or `false`. See [Hyprsunset setup](#hyprsunset-screen-warmth). |
 | VPN will not connect | Use the exact saved profile name in `defaultProfile`; it must identify one profile unambiguously. |
 | Colors or settings do not change | Check that the JSON file is beside the module, not inside it, and contains valid JSON. |
 | Notification history reports an error | Check the path and permissions. History must be a regular owner-only file (0600), and its thumbnail directory must be private (0700). Invalid data is preserved rather than silently overwritten. |
