@@ -154,9 +154,17 @@ window_rule("Telegram: floating window", {
 ----------------------------------------------------------
 -------------------- ENGINEERING AND CAD -----------------
 ----------------------------------------------------------
-window_rule("CubeMX: floating", {
-	class = "com-st-microxplorer-maingui-STM32CubeMX",
-}, STYLE.persistent_floating)
+window_rule(
+	"CubeMX: floating",
+	{
+		class = "com-st-microxplorer-maingui-STM32CubeMX",
+	},
+	STYLE.persistent_floating,
+	{
+		center = true,
+		suppress_event = "x11configurerequest",
+	}
+)
 
 window_rule(
 	"OrcaSlicer and FreeCAD: workspace 5",
