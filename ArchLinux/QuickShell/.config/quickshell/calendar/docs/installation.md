@@ -38,12 +38,13 @@ this does not replace checking the installed application on your desktop.
 **Only extract archives from a trusted publisher.** Checksums detect a changed/corrupt
 download, not a compromised publisher. Run the following commands one at a time;
 continue only if each succeeds and the checksum command reports **OK**:
+Examples target `0.1.3`; substitute the matching filenames for your downloaded release.
 
 ```sh
-sha256sum -c calendar-v0.1.2-linux-x86_64.tar.gz.sha256
+sha256sum -c calendar-v0.1.3-linux-x86_64.tar.gz.sha256
 mkdir -m 700 calendar-install
-tar -xzf calendar-v0.1.2-linux-x86_64.tar.gz -C calendar-install
-sh calendar-install/calendar/install.sh --archive "$PWD/calendar-v0.1.2-linux-x86_64.tar.gz"
+tar -xzf calendar-v0.1.3-linux-x86_64.tar.gz -C calendar-install
+sh calendar-install/calendar/install.sh --archive "$PWD/calendar-v0.1.3-linux-x86_64.tar.gz"
 ```
 
 The target is `~/.config/quickshell/calendar`, even when its Quickshell parent is a
@@ -100,11 +101,22 @@ sh "$HOME/.config/quickshell/calendar/update.sh"
 Patch `0.1.2` fixes background-service startup checks; it retains the `0.1.1` picker
 fix. It does not change calendar data, service membership or account settings.
 
-For a newer reviewed local candidate, keep its adjacent checksum and pass its exact archive
-path (example: `0.1.2`; explicit beta candidates use the same option):
+Version `0.1.3` adds saved RGB/ARGB color presets. The existing `0.1.2` updater accepts
+its added runtime QML/JS files through the checked release manifest; no replacement
+updater or data migration is needed. Preset preferences live outside the program
+directory and survive update/rollback.
+
+The source version does not publish a release. Local `0.1.3` preparation needs its
+complete archive/checksum pair published in a new Calendar release before the normal
+updater can discover it. Never replace any published version's assets with changed contents:
+the installed updater rejects a same-version package with a different checksum.
+
+For a reviewed local candidate newer than the installed version, keep its adjacent checksum
+and pass its exact archive path. Substitute your actual candidate; explicit beta candidates
+use the same option:
 
 ```sh
-sh "$HOME/.config/quickshell/calendar/update.sh" --archive /absolute/path/calendar-v0.1.2-linux-x86_64.tar.gz
+sh "$HOME/.config/quickshell/calendar/update.sh" --archive /absolute/path/calendar-v0.1.3-linux-x86_64.tar.gz
 ```
 
 Only installations with a verified installation record (**receipt**) can update. Source

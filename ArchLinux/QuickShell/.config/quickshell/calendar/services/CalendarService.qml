@@ -9,6 +9,9 @@ QtObject {
     id: root
 
     property ProfileRegistryStore registry: ProfileRegistryStore {}
+    property ColorPresetStore colorPresets: ColorPresetStore {
+        registry: root.registry
+    }
     property CalendarConflictManager conflictService: CalendarConflictManager {
         profiles: root.registry.ready ? root.registry.profiles : []
         caldav: root.caldav

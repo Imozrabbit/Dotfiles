@@ -6,6 +6,7 @@ deployment/deploy.py
 deployment/release_archive.py
 release-files.txt
 common/CalendarMath.js
+common/ColorPresets.js
 common/EventMutation.js
 common/ProfileMutation.js
 common/Recurrence.js
@@ -19,6 +20,7 @@ services/CalendarImportService.qml
 services/CalendarProfileStore.qml
 services/CalendarService.qml
 services/CalendarSubscriptionService.qml
+services/ColorPresetStore.qml
 services/ImportedCalendarStore.qml
 services/OccurrenceRangeStore.qml
 services/ProfileRegistryStore.qml
@@ -27,6 +29,7 @@ ui/ActionButton.qml
 ui/AgendaView.qml
 ui/CalendarManagerPanel.qml
 ui/CalendarWindow.qml
+ui/ColorPresetPopup.qml
 ui/ConflictResolutionPanel.qml
 ui/EventCard.qml
 ui/EventDetailsPanel.qml

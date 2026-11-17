@@ -67,6 +67,7 @@ Defaults below respect XDG overrides where shown:
 | `${XDG_STATE_HOME:-$HOME/.local/state}/pimsync/status` | Installer's sync status; preserve custom configured locations too |
 | `${XDG_CONFIG_HOME:-$HOME/.config}/pimsync` | User configuration and credentials |
 | `${XDG_STATE_HOME:-$HOME/.local/state}/quickshell-calendar` | Conflicts, installer receipts and recovery state |
+| `.../quickshell-calendar/color-presets.json` | Saved local color palette; preserve as user preferences |
 | `.../quickshell-calendar/conflicts-<id>.json` | Panel-added CalDAV calendar's conflict snapshots |
 | `.../quickshell-calendar/caldav/status.json` | Per-calendar sync status; not event data |
 | `.../quickshell-calendar/caldav/daemon.conf` | Derived daemon configuration excluding timer-managed pairs |
@@ -113,6 +114,21 @@ Legacy polling intervals remain in the user's `pimsync.conf`; updates preserve o
 settings. Managed intervals use the manager; see [refresh intervals](#preserve-runtime-state).
 
 </details>
+
+### Saved color presets
+
+`color-presets.json` stores `{"version":1,"colors":[...]}` as machine-local preferences,
+not calendar data or credentials. First use seeds distinct colors from loaded profiles
+only when the file is missing. An existing empty palette is valid and must stay empty.
+Do not delete it as routine cleanup: a missing file will seed again.
+
+Save/remove actions persist immediately and independently of calendar Save/Cancel.
+Selecting or removing a preset does not rewrite calendar colors. Profile edits/removal
+do not discard saved swatches. Malformed/unreadable files are protected rather than
+replaced; failed writes keep the previous palette and show an error.
+
+Program update, confirmation and rollback do not target this state file. Preserve it
+with other user preferences; do not clear the whole `quickshell-calendar` state directory.
 
 ### Panel-added CalDAV
 

@@ -6,6 +6,7 @@
 /parse/convert
 /parse/output/
 /dist/
+/tmp/
 
 # Maintained local tests, current release preparation and editor tooling.
 /dev/

@@ -23,8 +23,10 @@
 - `parse/test/` and `dev/tests/`: native, shell, Node and actual Qt regressions.
 
 Runtime helper paths remain `parse/convert`, `parse/calendar-sync-helper` and
-`parse/conflict-broker.sh`. Generated objects, test executables and disposable
-fixtures belong in ignored `parse/output/`.
+`parse/conflict-broker.sh`. Legacy Make targets still generate objects/test executables
+in `parse/output/`; do not treat existing build output as disposable task material.
+New task plans, probes, fixtures, logs, screenshots and isolated HOME/XDG/TMP directories
+belong together under ignored `tmp/<task>/`.
 
 Native build wiring lives in `parse/Makefile`. Before running a development source checkout,
 build its helpers with `make -C parse convert calendar-sync-helper`. Installed release
@@ -358,32 +360,86 @@ conflicts-array interface after staging deletion. Pre-sync `discarding` permits 
 Retry after interrupted Cancel without deleted review/activation files. Tests use no live
 credentials/collections and never change user services.
 
+## Calendar color presets
+
+`common/ColorPresets.js` validates RGB/Qt ARGB, canonicalizes equivalent opaque colors,
+deduplicates and validates the version-1 document. `services/ColorPresetStore.qml` owns
+missing-file-only seeding and synchronous atomic add/remove writes. The store is shared
+through `CalendarService`; calendar Save remains separate from palette persistence.
+
+`ui/ColorPresetPopup.qml` is an inline control, not a window-overlay Popup: it opens above
+its selector, reveals itself through the existing ScrollView when needed, and inherits
+form clipping. Keep the color row bounded to the actual form width; other form fields
+can otherwise enlarge the layout column on narrow windows.
+
+One MouseArea routes physical left/right clicks exclusively. Keep the native Button
+activation for keyboard/accessibility and its pressed feedback. Combining Button selection
+with an independent right-button TapHandler previously selected colors after only 3px of
+movement; drag-threshold cancellation and long holds also lost the menu. Regressions must
+exercise press/move/release and holds, not only stationary clicks.
+
+While the removal action is visible, its first outside press consumes only dismissal.
+It must not select another swatch, save the calendar or close the grid. Ordinary outside
+dismissal resumes afterward. Preserve empty palettes and prior state on failed writes.
+
 ## Checks
 
 Build dependencies: C++17 compiler, Make, pkg-config, libical, Qt6Core and Qt6Network
 (both from `qt6-base`). Tests add Node.js, jq, pimsync and usual POSIX tools; Qt probes
 add Python/PySide6 and QtTest QML. Run from this config with private HOME/all XDG/TMP
-set before Qt. Use ignored output or approved `/tmp/opencode`, disable QML disk cache
-and stop fixtures before inspected cleanup, including after failures:
+set before Qt. Keep task artifacts under `tmp/<task>/`, disable QML disk cache, and stop
+fixtures before inspected cleanup, including after failures. An external short IPC path
+requires explicit approval.
+
+Start with static checks:
 
 ```sh
-make -C parse test
 make -C parse lint
-python dev/tests/services/test-optional-file-warnings-qs.py
-python dev/tests/services/test-import-qs.py
-sh dev/tests/installer/test-installer.sh
-sh dev/tests/installer/test-update-bootstrap.sh
-sh dev/tests/installer/test-updater.sh
-sh -ec 'work=$(mktemp -d "$PWD/parse/output/qt-tests.XXXXXX")
-trap '\''rm -rf -- "$work"'\'' EXIT
-export XDG_CACHE_HOME="$work/cache" XDG_CONFIG_HOME="$work/config"
-export XDG_DATA_HOME="$work/data" XDG_STATE_HOME="$work/state" TMPDIR="$work/tmp"
-export QML_DISABLE_DISK_CACHE=1
-mkdir -p "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$TMPDIR"
-for test in dev/tests/services/test-conflict-qt.py dev/tests/ui/test-*.py; do
-    QT_QPA_PLATFORM=offscreen python "$test"
-done'
 ```
+
+Focused preset checks, without live Calendar or calendar-data access:
+
+```sh
+(
+    set -eu
+    umask 077
+    git check-ignore -q -- tmp/preset-check/
+    test ! -L tmp
+    mkdir -p tmp
+    task=$(mktemp -d "$PWD/tmp/preset-check.XXXXXX")
+    printf 'Task directory: %s\n' "$task"
+    export CALENDAR_TEST_WORK="$task"
+    for name in HOME XDG_CACHE_HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_RUNTIME_DIR TMPDIR; do
+        mkdir -m 700 "$task/$name"
+        export "$name=$task/$name"
+    done
+    export QT_QPA_PLATFORM=offscreen QML_DISABLE_DISK_CACHE=1 PYTHONDONTWRITEBYTECODE=1
+    node dev/tests/common/test-color-presets.js
+    python -B dev/tests/services/test-color-presets-qs.py
+    python -B dev/tests/ui/test-color-presets-qt.py
+    python -B dev/tests/ui/test-color-presets-manager-qs.py
+)
+```
+
+Inspect and remove only the printed task directory after fixtures stop. These native
+preset fixtures do not use IPC; long task paths may produce an unused IPC-socket warning,
+not a reason to move runtime state outside the task without approval.
+
+Coverage includes seeding/restart, RGB/ARGB duplicates, empty palettes, failed writes,
+above-grid clipping, narrow/short full-manager geometry, mouse drift/holds, keyboard,
+disabled states, menu-only dismissal and Save isolation. The real-manager fixture uses
+production QML with a fake service; desktop checks remain manual.
+
+`make -C parse test` and some older fixtures still hardcode `parse/output/` or external
+IPC paths. Review/adapt those locations before running them under task-local isolation;
+an outer environment alone does not override hardcoded paths. Do not blindly run every
+Qt script. The installer/updater shell entrypoints still group supported release checks;
+their older names do not mean they build source on the client.
+
+`node-tests` recursively discovers maintained `test-*.js` files, including imported
+recurrence and grouped conflict/argument checks. Native budget coverage uses the
+Makefile's `output/grouped_conflict_limits` target and `test/grouped_conflict_limits.sh`;
+keep shared bridges/support files used by those tests.
 
 The native import-session test runs in `make -C parse test`, using Python/OpenSSL private
 HTTP/HTTPS feeds for certificate/redirect safety, gzip, size bounds, token privacy and
@@ -482,18 +538,24 @@ Local journals and regressions do not establish remote atomicity.
 
 ## Local runtime release packaging
 
-From the Calendar source root:
+Before packaging changed code, choose an unpublished `VERSION` higher than the installed
+baseline. Reusing an installed version with changed contents is not an update.
+Then, from the Calendar source root:
 
 ```sh
 python3 -I -B tools/package-release.py
 ```
 
-The development-only packager reads `VERSION` (currently `0.1.2`) and the explicit
+The development-only packager reads `VERSION` (currently `0.1.3`) and the explicit
 `release-files.txt` allowlist. It freezes owned, unlinked inputs in private staging,
 builds `convert` and `calendar-sync-helper` with the Makefile, checks ELF architecture,
 and packages runtime files under one `calendar/` root. It never replaces working
 helpers/objects, runs the installed application, installs packages, changes services,
 accesses calendars/credentials, contacts servers, commits, pushes or publishes.
+Temporary builds, private HOME/XDG/TMP and validation output stay beneath
+`tmp/package-release/.release-build-<unique-id>/`; only completed deliverables go to
+`dist/releases/`. Both staging parents must be owned real directories without
+group/world write access. Packaging is not part of routine documentation verification.
 
 Requirements on the development PC: Linux x86_64, Python 3.11+, Make, g++,
 binutils/readelf, pkg-config, libical and Qt6Core/Qt6Network development files.
@@ -504,21 +566,22 @@ owned build process group before deleting staging.
 Each successful invocation creates a new private, Git-ignored directory:
 
 ```text
-dist/releases/calendar-v0.1.2-linux-x86_64-<unique-id>/
-  calendar-v0.1.2-linux-x86_64.tar.gz
-  calendar-v0.1.2-linux-x86_64.tar.gz.sha256
+dist/releases/calendar-v0.1.3-linux-x86_64-<unique-id>/
+  calendar-v0.1.3-linux-x86_64.tar.gz
+  calendar-v0.1.3-linux-x86_64.tar.gz.sha256
 ```
 
-`dist/` is Git-ignored. Whole-app archives go in `dist/releases/`, separate from native
-`parse/output/`. Same-code private update fixtures go in `dist/fixtures/` with an external
-`DO-NOT-PUBLISH.txt`, never release tags/assets. Remove superseded candidates/fixtures
-after replacement verification. Historical `parse/output/` archives were retired, not
-build inputs; never restore or publish old source-building installers from backups.
+`dist/` is Git-ignored. Maintained whole-app archives stay in `dist/releases/`, separate
+from native build output. Temporary update fixtures belong in `tmp/<task>/`, labeled
+`DO-NOT-PUBLISH.txt`, never release tags/assets. Inspect and remove only the current task's
+disposable fixtures after checks; retain released archives needed for recovery/baseline
+verification. Historical `parse/output/` archives were retired, not build inputs; never
+restore or publish old source-building installers from backups.
 
 Earlier candidates are never overwritten. Handled failures/cancellation clean staging
 without leaving a completed archive/checksum pair. Packager SIGKILL or power loss may
 leave staging for inspected cleanup. From the candidate directory, run
-`sha256sum -c calendar-v0.1.2-linux-x86_64.tar.gz.sha256`; checksums detect corruption,
+`sha256sum -c calendar-v0.1.3-linux-x86_64.tar.gz.sha256`; checksums detect corruption,
 not publisher authenticity.
 
 The archive contains version/runtime manifest, QML/JavaScript, Python/shell deployment
@@ -540,20 +603,22 @@ compatibility reassessment, extracted-entrypoint and real-artifact lifecycle che
 and appropriate manual desktop/client checks. Version-only promotion can reuse prior
 runtime evidence only when every file, including fresh helpers, matches except `VERSION`.
 Patch `0.1.2` fixes post-restart service-state checks and retains the `0.1.1` picker fix.
+Version `0.1.3` adds saved color presets without changing the controller/archive format.
 Data schema, runtime-unit membership and public updater arguments remain unchanged;
 it still requires a complete newer package, not individual file copies.
 
 **Tagging/publication and client installation need separate manual approvals.**
-A local stable `0.1.2` archive is not a GitHub release. When approved, use tag
-`calendar-v0.1.2`, title **v0.1.2**, and **Pre-release unchecked**. Never replace
-published `0.1` or `0.1.1` assets. Beta parsing and explicit
+A local archive is not a GitHub release. When approved, use tag
+`calendar-v<VERSION>`, title `v<VERSION>`, and **Pre-release unchecked** for a stable
+version. Never replace any published version's assets. Beta parsing and explicit
 `--archive` remain supported. Older packaging-only candidates contain source-building
 scripts; never install/publish them. Rebuild with the current runtime installer/backend
 and verify. Client evidence must match that runtime, except version-only promotions
 as described above. Native source/tests stay on the development PC; no tests enter
 Git or client installations.
 
-Fast local packaging regression:
+Fast local packaging regression, with `CALENDAR_TEST_WORK` and the private HOME/XDG/TMP
+environment from [Checks](#checks) set first:
 
 ```sh
 python3 -I -B dev/tests/installer/test-release-package.py
@@ -633,11 +698,20 @@ python3 -I -B dev/tests/installer/test-release-archive.py
 python3 -I -B dev/tests/installer/test-release-deploy.py
 python3 -I -B dev/tests/installer/test-release-deploy.py startup
 python3 -I -B dev/tests/installer/test-release-entrypoints.py
+python3 -I -B dev/tests/installer/test-color-presets-update.py /absolute/path/to/retained/calendar-v0.1.2-linux-x86_64.tar.gz
 python3 -I -B dev/tests/installer/test-deployment-native.py /path/to/privately/built/calendar-sync-helper
 python3 -I -B dev/tests/installer/test-release-runtime-qs.py
-python3 -I -B dev/tests/installer/test-release-artifact.py /absolute/path/calendar-v0.1.2-linux-x86_64.tar.gz
+python3 -I -B dev/tests/installer/test-release-artifact.py /absolute/path/calendar-v0.1.2-linux-x86_64.tar.gz /absolute/path/calendar-v0.1.3-linux-x86_64.tar.gz
 python3 -I -B dev/tests/installer/test-release-startup-recovery.py OLD_ARCHIVE FAILED_ARCHIVE FIXED_ARCHIVE
 ```
+
+The preset-updater check requires the same task-local HOME/XDG/TMP isolation and
+`CALENDAR_TEST_WORK` shown above. Pass a retained trusted `0.1.2` archive inside this
+config root. It verifies that the archived controller/policy/entrypoints match source,
+then uses synthetic manifest-only packages to check added preset files, missing/empty/saved
+palette preservation, rollback/confirmation and same-version replacement refusal.
+System/native/network/Git boundaries are mocked; it does not test the other machine's
+actual receipt, services, libraries or network, and produces no publishable release.
 
 Archive tests use real filesystem/tar inputs, stubbing only network. Deployment tests
 use real files/Git with mocked system/native orchestration. Native tests exercise real
@@ -651,7 +725,8 @@ sources. These tests include no notification probes, live client installs or pub
 Isolated checks do not replace client/systemd/library verification; identical-runtime version
 promotions may reuse evidence as above.
 
-The artifact test uses real release/backend/native helpers for isolated install →
+The artifact test also requires task-local HOME/XDG/TMP and `CALENDAR_TEST_WORK`.
+It uses real release/backend/native helpers for isolated install →
 update → rollback → repeat update/confirmation → same-version no-op. With
 `BASELINE_ARCHIVE NEW_ARCHIVE`, the selected new controller exercises two actual stable
 packages through discovery using isolated GitHub responses. Controller bytes must match
@@ -663,10 +738,13 @@ version. Fixtures are labeled, cleaned and never published.
 
 Its process gate allows only private native probes/plans and selected-path Quickshell
 listing—no services, GUI, packages, notifications or server commands. Package-presence
-checks are bypassed, covered separately by dependency-consent fixtures. Checks preserve
-event/configuration/credential/database hashes, ownership/modes/inodes/timestamps and
-persistent lock inode, and verify complete installed inventories. These checks do not
-contact GitHub or replace a manual desktop/sync check on the client.
+checks and Git discovery are bypassed, covered separately by dependency-consent and
+real-Git deployment fixtures. Checks preserve
+event/configuration/credential/database/palette hashes, ownership/modes/inodes/timestamps and
+persistent lock inode, and verify complete installed inventories. Manifest membership
+may grow: retained files preserve
+their metadata, and added files must match the new archive with current-user ownership.
+These checks do not contact GitHub or replace a manual desktop/sync check on the client.
 
 The `startup` group models queued starts instead of immediate-success service mocks:
 long-running activation/reload, import/CalDAV activation/deactivation, running/closed

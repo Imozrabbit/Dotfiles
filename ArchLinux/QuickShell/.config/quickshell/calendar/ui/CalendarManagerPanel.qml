@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Qt.labs.folderlistmodel
 import Quickshell
 import "../common/Theme.js" as Theme
+import "../common/ColorPresets.js" as ColorPresets
 
 Item {
     id: root
@@ -1224,6 +1225,7 @@ Item {
         id: formComponent
 
         ColumnLayout {
+            id: formLayout
             enabled: !root.operationPending && !root.editingConflicted
             opacity: enabled ? 1 : 0.4
             spacing: 5
@@ -1432,21 +1434,71 @@ Item {
                 Layout.topMargin: 10
             }
             RowLayout {
+                z: colorPopup.opened ? 1 : 0
                 Layout.fillWidth: true
+                Layout.maximumWidth: formLayout.width
                 FormField {
+                    objectName: "calendarColorHex"
+                    Layout.minimumWidth: 0
                     text: root.colorText
                     enabled: !root.attachmentMode
                     placeholderText: "#rrggbb"
                     onTextEdited: root.colorText = text
                 }
-                Rectangle {
+                Controls.Button {
+                    id: colorSelector
+                    objectName: "calendarColorSelector"
+                    readonly property color previewColor: ColorPresets.normalizeColor(root.colorText) || "#7b9acc"
                     Layout.preferredWidth: 34
                     Layout.preferredHeight: 34
-                    radius: Theme.radius
-                    color: root.colorText
-                    border.width: 1
-                    border.color: Theme.border
+                    enabled: !root.attachmentMode && root.calendarService.colorPresets?.ready === true
+                    Accessible.name: "Choose a color preset"
+                    Keys.onReturnPressed: clicked()
+                    Keys.onEnterPressed: clicked()
+                    onClicked: colorPopup.open()
+                    background: Rectangle {
+                        color: colorSelector.previewColor
+                        radius: Theme.radius
+                        border.width: 1
+                        border.color: colorSelector.activeFocus ? Theme.text : Theme.border
+                    }
+                    HoverHandler {
+                        enabled: colorSelector.enabled
+                        cursorShape: Qt.PointingHandCursor
+                    }
                 }
+            }
+            ActionButton {
+                objectName: "calendarSaveColorPreset"
+                label: "Save as preset"
+                enabled: !root.attachmentMode && root.calendarService.colorPresets?.canAdd(root.colorText) === true
+                activeFocusOnTab: enabled
+                border.color: activeFocus ? Theme.text : Theme.border
+                Accessible.role: Accessible.Button
+                Accessible.name: label
+                Accessible.onPressAction: clicked()
+                Keys.onPressed: event => {
+                    if (event.key !== Qt.Key_Space && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
+                        return;
+                    clicked();
+                    event.accepted = true;
+                }
+                onClicked: root.calendarService.colorPresets.add(root.colorText)
+            }
+            FormHint {
+                objectName: "calendarColorPresetError"
+                text: root.calendarService.colorPresets?.errorMessage || ""
+                visible: text.length > 0
+            }
+            ColorPresetPopup {
+                id: colorPopup
+                objectName: "calendarColorPresetPopup"
+                selector: colorSelector
+                viewport: managerScroll
+                colors: root.calendarService.colorPresets?.colors || []
+                selectedColor: root.colorText
+                onColorPicked: color => root.colorText = color
+                onColorRemovalRequested: color => root.calendarService.colorPresets.remove(color)
             }
             FieldLabel {
                 visible: root.typeText === "imported" && root.editingId.length === 0

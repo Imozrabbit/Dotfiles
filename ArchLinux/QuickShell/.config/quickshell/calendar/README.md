@@ -16,6 +16,9 @@ packages with your approval. No client compilation or third-party Python package
 
 ## Install
 
+Examples below target **0.1.3**. Publication is a separate manual step; use the filenames
+of the release you actually downloaded.
+
 Download the `.tar.gz` archive and matching `.sha256` file from a
 [Calendar-specific GitHub Release](https://github.com/Imozrabbit/Dotfiles/releases).
 Do not use Dotfiles' unrelated latest release or a standalone install script from `master`.
@@ -26,10 +29,10 @@ not publisher compromise. Use a new temporary directory outside the install targ
 Run commands one at a time; continue only if each succeeds and the checksum reports **OK**:
 
 ```sh
-sha256sum -c calendar-v0.1.2-linux-x86_64.tar.gz.sha256
+sha256sum -c calendar-v0.1.3-linux-x86_64.tar.gz.sha256
 mkdir -m 700 calendar-install
-tar -xzf calendar-v0.1.2-linux-x86_64.tar.gz -C calendar-install
-sh calendar-install/calendar/install.sh --archive "$PWD/calendar-v0.1.2-linux-x86_64.tar.gz"
+tar -xzf calendar-v0.1.3-linux-x86_64.tar.gz -C calendar-install
+sh calendar-install/calendar/install.sh --archive "$PWD/calendar-v0.1.3-linux-x86_64.tar.gz"
 ```
 
 This installs to `~/.config/quickshell/calendar` with no calendars. It does not launch
@@ -73,6 +76,25 @@ while this Quickshell configuration runs, even if its window/calendar is hidden.
 - Scroll normally to move through a view; hold **Ctrl** while scrolling to zoom.
 - Click a calendar name in the main window's list to show or hide its events.
 
+### Color presets
+
+In **Manage calendars**, click the color square beside the hex field to open the preset
+grid above the field. Left-click a swatch to select it, or use the arrow keys and
+**Enter**/**Space**. Selection changes the form only; **Save** still saves the calendar.
+Enter a custom `#rrggbb` or Qt `#aarrggbb` value (alpha first) and click **Save as preset**
+to keep it immediately. Invalid or equivalent already-saved colors cannot be added again.
+Right-click a saved swatch and choose **Remove preset** to remove it from the palette
+immediately, without changing the form's hex value or any calendar color. Removal has
+no **Delete** shortcut. Canceling the calendar form does not undo saved/removed presets.
+While **Remove preset** is shown, clicking elsewhere dismisses only that option;
+the grid stays open and the click does not select or save anything. A later outside
+click closes the grid; **Escape** dismisses the removal option first, then the grid.
+
+On first use, the palette starts with the colors of your configured calendars. Presets
+stay saved if those calendars change color or are removed. They are local to this machine,
+stored in `${XDG_STATE_HOME:-$HOME/.local/state}/quickshell-calendar/color-presets.json`.
+Removing every preset leaves an empty palette across restarts.
+
 ## Guides
 
 - [Import a calendar file](docs/maintenance.md#one-time-import-workspace)—successful import moves the selected original.
@@ -93,8 +115,13 @@ while this Quickshell configuration runs, even if its window/calendar is hidden.
 - [x] Recurring events and reminders.
 - [x] Release-package installation, updates, confirmation and rollback without resetting calendar data.
 
+### Implemented for 0.1.3
+
+Local release preparation; GitHub publication pending.
+
+- [x] Calendar color presets: select, save custom RGB/ARGB colors and remove saved swatches.
+
 ### Planned features
 
-- [ ] Improved color selection for calendars.
 - [ ] Portable export/import for profiles, events, recurrence, source settings,
   credentials and machine-specific recovery/state—not just ICS files.

@@ -175,7 +175,13 @@ def main():
     os.umask(0o077)
     version, names, native_sources, snapshots = release_inputs()
     output = output_directory()
-    with tempfile.TemporaryDirectory(prefix=".release-build-", dir=output) as temporary:
+    work = ROOT
+    for component in ("tmp", "package-release"):
+        work /= component
+        work.mkdir(mode=0o700, exist_ok=True)
+        checked_directory(work)
+        require(not work.stat().st_mode & 0o022, "Release staging must not be writable by other users.")
+    with tempfile.TemporaryDirectory(prefix=".release-build-", dir=work) as temporary:
         stage = Path(temporary)
         payload, build = stage / "runtime/calendar", stage / "build/parse"
         payload.mkdir(parents=True)
