@@ -11,7 +11,6 @@ mouse-hide-while-typing = true
 quit-after-last-window-closed = true
 quit-after-last-window-closed-delay = 1m
 gtk-single-instance = false
-gtk-custom-css = /home/Zrabbit/.config/ghostty/blur.css
 bell-features = border,no-system,no-audio
 
 #------------------------------------------------------------------#
