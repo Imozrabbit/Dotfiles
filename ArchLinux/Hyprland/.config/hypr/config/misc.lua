@@ -17,6 +17,9 @@ hl.config({
 })
 
 hl.config({
+	quirks = {
+		prefer_hdr = 1,
+	},
 	render = {
 		-- Glitches for 0.57, need further improvement
 		-- use_shader_blur_blend = true,
