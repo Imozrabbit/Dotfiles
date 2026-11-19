@@ -117,7 +117,6 @@ window_rule(
 window_rule(
 	"Stremio: fullscreen on workspace 4",
 	{
-		class = "com.stremio.Stremio",
 		title = "Stremio",
 	},
 	STYLE.opaque,
